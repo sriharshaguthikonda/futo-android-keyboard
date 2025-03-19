@@ -1,0 +1,26 @@
+name: Build LatinIME APK
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t latinime-build -f .ci/Dockerfile .
+
+      - name: Run Docker container
+        run: docker run --rm latinime-build
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-unstable-debug
+          path: app/build/outputs/apk/unstable/debug/app-unstable-debug.apk
