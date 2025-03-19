@@ -1,9 +1,9 @@
 plugins {
-    id 'com.android.application' version '8.2.2'
+    id 'com.android.application' version '8.9.0'
     id 'org.jetbrains.kotlin.android' version '2.0.0'
     id 'org.jetbrains.kotlin.plugin.compose' version '2.0.0'
     id 'org.jetbrains.kotlin.plugin.serialization' version '2.0.0'
-    id 'com.android.library' version '8.2.2' apply false
+    id 'com.android.library' version '8.9.0' apply false
 }
 
 def getVersionCode = { ->
@@ -34,9 +34,10 @@ def getVersionName = { ->
     }
 }
 
-// TODO: Remove
+// TODO: Remove - harsha changed this
 tasks.register('updateLocales', Exec) {
-    commandLine 'bash', '-c', 'cd tools/make-keyboard-text-py && python3 src/generate.py'
+    workingDir 'tools/make-keyboard-text-py'
+    commandLine 'python', 'src/generate.py'
 }
 
 preBuild.dependsOn updateLocales
@@ -204,13 +205,6 @@ android {
         }
     }
 
-    lintOptions {
-        checkReleaseBuilds false
-    }
-
-    aaptOptions {
-        noCompress 'dict'
-    }
 
     externalNativeBuild {
         ndkBuild {
@@ -226,6 +220,12 @@ android {
         viewBinding true
         mlModelBinding true
         buildConfig true
+    }
+    androidResources {
+        noCompress 'dict'
+    }
+    lint {
+        checkReleaseBuilds false
     }
 }
 
