@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,12 +31,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 
-
 enum class CurrentDraggingTarget {
-    //TopLeft,
-    //TopRight,
-    //BottomLeft,
-    //BottomRight,
     Left,
     Right,
     Top,
@@ -42,10 +40,6 @@ enum class CurrentDraggingTarget {
 }
 
 private fun CurrentDraggingTarget.computeOffset(size: Size): Offset = when(this) {
-    //CurrentDraggingTarget.TopLeft -> Offset(0.0f, 0.0f)
-    //CurrentDraggingTarget.TopRight -> Offset(size.width, 0.0f)
-    //CurrentDraggingTarget.BottomLeft -> Offset(0.0f, size.height)
-    //CurrentDraggingTarget.BottomRight -> Offset(size.width, size.height)*/
     CurrentDraggingTarget.Top -> Offset(size.width * 0.5f, 0.0f)
     CurrentDraggingTarget.Bottom -> Offset(size.width * 0.5f, size.height)
     CurrentDraggingTarget.Left -> Offset(0.0f, size.height * 0.5f)
@@ -57,10 +51,6 @@ private fun CurrentDraggingTarget.computeOffset(size: IntSize): Offset =
     computeOffset(size.toSize())
 
 private fun CurrentDraggingTarget.dragDelta(offset: Offset): DragDelta = when(this) {
-    //CurrentDraggingTarget.TopLeft -> DragDelta(left = offset.x, top = offset.y)
-    //CurrentDraggingTarget.TopRight -> DragDelta(right = offset.x, top = offset.y)
-    //CurrentDraggingTarget.BottomLeft -> DragDelta(left = offset.x, bottom = offset.y)
-    //CurrentDraggingTarget.BottomRight -> DragDelta(right = offset.x, bottom = offset.y)
     CurrentDraggingTarget.Top -> DragDelta(top = offset.y)
     CurrentDraggingTarget.Bottom -> DragDelta(bottom = offset.y)
     CurrentDraggingTarget.Left -> DragDelta(left = offset.x)
@@ -80,7 +70,6 @@ data class DragDelta(
     val bottom: Float = 0.0f
 )
 
-
 @Composable
 fun BoxScope.ResizerRect(onDragged: (DragDelta) -> Boolean, showResetApply: Boolean, onApply: () -> Unit, onReset: () -> Unit) {
     val shape = RoundedCornerShape(4.dp)
@@ -95,7 +84,7 @@ fun BoxScope.ResizerRect(onDragged: (DragDelta) -> Boolean, showResetApply: Bool
         .pointerInput(Unit) {
             detectDragGestures(
                 onDragStart = { offset ->
-                    draggingState.value = CurrentDraggingTarget.entries.minBy {
+                    draggingState.value = CurrentDraggingTarget.values().minBy {
                         offset.minus(it.computeOffset(size)).getDistanceSquared()
                     }
                 },
@@ -111,6 +100,7 @@ fun BoxScope.ResizerRect(onDragged: (DragDelta) -> Boolean, showResetApply: Bool
             )
         }
         .clip(shape)
+        .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         val primaryColor = MaterialTheme.colorScheme.primary
         val primaryInverseColor = MaterialTheme.colorScheme.inversePrimary
@@ -118,7 +108,7 @@ fun BoxScope.ResizerRect(onDragged: (DragDelta) -> Boolean, showResetApply: Bool
         val radius = with(LocalDensity.current) { 24.dp.toPx() }
 
         Canvas(Modifier.matchParentSize(), onDraw = {
-            CurrentDraggingTarget.entries.forEach {
+            CurrentDraggingTarget.values().forEach {
                 drawCircle(
                     color = if (!wasAccepted.value) {
                         errorColor

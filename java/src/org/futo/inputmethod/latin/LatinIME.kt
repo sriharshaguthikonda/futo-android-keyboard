@@ -13,6 +13,7 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.inputmethod.CompletionInfo
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InlineSuggestionsRequest
@@ -27,7 +28,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -81,8 +81,6 @@ import org.futo.inputmethod.latin.uix.theme.applyWindowColors
 import org.futo.inputmethod.latin.uix.theme.orDefault
 import org.futo.inputmethod.latin.uix.theme.presets.DefaultDarkScheme
 import org.futo.inputmethod.latin.utils.JniUtils
-import org.futo.inputmethod.latin.xlm.LanguageModelFacilitator
-import org.futo.inputmethod.updates.scheduleUpdateCheckingJob
 import org.futo.inputmethod.v2keyboard.ComputedKeyboardSize
 import org.futo.inputmethod.v2keyboard.FloatingKeyboardSize
 import org.futo.inputmethod.v2keyboard.KeyboardSettings
@@ -94,6 +92,8 @@ import org.futo.inputmethod.v2keyboard.dimensionsSameAs
 import org.futo.inputmethod.v2keyboard.getPrimaryLayoutOverride
 import org.futo.inputmethod.v2keyboard.isFoldableInnerDisplayAllowed
 import kotlin.math.roundToInt
+import org.futo.inputmethod.latin.xlm.LanguageModelFacilitator
+import org.futo.inputmethod.updates.scheduleUpdateCheckingJob
 
 /** Whether or not we can render into the navbar */
 val SupportsNavbarExtension = Build.VERSION.SDK_INT >= 28
@@ -170,7 +170,7 @@ open class InputMethodServiceCompose : InputMethodService(), LifecycleOwner, Vie
 }
 
 class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripController,
-        DynamicThemeProviderOwner, FoldStateProvider, KeyboardSizeStateProvider {
+    DynamicThemeProviderOwner, FoldStateProvider, KeyboardSizeStateProvider {
     val latinIMELegacy = LatinIMELegacy(
         this as InputMethodService,
         this as LatinIMELegacy.SuggestionStripController
@@ -229,30 +229,19 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
     private var isNavigationBarVisible = false
     fun updateNavigationBarVisibility(visible: Boolean? = null) {
-        if(visible != null) isNavigationBarVisible = visible
+        if (visible != null) isNavigationBarVisible = visible
 
-        if(SupportsNavbarExtension) {
-            val shouldMaintainContrast = size.value is FloatingKeyboardSize
-
-            val color = (colorScheme.navigationBarColor ?: colorScheme.keyboardSurface).copy(alpha = 0.0f).toArgb()
-
-            window.window?.let { window ->
-                applyWindowColors(window, color, statusBar = false)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    window.setNavigationBarContrastEnforced(shouldMaintainContrast)
-                }
-
-                WindowCompat.setDecorFitsSystemWindows(window, false)
-            }
-        } else {
-            val color = colorScheme.navigationBarColor?.toArgb() ?: drawableProvider?.keyboardColor
-
-            window.window?.let { window ->
-                if(color == null || !isNavigationBarVisible) {
-                    applyWindowColors(window, Color.TRANSPARENT, statusBar = false)
-                } else {
-                    applyWindowColors(window, color, statusBar = false)
-                }
+        window.window?.let { window ->
+            val decorView = window.decorView
+            if (!isNavigationBarVisible) {
+                // Hide the navigation bar when the keyboard is visible
+                decorView.systemUiVisibility = (
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or  // Hides the navigation bar
+                                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY    // Keeps it hidden with immersive mode
+                        )
+            } else {
+                // Restore the navigation bar when the keyboard is hidden
+                decorView.systemUiVisibility = 0 // Reset to default visibility
             }
         }
     }
@@ -290,7 +279,6 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             }
         }
 
-        // TODO: Verify this actually fixes anything
         if(drawableProvider?.displayDpi != resources.displayMetrics.densityDpi) {
             updateDrawableProvider(activeColorScheme)
             recreateKeyboard()
@@ -342,8 +330,6 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         }
     }
 
-    // Called by UixManager when the intention is to subsequently call LegacyKeyboardView with hidden=false
-    // Maybe this can be changed to LaunchedEffect
     fun onKeyboardShown() {
         if(pendingRecreateKeyboard) {
             pendingRecreateKeyboard = false
@@ -454,7 +440,6 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             }
         }
 
-        // Listen to size changes
         launchJob {
             val prev: MutableMap<KeyboardSizeSettingKind, String?> =
                 KeyboardSizeSettingKind.entries.associateWith { null }.toMutableMap()
@@ -534,8 +519,6 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         isInputModal = to
     }
 
-    // The keyboard view really doesn't like being detached, so it's always
-    // shown, but resized to 0 if an action window is open
     @Composable
     internal fun LegacyKeyboardView(hidden: Boolean) {
         val modifier = if(hidden) {
@@ -561,7 +544,6 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         }
     }
 
-    // necessary for when KeyboardSwitcher updates the theme
     fun updateLegacyView(newView: View) {
         Log.w("LatinIME", "Updating legacy view")
         legacyInputView = newView
@@ -623,15 +605,17 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
     override fun onWindowShown() {
         super.onWindowShown()
         latinIMELegacy.onWindowShown()
-
         updateColorsIfDynamicChanged()
+        // Hide navigation bar when keyboard is shown
+        updateNavigationBarVisibility(false)
     }
 
     override fun onWindowHidden() {
         super.onWindowHidden()
         latinIMELegacy.onWindowHidden()
-
         uixManager.onInputFinishing()
+        // Show navigation bar when keyboard is hidden
+        updateNavigationBarVisibility(true)
     }
 
     override fun onUpdateSelection(
@@ -681,7 +665,6 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
     }
 
     override fun onComputeInsets(outInsets: Insets?) {
-        // This method may be called before {@link #setInputView(View)}.
         if (legacyInputView == null || composeView == null) {
             return
         }
@@ -739,8 +722,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
     }
 
     override fun onEvaluateFullscreenMode(): Boolean {
-        // TODO: Revisit fullscreen mode
-        return false //latinIMELegacy.onEvaluateFullscreenMode(super.onEvaluateFullscreenMode())
+        return false
     }
 
     override fun updateFullscreenMode() {
@@ -875,9 +857,6 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
         Log.i("LatinIME", "Device has been unlocked, reloading settings")
 
-        // Every place that called getDefaultSharedPreferences now needs to be refreshed or call it again
-
-        // Mainly Settings singleton needs to be refreshed
         Settings.init(applicationContext)
         Settings.getInstance().onSharedPreferenceChanged(null /* unused */, "")
         latinIMELegacy.loadSettings()
@@ -888,8 +867,6 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         uixManager.onPersistentStatesUnlocked()
 
         updateTheme(ThemeOptions[getSettingBlocking(THEME_KEY)].orDefault(this))
-
-        // TODO: Spell checker service
     }
 
     override val foldState: FoldingOptions

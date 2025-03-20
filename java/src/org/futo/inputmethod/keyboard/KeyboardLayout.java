@@ -1,19 +1,3 @@
-/*
- * Copyright (C) 2015 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License
- */
-
 package org.futo.inputmethod.keyboard;
 
 import org.futo.inputmethod.annotations.UsedForTesting;
@@ -29,25 +13,26 @@ import javax.annotation.Nonnull;
 public class KeyboardLayout {
 
     private final int[] mKeyCodes;
-
     private final int[] mKeyXCoordinates;
     private final int[] mKeyYCoordinates;
-
     private final int[] mKeyWidths;
     private final int[] mKeyHeights;
 
     public final int mMostCommonKeyWidth;
     public final int mMostCommonKeyHeight;
-
     public final int mKeyboardWidth;
     public final int mKeyboardHeight;
+    private final int keySpacing; // Key spacing in pixels (default: 2px for slight separation)
+    private final int rowSpacing; // Row spacing in pixels (default: 2px to reduce height between rows)
 
     public KeyboardLayout(ArrayList<Key> layoutKeys, int mostCommonKeyWidth,
-            int mostCommonKeyHeight, int keyboardWidth, int keyboardHeight) {
-        mMostCommonKeyWidth = mostCommonKeyWidth;
-        mMostCommonKeyHeight = mostCommonKeyHeight;
-        mKeyboardWidth = keyboardWidth;
-        mKeyboardHeight = keyboardHeight;
+                          int mostCommonKeyHeight, int keyboardWidth, int keyboardHeight, int keySpacing, int rowSpacing) {
+        this.mMostCommonKeyWidth = mostCommonKeyWidth;
+        this.mMostCommonKeyHeight = mostCommonKeyHeight;
+        this.mKeyboardWidth = keyboardWidth;
+        this.mKeyboardHeight = keyboardHeight;
+        this.keySpacing = keySpacing;
+        this.rowSpacing = rowSpacing;
 
         mKeyCodes = new int[layoutKeys.size()];
         mKeyXCoordinates = new int[layoutKeys.size()];
@@ -58,10 +43,10 @@ public class KeyboardLayout {
         for (int i = 0; i < layoutKeys.size(); i++) {
             Key key = layoutKeys.get(i);
             mKeyCodes[i] = Character.toLowerCase(key.getCode());
-            mKeyXCoordinates[i] = key.getDrawX();
-            mKeyYCoordinates[i] = key.getY();
-            mKeyWidths[i] = key.getDrawWidth();
-            mKeyHeights[i] = key.getHeight();
+            mKeyXCoordinates[i] = key.getDrawX() + keySpacing; // Apply 2px spacing to X coordinate
+            mKeyYCoordinates[i] = key.getY() + rowSpacing; // Apply 2px spacing to Y coordinate to reduce row height
+            mKeyWidths[i] = key.getDrawWidth() - keySpacing; // Adjust width to maintain layout
+            mKeyHeights[i] = key.getHeight() - rowSpacing; // Adjust height to reduce row height
         }
     }
 
@@ -70,46 +55,28 @@ public class KeyboardLayout {
         return mKeyCodes;
     }
 
-    /**
-     * The x-coordinate for the top-left corner of the keys.
-     *
-     */
     public int[] getKeyXCoordinates() {
         return mKeyXCoordinates;
     }
 
-    /**
-     * The y-coordinate for the top-left corner of the keys.
-     */
     public int[] getKeyYCoordinates() {
         return mKeyYCoordinates;
     }
 
-    /**
-     * The widths of the keys which are smaller than the true hit-area due to the gaps
-     * between keys. The mostCommonKey(Width/Height) represents the true key width/height
-     * including the gaps.
-     */
     public int[] getKeyWidths() {
         return mKeyWidths;
     }
 
-    /**
-     * The heights of the keys which are smaller than the true hit-area due to the gaps
-     * between keys. The mostCommonKey(Width/Height) represents the true key width/height
-     * including the gaps.
-     */
     public int[] getKeyHeights() {
         return mKeyHeights;
     }
 
-    /**
-     * Factory method to create {@link KeyboardLayout} objects.
-     */
     public static KeyboardLayout newKeyboardLayout(@Nonnull final List<Key> sortedKeys,
-            int mostCommonKeyWidth, int mostCommonKeyHeight,
-            int occupiedWidth, int occupiedHeight) {
-        final ArrayList<Key> layoutKeys = new ArrayList<Key>();
+                                                   int mostCommonKeyWidth, int mostCommonKeyHeight,
+                                                   int occupiedWidth, int occupiedHeight) {
+        final int keySpacing = 2; // Default spacing set to 2 pixels
+        final int rowSpacing = 2; // Default row spacing set to 2 pixels
+        final ArrayList<Key> layoutKeys = new ArrayList<>();
         for (final Key key : sortedKeys) {
             if (!ProximityInfo.needsProximityInfo(key)) {
                 continue;
@@ -119,6 +86,6 @@ public class KeyboardLayout {
             }
         }
         return new KeyboardLayout(layoutKeys, mostCommonKeyWidth,
-                mostCommonKeyHeight, occupiedWidth, occupiedHeight);
+                mostCommonKeyHeight, occupiedWidth, occupiedHeight, keySpacing, rowSpacing);
     }
 }

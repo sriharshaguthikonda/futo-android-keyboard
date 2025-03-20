@@ -39,6 +39,22 @@ public final class InputView extends FrameLayout {
     protected void onFinishInflate() {
         super.onFinishInflate();
         mMainKeyboardView = (MainKeyboardView) findViewById(R.id.keyboard_view);
+
+        // Set the layout parameters to stay at the bottom and hide the navigation bar
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.gravity = 80; // Gravity.BOTTOM
+        setLayoutParams(params);
+
+
+        // Hide the navigation bar with sticky immersive mode
+        int flags = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+
+        setSystemUiVisibility(flags);
     }
 
     @Override
@@ -87,7 +103,7 @@ public final class InputView extends FrameLayout {
      *     <SenderView>.
      */
     private static abstract class
-            MotionEventForwarder<SenderView extends View, ReceiverView extends View> {
+    MotionEventForwarder<SenderView extends View, ReceiverView extends View> {
         protected final SenderView mSenderView;
         protected final ReceiverView mReceiverView;
 

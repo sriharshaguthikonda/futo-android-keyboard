@@ -56,10 +56,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -359,7 +359,7 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     override fun showResizer() {
         uixManager.resizers.displayResizer()
 
-        if(uixManager.currWindowAction != KeyboardModeAction) {
+        if(uixManager.currWindowAction?.value == KeyboardModeAction) {
             uixManager.closeActionWindow()
         }
     }
@@ -1117,7 +1117,7 @@ class UixManager(private val latinIME: LatinIME) {
     fun cleanUpPersistentStates() {
         println("Cleaning up persistent states")
         for((key, value) in persistentStates.entries) {
-            if(currWindowAction != key) {
+            if(currWindowAction.value != key) {
                 latinIME.lifecycleScope.launch { value?.cleanUp() }
             }
         }
@@ -1201,7 +1201,7 @@ class UixManager(private val latinIME: LatinIME) {
 
     fun onCreate() {
         AllActions.forEach { action ->
-            if(action.persistentStateInitialization == PersistentStateInitialization.OnKeyboardLoad) {
+            if (action.persistentStateInitialization == PersistentStateInitialization.OnKeyboardLoad) {
                 persistentStates[action] = action.persistentState?.let { it(keyboardManagerForAction) }
             }
         }
@@ -1213,6 +1213,24 @@ class UixManager(private val latinIME: LatinIME) {
                 foldingOptions.value = FoldingOptions(it.displayFeatures.filterIsInstance<FoldingFeature>().firstOrNull())
                 latinIME.invalidateKeyboard(true)
             }
+        }
+
+        // Safely access the decor view and root view
+        val decorView = latinIME.window.window?.decorView
+        if(decorView != null) {
+            val rootView = decorView.rootView
+            if(rootView != null) {
+                rootView.viewTreeObserver.addOnGlobalLayoutListener {
+                    val heightDiff = rootView.height - (rootView.rootView.height - rootView.bottom)
+                    if (heightDiff > dpToPx(latinIME, 200)) { // If more than 200 dp, keyboard is probably open
+                        rootView.systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    } else {
+                        rootView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+                    }
+                }
+            }
+        } else {
+            Log.w("UixManager", "DecorView is null, cannot set up layout listener")
         }
 
         setContent()
@@ -1275,5 +1293,9 @@ class UixManager(private val latinIME: LatinIME) {
         if(tutorialMode == TutorialMode.ResizerTutorial) {
             onActionActivated(KeyboardModeAction)
         }
+    }
+
+    fun dpToPx(context: Context, dp: Int): Int {
+        return (dp * context.resources.displayMetrics.density).toInt()
     }
 }

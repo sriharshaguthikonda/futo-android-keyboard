@@ -20,13 +20,13 @@
 
 <!-- Configuration values for Small Phone Portrait. -->
 <resources>
-    <bool name="config_use_fullscreen_mode">false</bool>
+    <bool name="config_use_fullscreen_mode">true</bool>
 
     <dimen name="config_key_hysteresis_distance">8.0dp</dimen>
 
     <!-- Preferable keyboard height in absolute scale: 1.285in -->
     <!-- This config_default_keyboard_height value should match with keyboard-heights.xml -->
-    <dimen name="config_default_keyboard_height">205.6dp</dimen>
+    <dimen name="config_default_keyboard_height">185.6dp</dimen>
     <fraction name="config_max_keyboard_height">46%p</fraction>
     <fraction name="config_min_keyboard_height">-61.8%p</fraction>
 
@@ -36,10 +36,10 @@
     <dimen name="config_more_keys_keyboard_slide_allowance">63.36dp</dimen>
     <dimen name="config_more_keys_keyboard_key_horizontal_padding">8dp</dimen>
 
-    <fraction name="config_keyboard_top_padding_holo">2.335%p</fraction>
-    <fraction name="config_keyboard_bottom_padding_holo">4.669%p</fraction>
-    <fraction name="config_key_vertical_gap_holo">6.127%p</fraction>
-    <fraction name="config_key_horizontal_gap_holo">1.739%p</fraction>
+    <fraction name="config_keyboard_top_padding_holo">1.335%p</fraction>
+    <fraction name="config_keyboard_bottom_padding_holo">2.669%p</fraction>
+    <fraction name="config_key_vertical_gap_holo">3.127%p</fraction>
+    <fraction name="config_key_horizontal_gap_holo">0.939%p</fraction>
     <!-- config_more_keys_keyboard_key_height x -0.5 -->
     <dimen name="config_more_keys_keyboard_vertical_correction_holo">-26.4dp</dimen>
     <dimen name="config_key_preview_offset_holo">8.0dp</dimen>

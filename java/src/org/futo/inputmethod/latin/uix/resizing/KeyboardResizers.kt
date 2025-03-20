@@ -35,7 +35,7 @@ open class KeyboardResizeHelper(
     val maximumKeyboardWidth = with(density) { viewSize.width.toDp() }
 
     val minimumKeyboardHeight = 32.dp * 3
-    val maximumKeyboardHeight = with(density) { (viewSize.height * 2.0f / 3.0f).toDp() }.coerceAtLeast(128.dp * 3)
+    val maximumKeyboardHeight = with(density) { (viewSize.height).toDp() }.coerceAtLeast(128.dp * 3)
 
     val maximumSidePadding = 64.dp
     val maximumBottomPadding = 72.dp
@@ -429,26 +429,32 @@ class KeyboardResizers(val latinIME: LatinIME) {
     }
 
 
+@Composable
+fun Resizer(boxScope: BoxScope, size: ComputedKeyboardSize) = with(boxScope) {
+    if (!resizing.value) return
 
-    @Composable
-    fun Resizer(boxScope: BoxScope, size: ComputedKeyboardSize) = with(boxScope) {
-        if(!resizing.value) return
-
-        Box(Modifier.matchParentSize().safeKeyboardPadding().keyboardBottomPadding(size).let {
-            if(size !is FloatingKeyboardSize) {
-                it.absolutePadding(bottom = navBarHeight())
-            } else {
-                it
+    Box(
+        Modifier
+            .matchParentSize()
+            .safeKeyboardPadding() // Keep this for status bar, if needed
+            .keyboardBottomPadding(size)
+            .let {
+                if (size !is FloatingKeyboardSize) {
+                    // Remove or negate nav bar padding to overlap navigation bar
+                    it.absolutePadding(bottom = 0.dp) // Changed from navBarHeight() to 0.dp
+                } else {
+                    it // Floating keyboard doesn’t need adjustment
+                }
             }
-        }) {
-            when (size) {
-                is OneHandedKeyboardSize -> OneHandedResizer(size)
-                is RegularKeyboardSize -> RegularKeyboardResizer(size)
-                is SplitKeyboardSize -> SplitKeyboardResizer(size)
-                is FloatingKeyboardSize -> FloatingKeyboardResizer(size)
-            }
+    ) {
+        when (size) {
+            is OneHandedKeyboardSize -> OneHandedResizer(size)
+            is RegularKeyboardSize -> RegularKeyboardResizer(size)
+            is SplitKeyboardSize -> SplitKeyboardResizer(size)
+            is FloatingKeyboardSize -> FloatingKeyboardResizer(size)
         }
     }
+}
 
     fun displayResizer() {
         resizing.value = true
