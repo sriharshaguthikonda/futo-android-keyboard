@@ -35,7 +35,7 @@
     <dimen name="config_more_keys_keyboard_slide_allowance">98.3dp</dimen>
 
     <fraction name="config_keyboard_top_padding_holo">2.335%p</fraction>
-    <fraction name="config_keyboard_bottom_padding_holo">4.0%p</fraction>
+    <fraction name="config_keyboard_bottom_padding_holo">2.0%p</fraction>
     <fraction name="config_key_vertical_gap_holo">4.5%p</fraction>
     <fraction name="config_key_horizontal_gap_holo">1.565%p</fraction>
     <!-- config_more_keys_keyboard_key_height x -0.5 -->

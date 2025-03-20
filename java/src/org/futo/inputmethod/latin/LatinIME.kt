@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
-import android.graphics.Color
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.Bundle
@@ -13,6 +12,7 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.view.WindowManager
 import android.view.inputmethod.CompletionInfo
 import android.view.inputmethod.EditorInfo
@@ -33,7 +33,6 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -77,10 +76,11 @@ import org.futo.inputmethod.latin.uix.safeKeyboardPadding
 import org.futo.inputmethod.latin.uix.setSetting
 import org.futo.inputmethod.latin.uix.theme.ThemeOption
 import org.futo.inputmethod.latin.uix.theme.ThemeOptions
-import org.futo.inputmethod.latin.uix.theme.applyWindowColors
 import org.futo.inputmethod.latin.uix.theme.orDefault
 import org.futo.inputmethod.latin.uix.theme.presets.DefaultDarkScheme
 import org.futo.inputmethod.latin.utils.JniUtils
+import org.futo.inputmethod.latin.xlm.LanguageModelFacilitator
+import org.futo.inputmethod.updates.scheduleUpdateCheckingJob
 import org.futo.inputmethod.v2keyboard.ComputedKeyboardSize
 import org.futo.inputmethod.v2keyboard.FloatingKeyboardSize
 import org.futo.inputmethod.v2keyboard.KeyboardSettings
@@ -92,8 +92,7 @@ import org.futo.inputmethod.v2keyboard.dimensionsSameAs
 import org.futo.inputmethod.v2keyboard.getPrimaryLayoutOverride
 import org.futo.inputmethod.v2keyboard.isFoldableInnerDisplayAllowed
 import kotlin.math.roundToInt
-import org.futo.inputmethod.latin.xlm.LanguageModelFacilitator
-import org.futo.inputmethod.updates.scheduleUpdateCheckingJob
+
 
 /** Whether or not we can render into the navbar */
 val SupportsNavbarExtension = Build.VERSION.SDK_INT >= 28
@@ -521,26 +520,30 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
     @Composable
     internal fun LegacyKeyboardView(hidden: Boolean) {
-        val modifier = if(hidden) {
+        val modifier = if (hidden) {
             Modifier
                 .clipToBounds()
                 .size(0.dp)
         } else {
             Modifier.onSizeChanged {
                 inputViewHeight = it.height
-            }
-        }.safeKeyboardPadding()
+            } // Remove .safeKeyboardPadding() to eliminate potential bottom padding
+        }
 
         key(legacyInputView) {
-            AndroidView(factory = {
-                legacyInputView!!.also {
-                    if(it.parent != null) (it.parent as ViewGroup).removeView(it)
+            AndroidView(
+                factory = {
+                    legacyInputView!!.also {
+                        if (it.parent != null) (it.parent as ViewGroup).removeView(it)
+                    }
+                },
+                modifier = modifier,
+                onRelease = {
+                    val view = it as InputView
+                    view.deallocateMemory()
+                    view.removeAllViews()
                 }
-            }, modifier = modifier, onRelease = {
-                val view = it as InputView
-                view.deallocateMemory()
-                view.removeAllViews()
-            })
+            )
         }
     }
 
@@ -588,6 +591,23 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         super.onFinishInputView(finishingInput)
         latinIMELegacy.onFinishInputView(finishingInput)
         uixManager.onInputFinishing()
+    }
+
+    override fun onConfigureWindow(win: Window, isFullscreen: Boolean, isCandidatesOnly: Boolean) {
+        super.onConfigureWindow(win, isFullscreen, isCandidatesOnly)
+
+
+        // Make sure window draws under navigation bar
+        val params = win.attributes
+        params.flags = params.flags or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+        params.flags = params.flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+        win.attributes = params
+
+        // For newer Android versions
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            win.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
     }
 
     override fun onFinishInput() {

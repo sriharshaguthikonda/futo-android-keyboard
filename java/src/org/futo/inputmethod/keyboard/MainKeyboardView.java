@@ -59,6 +59,7 @@ import org.futo.inputmethod.latin.utils.LanguageOnSpacebarUtils;
 import org.futo.inputmethod.latin.utils.SubtypeLocaleUtils;
 import org.futo.inputmethod.latin.utils.TypefaceUtils;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Locale;
 import java.util.WeakHashMap;
@@ -385,15 +386,31 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         // Remove any pending messages, except dismissing preview and key repeat.
         mTimerHandler.cancelLongPressTimers();
         super.setKeyboard(keyboard);
+    
+        // Adjust horizontal and vertical gaps
+        try {
+            // Set horizontalGap (between keys in a row)
+            Field horizontalGapField = Keyboard.class.getDeclaredField("mHorizontalGap");
+            horizontalGapField.setAccessible(true);
+            horizontalGapField.setInt(keyboard, (int) (1 * getResources().getDisplayMetrics().density)); // 1dp in pixels
+    
+            // Set verticalGap (between rows)
+            Field verticalGapField = Keyboard.class.getDeclaredField("mVerticalGap");
+            verticalGapField.setAccessible(true);
+            verticalGapField.setInt(keyboard, (int) (2 * getResources().getDisplayMetrics().density)); // 2dp in pixels
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to adjust keyboard gaps", e);
+        }
+    
         mKeyDetector.setKeyboard(
                 keyboard, -getPaddingLeft(), -getPaddingTop() + getVerticalCorrection());
         PointerTracker.setKeyDetector(mKeyDetector);
         mMoreKeysKeyboardCache.clear();
-
+    
         mSpaceKey = keyboard.getKey(Constants.CODE_SPACE);
         final int keyHeight = keyboard.mMostCommonKeyHeight - keyboard.mVerticalGap;
         mLanguageOnSpacebarTextSize = Math.min(keyHeight, keyboard.mMostCommonKeyWidth) * mLanguageOnSpacebarTextRatio;
-
+    
         if (AccessibilityUtils.getInstance().isAccessibilityEnabled()) {
             if (mAccessibilityDelegate == null) {
                 mAccessibilityDelegate = new MainKeyboardAccessibilityDelegate(this, mKeyDetector);
@@ -403,7 +420,6 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
             mAccessibilityDelegate = null;
         }
     }
-
     /**
      * Enables or disables the key preview popup. This is a popup that shows a magnified
      * version of the depressed key. By default the preview is enabled.

@@ -2,6 +2,6 @@
 <resources>
     <fraction name="keyboardHeightMultiplierAddl">80%</fraction>
     <fraction name="keyboardGapMultiplierAddl">133%</fraction>
-    <dimen name="keyboardSidePaddingAddl">48dp</dimen>
-    <dimen name="keyboardBottomPaddingAddl">4dp</dimen>
+    <dimen name="keyboardSidePaddingAddl">28dp</dimen>
+    <dimen name="keyboardBottomPaddingAddl">1dp</dimen>
 </resources>
