@@ -2,6 +2,7 @@ package org.futo.inputmethod.latin.uix
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 
 val ENABLE_SOUND = SettingsKey(
@@ -62,4 +63,13 @@ val MULTILINGUAL_MODEL_INDEX = SettingsKey(
 val LANGUAGE_TOGGLES = SettingsKey(
     key = stringSetPreferencesKey("enabled_languages"),
     default = setOf()
+)
+val USE_GROQ_API = SettingsKey(
+    key = booleanPreferencesKey("use_groq_api"),
+    default = false
+)
+
+val GROQ_API_KEY = SettingsKey(
+    key = stringPreferencesKey("groq_api_key"),
+    default = ""
 )

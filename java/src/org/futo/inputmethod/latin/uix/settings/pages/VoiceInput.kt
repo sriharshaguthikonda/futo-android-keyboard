@@ -17,6 +17,13 @@ import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.USE_SYSTEM_VOICE_INPUT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
+import org.futo.inputmethod.latin.uix.GROQ_API_KEY
+import org.futo.inputmethod.latin.uix.USE_GROQ_API
+import androidx.lifecycle.lifecycleScope
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import org.futo.voiceinput.shared.groq.GroqClient
+import org.futo.inputmethod.latin.uix.settings.navigateToError
+import org.futo.inputmethod.latin.uix.settings.navigateToInfo
 import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
@@ -89,6 +96,32 @@ fun VoiceInputScreen(navController: NavHostController = rememberNavController())
                 title = "Auto-stop on silence",
                 subtitle = "Automatically stop when silence is detected. You may need to manually stop regardless if there's too much background noise. Please also enable long-form voice input to prevent stopping after 30s.",
                 setting = USE_VAD_AUTOSTOP
+            )
+
+            SettingToggleDataStore(
+                title = "Use Groq API",
+                subtitle = "Send audio to Groq when online",
+                setting = USE_GROQ_API
+            )
+
+            SettingTextField(
+                title = "Groq API Key",
+                placeholder = "sk-...",
+                field = GROQ_API_KEY
+            )
+
+            NavigationItem(
+                title = "Test Groq API",
+                style = NavigationItemStyle.Misc,
+                navigate = {
+                    val owner = LocalLifecycleOwner.current
+                    owner.lifecycleScope.launch {
+                        val key = context.getSettingBlocking(GROQ_API_KEY)
+                        val ok = GroqClient.test(key)
+                        if(ok) navController.navigateToInfo("Groq", "Connection successful")
+                        else navController.navigateToError("Groq", "Connection failed")
+                    }
+                }
             )
 
             NavigationItem(
