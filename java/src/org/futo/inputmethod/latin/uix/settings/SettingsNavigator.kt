@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
+import org.futo.inputmethod.latin.uix.settings.pages.VoiceInputTestScreen
 import androidx.navigation.compose.rememberNavController
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.ErrorDialog
@@ -152,6 +153,7 @@ fun SettingsNavigator(
             dialog("alreadyPaid") {
                 AlreadyPaidDialog(navController = navController)
             }
+            composable("voiceInputTest") { VoiceInputTestScreen(navController) }
             addModelManagerNavigation(navController)
         }
     }

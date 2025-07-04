@@ -28,7 +28,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.yield
+import android.net.ConnectivityManager
 import org.futo.voiceinput.shared.ggml.InferenceCancelledException
 import org.futo.voiceinput.shared.types.AudioRecognizerListener
 import org.futo.voiceinput.shared.types.InferenceState
@@ -86,7 +89,8 @@ data class RecordingSettings(
 data class AudioRecognizerSettings(
     val modelRunConfiguration: MultiModelRunConfiguration,
     val decodingConfiguration: DecodingConfiguration,
-    val recordingConfiguration: RecordingSettings
+    val recordingConfiguration: RecordingSettings,
+    val groqApiKey: String?
 )
 
 class ModelDoesNotExistException(val models: List<ModelLoader>) : Throwable()
@@ -303,6 +307,12 @@ class AudioRecognizer(
             return true
         }
         return false
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val active = cm.activeNetworkInfo
+        return active != null && active.isConnected
     }
 
     private suspend fun recordingJob(recorder: AudioRecord, vad: VadModel?) {
@@ -533,7 +543,6 @@ class AudioRecognizer(
     private suspend fun runModel() {
         loadModelJob?.let {
             if (it.isActive) {
-                println("Model was not finished loading...")
                 it.join()
             }
         }
@@ -541,21 +550,44 @@ class AudioRecognizer(
         val floatArray = floatSamples.array().sliceArray(0 until floatSamples.position())
 
         yield()
-        val outputText = try {
-             modelRunner.run(
-                floatArray,
-                settings.modelRunConfiguration,
-                settings.decodingConfiguration,
-                runnerCallback
-            ).trim()
-        }catch(e: InferenceCancelledException) {
+        val result = try {
+            coroutineScope {
+                val localJob = async {
+                    modelRunner.run(
+                        floatArray,
+                        settings.modelRunConfiguration,
+                        settings.decodingConfiguration,
+                        runnerCallback
+                    ).trim()
+                }
+
+                val remoteJob = if(settings.groqApiKey != null && isNetworkAvailable()) {
+                    async(Dispatchers.IO) {
+                        val wav = encodeWav(floatArray)
+                        GroqWhisperClient(settings.groqApiKey!!).transcribe(
+                            wav,
+                            settings.decodingConfiguration.languages.firstOrNull()?.toWhisperString(),
+                            if(settings.decodingConfiguration.glossary.isEmpty()) null else settings.decodingConfiguration.glossary.joinToString(" ")
+                        )
+                    }
+                } else null
+
+                val remote = remoteJob?.await()
+                if (remote != null) {
+                    localJob.cancel()
+                    remote
+                } else {
+                    localJob.await()
+                }
+            }
+        } catch(e: InferenceCancelledException) {
             yield()
             return
         }
 
         val text = when {
-            isBlankResult(outputText) -> ""
-            else -> outputText
+            result == null || isBlankResult(result) -> ""
+            else -> result
         }
 
         yield()

@@ -2,6 +2,7 @@ package org.futo.inputmethod.latin.uix.settings.pages
 
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.AUDIO_FOCUS
 import org.futo.inputmethod.latin.uix.CAN_EXPAND_SPACE
@@ -11,11 +12,14 @@ import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.USE_SYSTEM_VOICE_INPUT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
+import org.futo.inputmethod.latin.uix.GROQ_API_KEY
+import org.futo.inputmethod.latin.uix.USE_GROQ_VOICE
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.uix.settings.userSettingNavigationItem
 import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
+import org.futo.inputmethod.latin.uix.settings.SettingTextField
 
 private val visibilityCheckNotSystemVoiceInput = @Composable {
     useDataStoreValue(USE_SYSTEM_VOICE_INPUT) == false
@@ -51,6 +55,18 @@ val VoiceInputMenu = UserSettingsMenu(
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingToggleDataStore(
+            title = R.string.voice_input_settings_use_groq,
+            subtitle = R.string.voice_input_settings_use_groq_subtitle,
+            setting = USE_GROQ_VOICE
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        SettingTextField(
+            title = stringResource(R.string.voice_input_settings_groq_api_key),
+            placeholder = "sk-...",
+            field = GROQ_API_KEY
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingToggleDataStore(
             title = R.string.voice_input_settings_audio_focus,
             subtitle = R.string.voice_input_settings_audio_focus_subtitle,
             setting = AUDIO_FOCUS
@@ -71,6 +87,13 @@ val VoiceInputMenu = UserSettingsMenu(
             title = R.string.voice_input_settings_autostop_vad,
             subtitle = R.string.voice_input_settings_autostop_vad_subtitle,
             setting = USE_VAD_AUTOSTOP
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingNavigationItem(
+            title = R.string.voice_input_settings_test,
+            subtitle = R.string.voice_input_settings_verbose_progress_subtitle,
+            style = NavigationItemStyle.Misc,
+            navigateTo = "voiceInputTest"
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingNavigationItem(

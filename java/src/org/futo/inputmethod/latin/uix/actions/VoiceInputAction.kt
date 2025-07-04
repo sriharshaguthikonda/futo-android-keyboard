@@ -55,6 +55,8 @@ import org.futo.voiceinput.shared.whisper.DecodingConfiguration
 import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
 import java.util.Locale
+import org.futo.inputmethod.latin.uix.GROQ_API_KEY
+import org.futo.inputmethod.latin.uix.USE_GROQ_VOICE
 
 val SystemVoiceInputAction = Action(
     icon = R.drawable.mic_fill,
@@ -121,6 +123,8 @@ private class VoiceInputActionWindow(
         val requestAudioFocus = context.getSetting(AUDIO_FOCUS)
         val canExpandSpace = context.getSetting(CAN_EXPAND_SPACE)
         val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
+        val groqEnabled = context.getSetting(USE_GROQ_VOICE)
+        val groqKey = context.getSetting(GROQ_API_KEY)
 
         val primaryModel = model
         val languageSpecificModels = mutableMapOf<Language, ModelLoader>()
@@ -146,7 +150,8 @@ private class VoiceInputActionWindow(
                 requestAudioFocus = requestAudioFocus,
                 canExpandSpace = canExpandSpace,
                 useVADAutoStop = useVAD
-            )
+            ),
+            groqApiKey = if(groqEnabled && groqKey.isNotBlank()) groqKey else null
         )
     }
 
