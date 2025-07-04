@@ -42,6 +42,9 @@ import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
 import org.futo.voiceinput.shared.whisper.MultiModelRunner
 import org.futo.voiceinput.shared.whisper.isBlankResult
+import org.futo.voiceinput.shared.BuildConfig
+import org.futo.voiceinput.shared.remote.GroqWhisperApi
+import kotlinx.coroutines.async
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 import kotlin.math.min
@@ -541,17 +544,24 @@ class AudioRecognizer(
         val floatArray = floatSamples.array().sliceArray(0 until floatSamples.position())
 
         yield()
-        val outputText = try {
-             modelRunner.run(
-                floatArray,
-                settings.modelRunConfiguration,
-                settings.decodingConfiguration,
-                runnerCallback
-            ).trim()
-        }catch(e: InferenceCancelledException) {
-            yield()
-            return
+        val groqJob = lifecycleScope.async(Dispatchers.IO) {
+            GroqWhisperApi.transcribe(floatArray, BuildConfig.GROQ_API_KEY)
         }
+
+        val localJob = lifecycleScope.async(Dispatchers.Default) {
+            try {
+                modelRunner.run(
+                    floatArray,
+                    settings.modelRunConfiguration,
+                    settings.decodingConfiguration,
+                    runnerCallback
+                ).trim()
+            }catch(e: InferenceCancelledException){
+                null
+            }
+        }
+
+        val outputText = groqJob.await() ?: localJob.await() ?: ""
 
         val text = when {
             isBlankResult(outputText) -> ""

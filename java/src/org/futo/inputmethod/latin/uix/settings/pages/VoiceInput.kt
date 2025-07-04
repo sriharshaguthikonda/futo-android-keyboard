@@ -16,6 +16,7 @@ import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.uix.settings.userSettingNavigationItem
 import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
+import org.futo.inputmethod.voice.testGroqConnection
 
 private val visibilityCheckNotSystemVoiceInput = @Composable {
     useDataStoreValue(USE_SYSTEM_VOICE_INPUT) == false
@@ -78,6 +79,13 @@ val VoiceInputMenu = UserSettingsMenu(
             subtitle = R.string.voice_input_settings_change_models_subtitle,
             style = NavigationItemStyle.Misc,
             navigateTo = "languages"
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingNavigationItem(
+            title = R.string.voice_input_settings_test_groq,
+            subtitle = R.string.voice_input_settings_test_groq_subtitle,
+            style = NavigationItemStyle.Misc,
+            navigate = { it.context.testGroqConnection() }
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
         //}
     )

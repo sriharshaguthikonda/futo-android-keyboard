@@ -44,6 +44,8 @@ android {
         minSdk 24
         targetSdk 34
 
+        buildConfigField 'String', 'GROQ_API_KEY', '""'
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
     }
