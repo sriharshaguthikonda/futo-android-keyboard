@@ -27,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.futo.voiceinput.shared.ggml.InferenceCancelledException
@@ -41,7 +42,9 @@ import org.futo.voiceinput.shared.whisper.DecodingConfiguration
 import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
 import org.futo.voiceinput.shared.whisper.MultiModelRunner
+import org.futo.voiceinput.shared.whisper.GroqClient
 import org.futo.voiceinput.shared.whisper.isBlankResult
+import org.futo.voiceinput.shared.BuildConfig
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 import kotlin.math.min
@@ -86,7 +89,8 @@ data class RecordingSettings(
 data class AudioRecognizerSettings(
     val modelRunConfiguration: MultiModelRunConfiguration,
     val decodingConfiguration: DecodingConfiguration,
-    val recordingConfiguration: RecordingSettings
+    val recordingConfiguration: RecordingSettings,
+    val useGroqApi: Boolean
 )
 
 class ModelDoesNotExistException(val models: List<ModelLoader>) : Throwable()
@@ -102,6 +106,8 @@ class AudioRecognizer(
     private var recorder: AudioRecord? = null
 
     private val modelRunner = MultiModelRunner(modelManager)
+
+    private val useGroq = settings.useGroqApi
 
     private val canExpandSpace = settings.recordingConfiguration.canExpandSpace
     private val useVAD = settings.recordingConfiguration.useVADAutoStop
@@ -541,22 +547,37 @@ class AudioRecognizer(
         val floatArray = floatSamples.array().sliceArray(0 until floatSamples.position())
 
         yield()
-        val outputText = try {
-             modelRunner.run(
-                floatArray,
-                settings.modelRunConfiguration,
-                settings.decodingConfiguration,
-                runnerCallback
-            ).trim()
-        }catch(e: InferenceCancelledException) {
-            yield()
-            return
+
+        val localJob = lifecycleScope.async(Dispatchers.Default) {
+            try {
+                modelRunner.run(
+                    floatArray,
+                    settings.modelRunConfiguration,
+                    settings.decodingConfiguration,
+                    runnerCallback
+                ).trim()
+            } catch(e: InferenceCancelledException) {
+                null
+            }
         }
 
-        val text = when {
-            isBlankResult(outputText) -> ""
-            else -> outputText
-        }
+        val remoteJob = if(useGroq && BuildConfig.GROQ_API_KEY.isNotBlank()) {
+            lifecycleScope.async(Dispatchers.IO) {
+                try {
+                    GroqClient.transcribe(
+                        floatArray,
+                        settings.decodingConfiguration.languages.firstOrNull()?.toWhisperString(),
+                        BuildConfig.GROQ_API_KEY
+                    )
+                } catch(_: Exception) {
+                    null
+                }
+            }
+        } else null
+
+        val outputText = remoteJob?.await() ?: localJob.await() ?: ""
+
+        val text = if (isBlankResult(outputText)) "" else outputText
 
         yield()
         lifecycleScope.launch {

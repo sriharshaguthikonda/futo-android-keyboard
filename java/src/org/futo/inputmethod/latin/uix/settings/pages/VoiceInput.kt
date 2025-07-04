@@ -1,7 +1,13 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.futo.inputmethod.latin.BuildConfig
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.AUDIO_FOCUS
 import org.futo.inputmethod.latin.uix.CAN_EXPAND_SPACE
@@ -10,12 +16,14 @@ import org.futo.inputmethod.latin.uix.ENABLE_SOUND
 import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.USE_SYSTEM_VOICE_INPUT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
+import org.futo.inputmethod.latin.uix.USE_GROQ_API
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.uix.settings.userSettingNavigationItem
 import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
+import org.futo.voiceinput.shared.whisper.GroqClient
 
 private val visibilityCheckNotSystemVoiceInput = @Composable {
     useDataStoreValue(USE_SYSTEM_VOICE_INPUT) == false
@@ -71,6 +79,31 @@ val VoiceInputMenu = UserSettingsMenu(
             title = R.string.voice_input_settings_autostop_vad,
             subtitle = R.string.voice_input_settings_autostop_vad_subtitle,
             setting = USE_VAD_AUTOSTOP
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingToggleDataStore(
+            title = R.string.voice_input_settings_use_groq_api,
+            subtitle = R.string.voice_input_settings_use_groq_api_subtitle,
+            setting = USE_GROQ_API
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingNavigationItem(
+            title = R.string.voice_input_settings_test_groq_api,
+            style = NavigationItemStyle.MiscNoArrow,
+            navigate = { nav ->
+                val ctx = nav.context
+                GlobalScope.launch(Dispatchers.IO) {
+                    val ok = GroqClient.testConnection(BuildConfig.GROQ_API_KEY)
+                    withContext(Dispatchers.Main) {
+                        val msg = if(ok) {
+                            ctx.getString(R.string.voice_input_settings_test_groq_api_success)
+                        } else {
+                            ctx.getString(R.string.voice_input_settings_test_groq_api_failure)
+                        }
+                        Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingNavigationItem(

@@ -492,6 +492,11 @@
     <string name="voice_input_settings_autostop_vad_subtitle">Automatically stop when silence is detected. You may need to manually stop regardless if there\'s too much background noise.</string>
     <string name="voice_input_settings_change_models">Models</string>
     <string name="voice_input_settings_change_models_subtitle">To change the models, visit Languages &amp; Models menu</string>
+    <string name="voice_input_settings_use_groq_api">Use Groq cloud whisper</string>
+    <string name="voice_input_settings_use_groq_api_subtitle">Send audio to Groq API when online</string>
+    <string name="voice_input_settings_test_groq_api">Test Groq voice input</string>
+    <string name="voice_input_settings_test_groq_api_success">Groq API reachable</string>
+    <string name="voice_input_settings_test_groq_api_failure">Groq API test failed</string>
 
     <!-- Prediction menu -->
     <string name="prediction_settings_title">Text Prediction</string>
