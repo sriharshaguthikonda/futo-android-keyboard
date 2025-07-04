@@ -1,31 +1,38 @@
-name: Build APK
+name: Android CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [ master, main ]   # adjust to match your main branch
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
+    - uses: actions/checkout@v3
 
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+    - uses: actions/setup-java@v3
+      with:
+        distribution: temurin
+        java-version: 17
 
-      - name: Build APK
-        run: ./gradlew assembleUnstableDebug
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: ${{ runner.os }}-gradle
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: keyboard-apk
-          path: build/outputs/apk/unstable/debug/*.apk
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
 
+    - name: Build
+      run: ./gradlew assembleUnstableDebug
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: apk
+        path: build/outputs/apk/unstable/debug/*.apk
