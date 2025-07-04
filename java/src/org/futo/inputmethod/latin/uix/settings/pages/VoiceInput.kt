@@ -2,6 +2,7 @@ package org.futo.inputmethod.latin.uix.settings.pages
 
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.AUDIO_FOCUS
 import org.futo.inputmethod.latin.uix.CAN_EXPAND_SPACE
@@ -16,6 +17,9 @@ import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.uix.settings.userSettingNavigationItem
 import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
+import org.futo.inputmethod.latin.uix.settings.userSettingDecorationOnly
+import org.futo.inputmethod.latin.uix.settings.SettingTextField
+import org.futo.inputmethod.latin.uix.GROQ_API_KEY
 
 private val visibilityCheckNotSystemVoiceInput = @Composable {
     useDataStoreValue(USE_SYSTEM_VOICE_INPUT) == false
@@ -79,6 +83,21 @@ val VoiceInputMenu = UserSettingsMenu(
             style = NavigationItemStyle.Misc,
             navigateTo = "languages"
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingNavigationItem(
+            title = R.string.voice_input_settings_test_groq,
+            subtitle = R.string.voice_input_settings_test_groq_subtitle,
+            style = NavigationItemStyle.Misc,
+            navigateTo = "groqtest"
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingDecorationOnly {
+            SettingTextField(
+                title = stringResource(R.string.voice_input_settings_groq_api_key),
+                placeholder = "sk-...",
+                field = GROQ_API_KEY
+            )
+        }.copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
         //}
     )
 )

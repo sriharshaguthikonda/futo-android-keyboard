@@ -41,6 +41,7 @@ import org.futo.inputmethod.latin.uix.setSetting
 import org.futo.inputmethod.latin.uix.utils.ModelOutputSanitizer
 import org.futo.inputmethod.latin.xlm.UserDictionaryObserver
 import org.futo.inputmethod.updates.openURI
+import org.futo.inputmethod.latin.uix.GROQ_API_KEY
 import org.futo.voiceinput.shared.ModelDoesNotExistException
 import org.futo.voiceinput.shared.RecognizerView
 import org.futo.voiceinput.shared.RecognizerViewListener
@@ -121,6 +122,7 @@ private class VoiceInputActionWindow(
         val requestAudioFocus = context.getSetting(AUDIO_FOCUS)
         val canExpandSpace = context.getSetting(CAN_EXPAND_SPACE)
         val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
+        val groqKey = context.getSetting(GROQ_API_KEY)
 
         val primaryModel = model
         val languageSpecificModels = mutableMapOf<Language, ModelLoader>()
@@ -146,7 +148,8 @@ private class VoiceInputActionWindow(
                 requestAudioFocus = requestAudioFocus,
                 canExpandSpace = canExpandSpace,
                 useVADAutoStop = useVAD
-            )
+            ),
+            groqApiKey = groqKey
         )
     }
 
