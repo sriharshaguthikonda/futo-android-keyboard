@@ -63,3 +63,8 @@ val LANGUAGE_TOGGLES = SettingsKey(
     key = stringSetPreferencesKey("enabled_languages"),
     default = setOf()
 )
+
+val USE_GROQ_API = SettingsKey(
+    key = booleanPreferencesKey("use_groq_api"),
+    default = false
+)

@@ -40,12 +40,15 @@ android {
     namespace 'org.futo.voiceinput.shared'
     compileSdk 34
 
+    def groqApiKey = System.getenv('GROQ_API_KEY') ?: ""
+
     defaultConfig {
         minSdk 24
         targetSdk 34
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+        buildConfigField "String", "GROQ_API_KEY", "\"${groqApiKey}\""
     }
 
     buildTypes {

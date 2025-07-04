@@ -172,6 +172,8 @@ android {
     flavorDimensions = ["buildType"]
 
     productFlavors {
+        def groqApiKey = System.getenv('GROQ_API_KEY') ?: ""
+
         unstable {
             dimension "buildType"
             applicationIdSuffix ".unstable"
@@ -185,6 +187,7 @@ android {
 
             buildConfigField "String", "PAYMENT_URL", "\"https://pay.futo.org/api/PaymentPortal?product=voiceinput&success=futo-keyboard%3a%2f%2flicense%2factivate\""
             buildConfigField "String", "PAYMENT_PRICE", "\"~\$6.99\""
+            buildConfigField "String", "GROQ_API_KEY", "\"${groqApiKey}\""
         }
 
         stable {
@@ -195,6 +198,7 @@ android {
 
             buildConfigField "String", "PAYMENT_URL", "\"https://pay.futo.org/api/PaymentPortal?product=voiceinput&success=futo-keyboard%3a%2f%2flicense%2factivate\""
             buildConfigField "String", "PAYMENT_PRICE", "\"~\$6.99\""
+            buildConfigField "String", "GROQ_API_KEY", "\"${groqApiKey}\""
         }
 
         playstore {
@@ -208,6 +212,7 @@ android {
 
             buildConfigField "String", "PAYMENT_URL", "\"https://play.google.com/store/apps/details?id=org.futo.keyboardpayment\""
             buildConfigField "String", "PAYMENT_PRICE", "\"~\$11.99\""
+            buildConfigField "String", "GROQ_API_KEY", "\"${groqApiKey}\""
         }
     }
 
