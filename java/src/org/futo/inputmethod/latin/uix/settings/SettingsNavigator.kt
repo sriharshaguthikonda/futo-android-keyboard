@@ -50,6 +50,8 @@ import org.futo.inputmethod.latin.uix.settings.pages.SelectLayoutsScreen
 import org.futo.inputmethod.latin.uix.settings.pages.ThemeScreen
 import org.futo.inputmethod.latin.uix.settings.pages.TypingSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.pages.VoiceInputMenu
+import org.futo.inputmethod.latin.uix.settings.pages.VoiceInputTestMenu
+import org.futo.inputmethod.latin.uix.settings.pages.VoiceInputTestScreen
 import org.futo.inputmethod.latin.uix.settings.pages.addModelManagerNavigation
 import org.futo.inputmethod.latin.uix.urlDecode
 import org.futo.inputmethod.latin.uix.urlEncode
@@ -73,6 +75,7 @@ val SettingsMenus = listOf(
     PredictiveTextMenu,
     BlacklistScreenLite,
     VoiceInputMenu,
+    VoiceInputTestMenu,
     ActionsScreen,
     HelpMenu,
     MiscMenu,
@@ -119,6 +122,7 @@ fun SettingsNavigator(
                     it.arguments!!.getString("i")!!.toInt()
                 )
             }
+            composable(VoiceInputTestMenu.navPath) { VoiceInputTestScreen(navController) }
             composable("blacklist") { BlacklistScreen(navController) }
             composable("payment") { PaymentScreen(navController) { navController.navigateUp() } }
             composable("paid") { PaymentThankYouScreen { navController.navigateUp() } }

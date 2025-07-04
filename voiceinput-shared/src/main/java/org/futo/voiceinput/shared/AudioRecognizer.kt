@@ -25,6 +25,7 @@ import com.konovalov.vad.config.SampleRate
 import com.konovalov.vad.models.VadModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,6 +39,7 @@ import org.futo.voiceinput.shared.types.ModelInferenceCallback
 import org.futo.voiceinput.shared.types.ModelLoader
 import org.futo.voiceinput.shared.ui.MicrophoneDeviceState
 import org.futo.voiceinput.shared.whisper.DecodingConfiguration
+import org.futo.voiceinput.shared.whisper.GroqRemote
 import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
 import org.futo.voiceinput.shared.whisper.MultiModelRunner
@@ -541,21 +543,31 @@ class AudioRecognizer(
         val floatArray = floatSamples.array().sliceArray(0 until floatSamples.position())
 
         yield()
-        val outputText = try {
-             modelRunner.run(
-                floatArray,
-                settings.modelRunConfiguration,
-                settings.decodingConfiguration,
-                runnerCallback
-            ).trim()
-        }catch(e: InferenceCancelledException) {
-            yield()
-            return
+
+        val remoteDeferred = lifecycleScope.async(Dispatchers.IO) {
+            GroqRemote.transcribe(floatArray)
         }
 
+        val localDeferred = lifecycleScope.async(Dispatchers.Default) {
+            try {
+                modelRunner.run(
+                    floatArray,
+                    settings.modelRunConfiguration,
+                    settings.decodingConfiguration,
+                    runnerCallback
+                ).trim()
+            } catch(e: InferenceCancelledException) {
+                null
+            }
+        }
+
+        val remoteResult = remoteDeferred.await()
+        val localResult = localDeferred.await()
+
         val text = when {
-            isBlankResult(outputText) -> ""
-            else -> outputText
+            !remoteResult.isNullOrBlank() -> remoteResult
+            !localResult.isNullOrBlank() -> localResult
+            else -> ""
         }
 
         yield()
