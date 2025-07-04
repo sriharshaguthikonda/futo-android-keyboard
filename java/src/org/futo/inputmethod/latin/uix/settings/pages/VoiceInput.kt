@@ -79,6 +79,12 @@ val VoiceInputMenu = UserSettingsMenu(
             style = NavigationItemStyle.Misc,
             navigateTo = "languages"
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+        userSettingNavigationItem(
+            title = R.string.voice_input_settings_test,
+            subtitle = R.string.voice_input_settings_test_subtitle,
+            style = NavigationItemStyle.Misc,
+            navigateTo = "voiceInputTest"
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
         //}
     )
 )

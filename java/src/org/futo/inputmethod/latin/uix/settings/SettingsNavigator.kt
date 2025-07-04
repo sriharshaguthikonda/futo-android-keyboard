@@ -50,6 +50,7 @@ import org.futo.inputmethod.latin.uix.settings.pages.SelectLayoutsScreen
 import org.futo.inputmethod.latin.uix.settings.pages.ThemeScreen
 import org.futo.inputmethod.latin.uix.settings.pages.TypingSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.pages.VoiceInputMenu
+import org.futo.inputmethod.latin.uix.settings.pages.VoiceInputTestScreen
 import org.futo.inputmethod.latin.uix.settings.pages.addModelManagerNavigation
 import org.futo.inputmethod.latin.uix.urlDecode
 import org.futo.inputmethod.latin.uix.urlEncode
@@ -105,6 +106,7 @@ fun SettingsNavigator(
             SettingsMenus.forEach { menu ->
                 if(menu.registerNavPath) composable(menu.navPath) { UserSettingsMenuScreen(menu) }
             }
+            composable("voiceInputTest") { VoiceInputTestScreen(navController) }
             composable("keyboardAndTyping") { KeyboardAndTypingScreen(navController) }
             composable("resize") { ResizeScreen(navController) }
             composable("themes") { ThemeScreen(navController) }

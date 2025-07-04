@@ -25,6 +25,7 @@ import com.konovalov.vad.config.SampleRate
 import com.konovalov.vad.models.VadModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -42,6 +43,9 @@ import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
 import org.futo.voiceinput.shared.whisper.MultiModelRunner
 import org.futo.voiceinput.shared.whisper.isBlankResult
+import org.futo.voiceinput.shared.remote.GroqApi
+import org.futo.voiceinput.shared.util.floatArrayToWav
+import java.io.File
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 import kotlin.math.min
@@ -541,17 +545,34 @@ class AudioRecognizer(
         val floatArray = floatSamples.array().sliceArray(0 until floatSamples.position())
 
         yield()
-        val outputText = try {
-             modelRunner.run(
-                floatArray,
-                settings.modelRunConfiguration,
-                settings.decodingConfiguration,
-                runnerCallback
-            ).trim()
-        }catch(e: InferenceCancelledException) {
-            yield()
-            return
+        val localJob = lifecycleScope.async(Dispatchers.Default) {
+            try {
+                modelRunner.run(
+                    floatArray,
+                    settings.modelRunConfiguration,
+                    settings.decodingConfiguration,
+                    runnerCallback
+                ).trim()
+            } catch (e: InferenceCancelledException) {
+                ""
+            }
         }
+
+        val groqJob = lifecycleScope.async(Dispatchers.IO) {
+            try {
+                val tmp = File.createTempFile("recording", ".wav", context.cacheDir)
+                tmp.writeBytes(floatArrayToWav(floatArray))
+                val api = GroqApi(BuildConfig.GROQ_API_URL, BuildConfig.GROQ_API_KEY)
+                val language = settings.decodingConfiguration.languages.firstOrNull()?.toWhisperString()
+                val result = api.transcribe(tmp, language)
+                tmp.delete()
+                result
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        val outputText = groqJob.await() ?: localJob.await()
 
         val text = when {
             isBlankResult(outputText) -> ""

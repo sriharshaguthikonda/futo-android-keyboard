@@ -46,6 +46,8 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+        buildConfigField "String", "GROQ_API_URL", "\"https://api.groq.com/openai/v1/audio/transcriptions\""
+        buildConfigField "String", "GROQ_API_KEY", "\"\""
     }
 
     buildTypes {
@@ -100,4 +102,5 @@ dependencies {
     implementation(name:'tensorflow-lite-support-api', ext:'aar')
 
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1'
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
 }
