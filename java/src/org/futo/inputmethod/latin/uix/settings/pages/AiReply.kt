@@ -66,13 +66,18 @@ fun AiReplyConfigScreen(navController: NavHostController = rememberNavController
                 field = GROQ_API_KEY
             )
 
-            DropDownPickerSettingItem(
-                label = stringResource(R.string.ai_reply_settings_model),
-                options = modelOptions.value,
-                selection = modelItem.value,
-                onSet = { modelItem.setValue(it) },
-                getDisplayName = { it }
-            )
+        val providerDisplayNames = mapOf(
+            "local" to stringResource(R.string.ai_reply_provider_local),
+            "groq" to stringResource(R.string.ai_reply_provider_groq)
+        )
+        
+        DropDownPickerSettingItem(
+            label = stringResource(R.string.ai_reply_settings_provider),
+            options = providerOptions,
+            selection = providerItem.value,
+            onSet = { providerItem.setValue(it) },
+            getDisplayName = { providerDisplayNames[it] ?: it }
+        )
         } else {
             SettingTextField(
                 title = stringResource(R.string.ai_reply_settings_local_model),
