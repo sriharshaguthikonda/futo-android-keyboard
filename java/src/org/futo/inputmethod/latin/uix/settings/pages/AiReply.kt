@@ -14,6 +14,8 @@ import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.GROQ_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_CHAT_MODEL
 import org.futo.inputmethod.latin.uix.GROQ_CHAT_SYSTEM_PROMPT
+import org.futo.inputmethod.latin.uix.AI_REPLY_PROVIDER
+import org.futo.inputmethod.latin.uix.LOCAL_CHAT_MODEL_PATH
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
 import org.futo.inputmethod.latin.uix.settings.DropDownPickerSettingItem
@@ -25,13 +27,16 @@ import org.futo.voiceinput.shared.groq.GroqChatApi
 fun AiReplyConfigScreen(navController: NavHostController = rememberNavController()) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val providerItem = useDataStore(AI_REPLY_PROVIDER)
     val apiKeyItem = useDataStore(GROQ_API_KEY)
     val modelItem = useDataStore(GROQ_CHAT_MODEL)
     val promptItem = useDataStore(GROQ_CHAT_SYSTEM_PROMPT)
+    val localModelItem = useDataStore(LOCAL_CHAT_MODEL_PATH)
     val modelOptions = remember { mutableStateOf(listOf("llama3-8b-8192")) }
+    val providerOptions = listOf("groq", "local")
 
-    LaunchedEffect(apiKeyItem.value) {
-        if(apiKeyItem.value.isNotBlank()) {
+    LaunchedEffect(apiKeyItem.value, providerItem.value) {
+        if(providerItem.value == "groq" && apiKeyItem.value.isNotBlank()) {
             val models = withContext(Dispatchers.IO) {
                 GroqChatApi.availableModels(apiKeyItem.value)
             }
@@ -44,19 +49,37 @@ fun AiReplyConfigScreen(navController: NavHostController = rememberNavController
     ScrollableList {
         ScreenTitle(stringResource(R.string.ai_reply_settings_title), showBack = true, navController)
 
-        SettingTextField(
-            title = stringResource(R.string.groq_settings_api_key),
-            placeholder = "sk-...",
-            field = GROQ_API_KEY
+        DropDownPickerSettingItem(
+            label = stringResource(R.string.ai_reply_settings_provider),
+            options = providerOptions,
+            selection = providerItem.value,
+            onSet = { providerItem.setValue(it) },
+            getDisplayName = {
+                if(it == "local") stringResource(R.string.ai_reply_provider_local) else stringResource(R.string.ai_reply_provider_groq)
+            }
         )
 
-        DropDownPickerSettingItem(
-            label = stringResource(R.string.ai_reply_settings_model),
-            options = modelOptions.value,
-            selection = modelItem.value,
-            onSet = { modelItem.setValue(it) },
-            getDisplayName = { it }
-        )
+        if(providerItem.value == "groq") {
+            SettingTextField(
+                title = stringResource(R.string.groq_settings_api_key),
+                placeholder = "sk-...",
+                field = GROQ_API_KEY
+            )
+
+            DropDownPickerSettingItem(
+                label = stringResource(R.string.ai_reply_settings_model),
+                options = modelOptions.value,
+                selection = modelItem.value,
+                onSet = { modelItem.setValue(it) },
+                getDisplayName = { it }
+            )
+        } else {
+            SettingTextField(
+                title = stringResource(R.string.ai_reply_settings_local_model),
+                placeholder = "/sdcard/model.gguf",
+                field = LOCAL_CHAT_MODEL_PATH
+            )
+        }
 
         SettingTextField(
             title = stringResource(R.string.ai_reply_settings_system_prompt),

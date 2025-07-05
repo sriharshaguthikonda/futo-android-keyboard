@@ -19,6 +19,8 @@ import org.futo.inputmethod.latin.uix.ActionWindow
 import org.futo.inputmethod.latin.uix.GROQ_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_CHAT_MODEL
 import org.futo.inputmethod.latin.uix.GROQ_CHAT_SYSTEM_PROMPT
+import org.futo.inputmethod.latin.uix.AI_REPLY_PROVIDER
+import org.futo.inputmethod.latin.uix.LOCAL_CHAT_MODEL_PATH
 import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.voiceinput.shared.groq.GroqChatApi
@@ -38,10 +40,17 @@ private class AiReplyWindow(
             Text(text)
             reply.value?.let { Text(it) }
             Button(onClick = {
-                val apiKey = context.getSetting(GROQ_API_KEY)
-                val model = context.getSetting(GROQ_CHAT_MODEL)
+                val provider = context.getSetting(AI_REPLY_PROVIDER)
                 val systemPrompt = context.getSetting(GROQ_CHAT_SYSTEM_PROMPT)
-                reply.value = GroqChatApi.chat(systemPrompt, text, apiKey, model)
+                val result = if(provider == "local") {
+                    val path = context.getSetting(LOCAL_CHAT_MODEL_PATH)
+                    org.futo.voiceinput.shared.local.LocalChatApi.chat(systemPrompt, text, path)
+                } else {
+                    val apiKey = context.getSetting(GROQ_API_KEY)
+                    val model = context.getSetting(GROQ_CHAT_MODEL)
+                    GroqChatApi.chat(systemPrompt, text, apiKey, model)
+                }
+                reply.value = result
             }, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.ai_reply_generate))
             }

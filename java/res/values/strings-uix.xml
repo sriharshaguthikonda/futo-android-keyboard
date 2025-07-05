@@ -93,6 +93,10 @@
     <string name="ai_reply_settings_model">Model</string>
     <string name="ai_reply_settings_system_prompt">System Prompt</string>
     <string name="ai_reply_settings_system_prompt_placeholder">You are a helpful assistant that writes concise replies.</string>
+    <string name="ai_reply_settings_provider">Provider</string>
+    <string name="ai_reply_provider_groq">Groq</string>
+    <string name="ai_reply_provider_local">Local LLM</string>
+    <string name="ai_reply_settings_local_model">Local Model Path</string>
     <string name="action_clipboard_manager_settings_title">Clipboard Manager Settings</string>
     <string name="action_clipboard_manager_settings_hours_to_keep_clips">Hours to keep unpinned clips</string>
     <string name="action_clipboard_manager_settings_maximum_clips">Number of unpinned clips to keep</string>

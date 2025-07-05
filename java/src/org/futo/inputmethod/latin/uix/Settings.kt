@@ -377,3 +377,13 @@ val GROQ_CHAT_SYSTEM_PROMPT = SettingsKey(
     key = stringPreferencesKey("groq_chat_system_prompt"),
     default = "You are a helpful assistant that writes concise replies."
 )
+
+val AI_REPLY_PROVIDER = SettingsKey(
+    key = stringPreferencesKey("ai_reply_provider"),
+    default = "groq"
+)
+
+val LOCAL_CHAT_MODEL_PATH = SettingsKey(
+    key = stringPreferencesKey("local_chat_model_path"),
+    default = ""
+)
