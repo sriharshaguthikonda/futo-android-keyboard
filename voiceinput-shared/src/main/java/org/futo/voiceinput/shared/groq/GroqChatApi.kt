@@ -4,9 +4,15 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
 import org.futo.voiceinput.shared.util.DebugLogger
-import java.net.HttpURLConnection
-import java.net.URL
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
 
 object GroqChatApi {
     private val json = Json { ignoreUnknownKeys = true }
@@ -49,23 +55,26 @@ object GroqChatApi {
         }
     }
 
-    fun availableModels(apiKey: String): List<String>? {
+    suspend fun availableModels(apiKey: String): List<String>? {
         if(apiKey.isBlank()) return null
         return try {
             DebugLogger.log("Groq chat models fetch")
-            val url = URL("https://api.groq.com/openai/v1/models")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "GET"
-            conn.setRequestProperty("Authorization", "Bearer $apiKey")
-            conn.connectTimeout = 5000
-            conn.readTimeout = 5000
-            val resp = conn.inputStream.readBytes().toString(Charsets.UTF_8)
-            if(conn.responseCode != HttpURLConnection.HTTP_OK) {
-                DebugLogger.log("Groq chat models failed code=${conn.responseCode}")
+            val client = HttpClient(Android)
+            val response = client.get("https://api.groq.com/openai/v1/models") {
+                header("Authorization", "Bearer $apiKey")
+            }
+            if(response.status != HttpStatusCode.OK) {
+                DebugLogger.log("Groq chat models failed code=${response.status.value}")
+                client.close()
                 return null
             }
-            val parsed = json.decodeFromString<ModelsResponse>(resp)
-            parsed.data.map { it.id }.filter { it.contains("llama") || it.contains("mixtral") || it.contains("gemma") }
+            val text = response.bodyAsText()
+            client.close()
+            val parsed = json.parseToJsonElement(text)
+            parsed.jsonObject["data"]!!
+                .jsonArray
+                .map { it.jsonObject["id"]!!.jsonPrimitive.content }
+                .filter { it.contains("llama") || it.contains("mixtral") || it.contains("gemma") }
         } catch(e: Exception) {
             DebugLogger.log("Groq chat models error: ${e.message}")
             null
