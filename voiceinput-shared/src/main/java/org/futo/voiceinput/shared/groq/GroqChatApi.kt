@@ -5,11 +5,15 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import org.futo.voiceinput.shared.util.DebugLogger
-import java.net.HttpURLConnection
-import java.net.URL
+import io.ktor.client.*
+import io.ktor.client.engine.okhttp.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 
 object GroqChatApi {
     private val json = Json { ignoreUnknownKeys = true }
+    private val http = HttpClient(OkHttp)
 
     @Serializable
     private data class ChatMessage(val role: String, val content: String)
@@ -24,49 +28,44 @@ object GroqChatApi {
     @Serializable
     data class Model(val id: String)
 
-    fun chat(systemPrompt: String, userPrompt: String, apiKey: String, model: String): String? {
-        if(apiKey.isBlank()) return null
+    suspend fun chat(systemPrompt: String, userPrompt: String, apiKey: String, model: String): String? {
+        if (apiKey.isBlank()) return null
         return try {
             DebugLogger.log("Groq chat start model=$model")
             val req = ChatRequest(model, listOf(ChatMessage("system", systemPrompt), ChatMessage("user", userPrompt)))
-            val url = URL("https://api.groq.com/openai/v1/chat/completions")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.doOutput = true
-            conn.setRequestProperty("Authorization", "Bearer $apiKey")
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.outputStream.use { it.write(json.encodeToString(req).toByteArray()) }
-            if(conn.responseCode != HttpURLConnection.HTTP_OK) {
-                DebugLogger.log("Groq chat failed code=${conn.responseCode}")
+            val response = http.post("https://api.groq.com/openai/v1/chat/completions") {
+                header("Authorization", "Bearer $apiKey")
+                contentType(ContentType.Application.Json)
+                setBody(json.encodeToString(req))
+            }
+            if (response.status != HttpStatusCode.OK) {
+                DebugLogger.log("Groq chat failed code=${response.status.value}")
                 return null
             }
-            val resp = conn.inputStream.readBytes().toString(Charsets.UTF_8)
+            val resp = response.bodyAsText()
             val parsed = json.decodeFromString<ChatResponse>(resp)
             parsed.choices.firstOrNull()?.message?.content
-        } catch(e: Exception) {
+        } catch (e: Exception) {
             DebugLogger.log("Groq chat error: ${e.message}")
             null
         }
     }
 
-    fun availableModels(apiKey: String): List<String>? {
-        if(apiKey.isBlank()) return null
+    suspend fun availableModels(apiKey: String): List<String>? {
+        if (apiKey.isBlank()) return null
         return try {
             DebugLogger.log("Groq chat models fetch")
-            val url = URL("https://api.groq.com/openai/v1/models")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "GET"
-            conn.setRequestProperty("Authorization", "Bearer $apiKey")
-            conn.connectTimeout = 5000
-            conn.readTimeout = 5000
-            val resp = conn.inputStream.readBytes().toString(Charsets.UTF_8)
-            if(conn.responseCode != HttpURLConnection.HTTP_OK) {
-                DebugLogger.log("Groq chat models failed code=${conn.responseCode}")
+            val response = http.get("https://api.groq.com/openai/v1/models") {
+                header("Authorization", "Bearer $apiKey")
+            }
+            if (response.status != HttpStatusCode.OK) {
+                DebugLogger.log("Groq chat models failed code=${response.status.value}")
                 return null
             }
+            val resp = response.bodyAsText()
             val parsed = json.decodeFromString<ModelsResponse>(resp)
             parsed.data.map { it.id }.filter { it.contains("llama") || it.contains("mixtral") || it.contains("gemma") }
-        } catch(e: Exception) {
+        } catch (e: Exception) {
             DebugLogger.log("Groq chat models error: ${e.message}")
             null
         }

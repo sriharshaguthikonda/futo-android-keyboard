@@ -9,10 +9,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.Action
 import org.futo.inputmethod.latin.uix.ActionWindow
@@ -33,6 +37,7 @@ private class AiReplyWindow(
     @Composable
     override fun WindowContents(keyboardShown: Boolean) {
         val context = LocalContext.current
+        val scope = rememberCoroutineScope()
         val reply = remember { mutableStateOf<String?>(null) }
         Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text)
@@ -41,7 +46,12 @@ private class AiReplyWindow(
                 val apiKey = context.getSetting(GROQ_API_KEY)
                 val model = context.getSetting(GROQ_CHAT_MODEL)
                 val systemPrompt = context.getSetting(GROQ_CHAT_SYSTEM_PROMPT)
-                reply.value = GroqChatApi.chat(systemPrompt, text, apiKey, model)
+                scope.launch {
+                    val res = withContext(Dispatchers.IO) {
+                        GroqChatApi.chat(systemPrompt, text, apiKey, model)
+                    }
+                    reply.value = res
+                }
             }, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.ai_reply_generate))
             }
