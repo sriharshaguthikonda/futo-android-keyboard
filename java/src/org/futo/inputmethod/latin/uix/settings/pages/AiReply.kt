@@ -2,14 +2,9 @@ package org.futo.inputmethod.latin.uix.settings.pages
 
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.GROQ_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_CHAT_MODEL
@@ -24,7 +19,6 @@ import org.futo.voiceinput.shared.groq.GroqChatApi
 @Composable
 fun AiReplyConfigScreen(navController: NavHostController = rememberNavController()) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val apiKeyItem = useDataStore(GROQ_API_KEY)
     val modelItem = useDataStore(GROQ_CHAT_MODEL)
     val promptItem = useDataStore(GROQ_CHAT_SYSTEM_PROMPT)
@@ -32,9 +26,7 @@ fun AiReplyConfigScreen(navController: NavHostController = rememberNavController
 
     LaunchedEffect(apiKeyItem.value) {
         if(apiKeyItem.value.isNotBlank()) {
-            val models = withContext(Dispatchers.IO) {
-                GroqChatApi.availableModels(apiKeyItem.value)
-            }
+            val models = GroqChatApi.availableModels(apiKeyItem.value)
             if(!models.isNullOrEmpty()) {
                 modelOptions.value = models
             }

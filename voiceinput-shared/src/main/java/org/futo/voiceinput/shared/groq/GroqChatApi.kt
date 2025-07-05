@@ -5,6 +5,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import org.futo.voiceinput.shared.util.DebugLogger
+import io.github.vyfor.groqkt.GroqClient
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -49,23 +54,15 @@ object GroqChatApi {
         }
     }
 
-    fun availableModels(apiKey: String): List<String>? {
+    suspend fun availableModels(apiKey: String): List<String>? {
         if(apiKey.isBlank()) return null
         return try {
             DebugLogger.log("Groq chat models fetch")
-            val url = URL("https://api.groq.com/openai/v1/models")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "GET"
-            conn.setRequestProperty("Authorization", "Bearer $apiKey")
-            conn.connectTimeout = 5000
-            conn.readTimeout = 5000
-            val resp = conn.inputStream.readBytes().toString(Charsets.UTF_8)
-            if(conn.responseCode != HttpURLConnection.HTTP_OK) {
-                DebugLogger.log("Groq chat models failed code=${conn.responseCode}")
-                return null
+            withContext(Dispatchers.IO) {
+                GroqClient(apiKey) { client = HttpClient(CIO) }.use { client ->
+                    client.fetchModels().getOrNull()?.map { it.id }
+                }
             }
-            val parsed = json.decodeFromString<ModelsResponse>(resp)
-            parsed.data.map { it.id }.filter { it.contains("llama") || it.contains("mixtral") || it.contains("gemma") }
         } catch(e: Exception) {
             DebugLogger.log("Groq chat models error: ${e.message}")
             null
