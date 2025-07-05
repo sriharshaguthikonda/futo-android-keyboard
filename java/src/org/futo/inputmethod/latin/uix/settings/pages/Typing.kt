@@ -660,6 +660,11 @@ val KeyboardSettingsMenu = UserSettingsMenu(
             navigateTo = "languages",
             icon = R.drawable.keyboard
         ),
+        userSettingNavigationItem(
+            title = R.string.ai_reply_settings_title,
+            style = NavigationItemStyle.Misc,
+            navigateTo = "aiReply"
+        ),
         userSettingToggleDataStore(
             title = R.string.keyboard_settings_show_suggestion_row,
             subtitle = R.string.keyboard_settings_show_suggestion_row_subtitle,

@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -34,6 +35,7 @@ import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.PersistentActionState
 import org.futo.inputmethod.latin.uix.ResourceHelper
+import org.futo.inputmethod.latin.uix.ActionBarHeight
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
 import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
@@ -115,6 +117,9 @@ private class VoiceInputActionWindow(
     val model: ModelLoader, val locales: List<Locale>
 ) : ActionWindow(), RecognizerViewListener {
     val context = manager.getContext()
+
+    override val fixedWindowHeight: Dp?
+        get() = 200.dp + ActionBarHeight
 
     private var shouldPlaySounds: Boolean = false
     private fun loadSettings(): RecognizerViewSettings {
