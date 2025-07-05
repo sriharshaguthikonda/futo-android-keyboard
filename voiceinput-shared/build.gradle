@@ -2,6 +2,7 @@ plugins {
     id 'com.android.library' version '8.2.2'
     id 'org.jetbrains.kotlin.android' version '2.0.0'
     id 'org.jetbrains.kotlin.plugin.compose' version '2.0.0'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '2.0.0'
 }
 
 final def translationsWithoutEngValues = { final String path ->
@@ -100,4 +101,6 @@ dependencies {
     implementation(name:'tensorflow-lite-support-api', ext:'aar')
 
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1'
+    implementation "io.ktor:ktor-client-core:2.3.8"
+    implementation "io.ktor:ktor-client-cio:2.3.8"
 }
