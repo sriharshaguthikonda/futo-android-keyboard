@@ -367,3 +367,23 @@ val SHOW_EMOJI_SUGGESTIONS = SettingsKey(
     key = booleanPreferencesKey("suggestEmojis"),
     default = true
 )
+
+val GROQ_CHAT_MODEL = SettingsKey(
+    key = stringPreferencesKey("groq_chat_model"),
+    default = "llama3-8b-8192"
+)
+
+val GROQ_CHAT_SYSTEM_PROMPT = SettingsKey(
+    key = stringPreferencesKey("groq_chat_system_prompt"),
+    default = "You are a helpful assistant that writes concise replies."
+)
+
+val AI_REPLY_PROVIDER = SettingsKey(
+    key = stringPreferencesKey("ai_reply_provider"),
+    default = "groq"
+)
+
+val LOCAL_CHAT_MODEL_PATH = SettingsKey(
+    key = stringPreferencesKey("local_chat_model_path"),
+    default = ""
+)
