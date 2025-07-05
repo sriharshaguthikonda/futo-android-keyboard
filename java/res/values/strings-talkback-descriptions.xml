@@ -196,4 +196,5 @@
     <string name="quick_clip_email_address">Quick clip of an extracted email address: “%s”. Double-tap to paste. Type anything to dismiss.</string>
     <string name="quick_clip_url">Quick clip of an extracted URL: “%s”. Double-tap to paste. Type anything to dismiss.</string>
     <string name="quick_clip_image">Quick image clipboard item. Double-tap to paste image. Type anything to dismiss.</string>
+    <string name="quick_clip_ai_reply">Generate AI reply from clipboard text. Double-tap to insert.</string>
 </resources>

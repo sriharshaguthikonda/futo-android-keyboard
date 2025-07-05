@@ -21,9 +21,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -34,13 +37,15 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.unit.dp
 import org.futo.inputmethod.latin.R
+import org.futo.inputmethod.latin.uix.generateAiReply
 import org.futo.inputmethod.latin.uix.theme.Typography
 
 enum class QuickClipKind {
     FullString,
     NumericCode,
     EmailAddress,
-    Link
+    Link,
+    AiReply
 }
 
 @get:DrawableRes
@@ -50,6 +55,7 @@ val QuickClipKind.icon: Int get() =
         QuickClipKind.NumericCode -> R.drawable.hash
         QuickClipKind.EmailAddress -> R.drawable.at_sign
         QuickClipKind.Link -> R.drawable.link
+        QuickClipKind.AiReply -> R.drawable.text_prediction
     }
 
 @get:StringRes
@@ -59,6 +65,7 @@ val QuickClipKind.accessibilityDescription: Int get() =
         QuickClipKind.NumericCode -> R.string.quick_clip_numeric_code
         QuickClipKind.EmailAddress -> R.string.quick_clip_email_address
         QuickClipKind.Link -> R.string.quick_clip_url
+        QuickClipKind.AiReply -> R.string.quick_clip_ai_reply
     }
 
 // The order here defines which ones to favor when theres a duplicate
@@ -119,6 +126,8 @@ fun RowScope.QuickClipView(state: QuickClipState, dismiss: () -> Unit) {
     } else {
         null
     }
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     LazyRow(Modifier.weight(1.0f)) {
         state.image?.let { uri ->
@@ -138,31 +147,44 @@ fun RowScope.QuickClipView(state: QuickClipState, dismiss: () -> Unit) {
 
         state.texts.forEach {
             item {
+                val label = it.text.let { txt ->
+                    when(it.kind) {
+                        QuickClipKind.FullString -> if (txt.length > 12) txt.take(10) + "..." else txt
+                        QuickClipKind.NumericCode -> txt
+                        QuickClipKind.EmailAddress -> txt
+                        QuickClipKind.Link -> txt
+                            .replace("http://", "")
+                            .replace("https://", "")
+                            .split("/", limit = 2)
+                            .let { parts ->
+                                if(parts.size == 2)
+                                    parts[0] + "/" + if(parts[1].length > 6) parts[1].take(6) + "..." else parts[1]
+                                else
+                                    parts[0]
+                            }
+                        QuickClipKind.AiReply -> stringResource(R.string.quick_clip_ai_reply_short)
+                    }
+                }
                 QuickClipPill(
                     icon = painterResource(it.kind.icon),
                     contentDescription = stringResource(it.kind.accessibilityDescription, it.text),
-                    text = it.text.let { txt ->
-                        when(it.kind) {
-                            QuickClipKind.FullString -> if (txt.length > 12) txt.take(10) + "..." else txt
-                            QuickClipKind.NumericCode -> txt
-                            QuickClipKind.EmailAddress -> txt
-                            QuickClipKind.Link -> txt
-                                .replace("http://", "")
-                                .replace("https://", "")
-                                .split("/", limit = 2)
-                                .let {
-                                    if(it.size == 2)
-                                        it[0] + "/" + if(it[1].length > 6) it[1].take(6) + "..." else it[1]
-                                    else
-                                        it[0]
-                                }
-                        }
-                    },
+                    text = label,
                     uri = null
                 ) {
-                    manager!!.typeText(it.text)
-                    QuickClip.markQuickClipDismissed()
-                    dismiss()
+                    if(it.kind == QuickClipKind.AiReply) {
+                        lifecycleOwner.lifecycleScope.launch {
+                            val response = context.generateAiReply(it.text)
+                            if(!response.isNullOrBlank()) {
+                                manager?.typeText(response)
+                            }
+                            QuickClip.markQuickClipDismissed()
+                            dismiss()
+                        }
+                    } else {
+                        manager!!.typeText(it.text)
+                        QuickClip.markQuickClipDismissed()
+                        dismiss()
+                    }
                 }
             }
         }
@@ -197,6 +219,13 @@ object QuickClip {
                     }
                 }
             }
+            texts.add(
+                QuickClipItem(
+                    kind = QuickClipKind.AiReply,
+                    text = text,
+                    occurrenceIndex = -1
+                )
+            )
         }
 
         return QuickClipState(

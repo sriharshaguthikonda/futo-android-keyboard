@@ -1030,6 +1030,7 @@ fun PreviewActionBarWithQuickClip(colorScheme: ThemeOption = DefaultDarkScheme) 
                     QuickClipItem(QuickClipKind.EmailAddress, "keyboard@futo.org", 0),
                     QuickClipItem(QuickClipKind.NumericCode, "123456", 0),
                     QuickClipItem(QuickClipKind.FullString, "Hello world, this is a full string.", 0),
+                    QuickClipItem(QuickClipKind.AiReply, "Hello world, this is a full string.", -1),
                 ),
                 image = "content://example".toUri(),
                 validUntil = Long.MAX_VALUE,
