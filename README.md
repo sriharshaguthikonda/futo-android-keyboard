@@ -35,3 +35,7 @@ You can then open the project in Android Studio and build it that way, or use gr
 ./gradlew assembleUnstableDebug
 ./gradlew assembleStableRelease
 ```
+
+## Groq AI features
+
+The Groq API settings screen lets you test your configuration. "Test connection" verifies audio transcription, while "Test AI reply" checks chat completions.
