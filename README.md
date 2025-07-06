@@ -6,6 +6,11 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 
 The code is licensed under the [FUTO Source First License 1.1](LICENSE.md).
 
+## Features
+
+* Offline-first keyboard with modern features.
+* AI Reply action powered by Groq Chat with a settings test to verify the rewrite feature.
+
 ## Issue tracking and PRs
 
 Please check the GitHub repository to report issues: [https://github.com/futo-org/android-keyboard/](https://github.com/futo-org/android-keyboard/)

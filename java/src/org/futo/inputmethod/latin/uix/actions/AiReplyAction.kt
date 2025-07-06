@@ -21,6 +21,7 @@ import org.futo.inputmethod.latin.uix.GROQ_MODEL
 import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.voiceinput.shared.groq.GroqChatApi
+import org.futo.inputmethod.latin.uix.settings.pages.AiReplySettingsMenu
 
 private const val DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant that writes concise replies."
 
@@ -64,5 +65,6 @@ val AiReplyAction = Action(
         val text = AiReplyActionHolder.pendingText
         AiReplyActionHolder.pendingText = ""
         AiReplyWindow(manager, text)
-    }
+    },
+    settingsMenu = AiReplySettingsMenu
 )
