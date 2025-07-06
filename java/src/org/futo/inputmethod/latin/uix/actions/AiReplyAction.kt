@@ -40,7 +40,8 @@ private class AiReplyWindow(
             reply.value?.let { Text(it) }
             Button(onClick = {
                 val apiKey = context.getSetting(GROQ_API_KEY)
-                val model = context.getSetting(GROQ_MODEL)
+                val pref = context.getSetting(GROQ_MODEL)
+                val model = GroqChatApi.pickGroqModel(apiKey, pref)
                 reply.value = GroqChatApi.chat(DEFAULT_SYSTEM_PROMPT, text, apiKey, model)
             }, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.ai_reply_generate))

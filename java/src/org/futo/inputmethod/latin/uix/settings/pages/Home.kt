@@ -13,7 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -165,19 +165,13 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
         ) {
             Spacer(modifier = Modifier.height(24.dp))
             Row(Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.english_ime_settings), style = Typography.Heading.Medium, modifier = Modifier
-                    .align(CenterVertically)
-                    .weight(1.0f))
-
-                Spacer(Modifier.width(4.dp))
-
-                IconButton(onClick = {
-                    navController.navigate("search")
-                }) {
-                    Icon(Icons.Default.Search, contentDescription = stringResource(
-                        R.string.settings_search_menu_title
-                    ))
-                }
+                Text(
+                    stringResource(R.string.english_ime_settings),
+                    style = Typography.Heading.Medium,
+                    modifier = Modifier
+                        .align(CenterVertically)
+                        .weight(1.0f)
+                )
             }
 
             ConditionalMigrateUpdateNotice()
@@ -204,6 +198,19 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedButton(
+                onClick = { navController.navigate("search") },
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Search, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.settings_search_menu_title))
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
         }
         TextButton(onClick = {

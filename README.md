@@ -35,3 +35,15 @@ You can then open the project in Android Studio and build it that way, or use gr
 ./gradlew assembleUnstableDebug
 ./gradlew assembleStableRelease
 ```
+
+## AI Reply Testing
+
+The Groq API settings screen now includes a **Test AI reply** button. This lets
+you verify that your API key and model work for chat completions before using
+AI Reply in the keyboard. Behind the scenes the keyboard automatically queries
+`https://api.groq.com/openai/v1/models` to pick a suitable model if your
+preferred one isn't available. See [Groq's docs](https://console.groq.com/docs/)
+for details on supported models.
+
+The Settings home page now places the **Search** button at the bottom with a
+border so it’s easier to find.

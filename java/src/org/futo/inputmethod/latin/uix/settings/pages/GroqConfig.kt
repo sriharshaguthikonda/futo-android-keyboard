@@ -20,6 +20,7 @@ import org.futo.inputmethod.latin.uix.settings.SettingTextField
 import org.futo.inputmethod.latin.uix.settings.DropDownPickerSettingItem
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.voiceinput.shared.groq.GroqWhisperApi
+import org.futo.voiceinput.shared.groq.GroqChatApi
 
 @Composable
 fun GroqConfigScreen(navController: NavHostController = rememberNavController()) {
@@ -28,6 +29,7 @@ fun GroqConfigScreen(navController: NavHostController = rememberNavController())
     val apiKeyItem = useDataStore(GROQ_API_KEY)
     val modelItem = useDataStore(GROQ_MODEL)
     val testStatus = remember { mutableStateOf("") }
+    val chatTestStatus = remember { mutableStateOf("") }
     val modelOptions = remember {
         mutableStateOf(listOf("whisper-large-v3", "whisper-large-v3-en", "whisper-large-v3-turbo"))
     }
@@ -74,6 +76,23 @@ fun GroqConfigScreen(navController: NavHostController = rememberNavController())
                         GroqWhisperApi.test(apiKeyItem.value)
                     }
                     testStatus.value = if(success) successText else failureText
+                }
+            }
+        ) { }
+
+        SettingItem(
+            title = stringResource(R.string.groq_settings_test_chat),
+            subtitle = chatTestStatus.value,
+            onClick = {
+                lifecycleOwner.lifecycleScope.launch {
+                    chatTestStatus.value = testing
+                    val model = withContext(Dispatchers.IO) {
+                        GroqChatApi.pickGroqModel(apiKeyItem.value, modelItem.value)
+                    }
+                    val success = withContext(Dispatchers.IO) {
+                        GroqChatApi.test(apiKeyItem.value, model)
+                    }
+                    chatTestStatus.value = if(success) successText else failureText
                 }
             }
         ) { }
