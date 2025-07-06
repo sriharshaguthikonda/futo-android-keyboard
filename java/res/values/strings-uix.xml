@@ -511,6 +511,7 @@
     <string name="groq_settings_api_key">Groq API key</string>
     <string name="groq_settings_model">Groq model</string>
     <string name="groq_settings_test">Test connection</string>
+    <string name="groq_settings_test_chat">Test AI reply</string>
     <string name="groq_settings_testing">Testing...</string>
     <string name="groq_settings_success">Success</string>
     <string name="groq_settings_failure">Failed</string>
