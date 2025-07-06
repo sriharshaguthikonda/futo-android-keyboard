@@ -18,6 +18,10 @@ Due to custom license, pull requests to this repository require signing a [CLA](
 
 If you want to contribute layouts, check out the [layouts repo](https://github.com/futo-org/futo-keyboard-layouts).
 
+## AI Features
+
+The keyboard integrates optional Groq-based AI services. You can test your API key for both voice input and AI reply in the settings. The AI reply section now includes a button to verify that the rewrite service works.
+
 ## Building
 
 When cloning the repository, you must perform a recursive clone to fetch all dependencies:

@@ -44,4 +44,24 @@ object GroqChatApi {
             null
         }
     }
+
+    fun test(apiKey: String): Boolean {
+        if(apiKey.isBlank()) return false
+        return try {
+            DebugLogger.log("Groq chat test start")
+            val url = URL("https://api.groq.com/openai/v1/models")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("Authorization", "Bearer $apiKey")
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
+            conn.inputStream.use { it.readBytes() }
+            val ok = conn.responseCode == HttpURLConnection.HTTP_OK
+            DebugLogger.log("Groq chat test result code=${conn.responseCode}")
+            ok
+        } catch(e: Exception) {
+            DebugLogger.log("Groq chat test error: ${e.message}")
+            false
+        }
+    }
 }
