@@ -8,6 +8,9 @@
     <string name="action_paste_title">Paste from Clipboard</string>
     <string name="action_undo_title">Undo</string>
     <string name="action_redo_title">Redo</string>
+    <string name="action_switch_apps_title">Switch Apps</string>
+    <string name="action_switch_apps_enable_service">Enable accessibility service to use Switch Apps</string>
+    <string name="switch_apps_enable">Enable Quick Switch action</string>
     <string name="action_text_editor_title">Text Editor</string>
     <string name="action_debug_title">Debug Info</string>
     <string name="action_more_actions_title">All Actions</string>
@@ -516,6 +519,8 @@
     <string name="ai_reply_enable">Enable AI Reply</string>
     <string name="ai_reply_groq_config">Groq API Settings</string>
     <string name="ai_reply_groq_config_subtitle">Configure Groq API key and model</string>
+    <string name="ai_reply_prompt_title">AI Reply Prompt</string>
+    <string name="ai_reply_prompt_placeholder">e.g. Write a short helpful reply</string>
 
     <string name="groq_settings_title">Groq API</string>
     <string name="groq_settings_api_key">Groq API key</string>
