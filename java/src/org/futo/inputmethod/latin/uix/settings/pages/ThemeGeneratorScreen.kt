@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -50,7 +52,12 @@ fun ThemeGeneratorScreen(navController: NavHostController) {
     val (modBg, setModBg) = useDataStore(CustomModifierColor)
     val (border, setBorder) = useDataStore(CustomBorderColor)
     val (bgImage, setBgImage) = useDataStore(CustomBackgroundImage)
-    Column(Modifier.fillMaxSize()) {
+    val scrollState = rememberScrollState()
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+    ) {
         ScreenTitle(stringResource(R.string.theme_generator_title), showBack = true, navController)
         ColorPicker(stringResource(R.string.theme_generator_accent), accent, setAccent)
         ColorPicker(stringResource(R.string.theme_generator_base), base, setBase)
