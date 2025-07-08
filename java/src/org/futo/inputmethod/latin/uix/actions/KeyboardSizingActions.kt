@@ -56,6 +56,9 @@ private fun RowScope.KeyboardMode(iconRes: Int, checkedIconRes: Int, name: Strin
                     }
                 }
             }
+            if(mode == KeyboardMode.Phone) {
+                manager.sendCodePointEvent(Constants.CODE_TO_PHONE_LAYOUT)
+            }
         },
         contentColor = if(isChecked) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onBackground
     ) {
@@ -140,31 +143,19 @@ val KeyboardModeAction = Action(
                             sizeCalculator, KeyboardMode.Split
                         )
 
-                    KeyboardMode(
-                        R.drawable.keyboard_float,
-                        R.drawable.keyboard_float_fill_check,
-                        stringResource(R.string.action_keyboard_modes_floating),
-                        sizeCalculator, KeyboardMode.Floating
-                    )
+                        KeyboardMode(
+                            R.drawable.keyboard_float,
+                            R.drawable.keyboard_float_fill_check,
+                            stringResource(R.string.action_keyboard_modes_floating),
+                            sizeCalculator, KeyboardMode.Floating
+                        )
 
-                    Surface(
-                        color = Color.Transparent,
-                        modifier = Modifier
-                            .weight(1.0f)
-                            .height(54.dp),
-                        onClick = {
-                            manager.sendCodePointEvent(Constants.CODE_TO_PHONE_LAYOUT)
-                            manager.closeActionWindow()
-                        },
-                        contentColor = MaterialTheme.colorScheme.onBackground
-                    ) {
-                        Box(Modifier.height(54.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(painterResource(R.drawable.numpad), contentDescription = null)
-                                Text(stringResource(R.string.action_keyboard_modes_phone), style = Typography.SmallMl)
-                            }
-                        }
-                    }
+                        KeyboardMode(
+                            R.drawable.numpad,
+                            R.drawable.numpad,
+                            stringResource(R.string.action_keyboard_modes_phone),
+                            sizeCalculator, KeyboardMode.Phone
+                        )
                 }
             }
             }
