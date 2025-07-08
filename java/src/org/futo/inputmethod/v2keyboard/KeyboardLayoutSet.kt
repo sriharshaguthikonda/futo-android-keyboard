@@ -163,10 +163,15 @@ Layout: $it
 
     private val keyboardMode = getKeyboardMode(editorInfo)
 
-    private fun safeGetLayout(name: String): org.futo.inputmethod.v2keyboard.Keyboard =
+    private fun safeGetLayout(name: String, fallback: String? = null): org.futo.inputmethod.v2keyboard.Keyboard =
         try {
             LayoutManager.getLayout(context, name)
         } catch (e: Exception) {
+            fallback?.let {
+                try {
+                    return LayoutManager.getLayout(context, it)
+                } catch (_: Exception) {}
+            }
             BugViewerState.pushBug(BugInfo(
                 name = if(layoutName.startsWith("custom")) { "your custom layout" } else { "layout $layoutName" },
                 details =
@@ -189,8 +194,8 @@ Layout: $layoutName
     val symbolsLayout = safeGetLayout(mainLayout.layoutSetOverrides.symbols)
     val symbolsShiftedLayout = safeGetLayout(mainLayout.layoutSetOverrides.symbolsShifted)
     val numberLayout = safeGetLayout(mainLayout.layoutSetOverrides.number)
-    val phoneLayout = safeGetLayout(mainLayout.layoutSetOverrides.phone)
-    val phoneSymbolsLayout = safeGetLayout(mainLayout.layoutSetOverrides.phoneShifted)
+    val phoneLayout = safeGetLayout(mainLayout.layoutSetOverrides.phone, mainLayout.layoutSetOverrides.number)
+    val phoneSymbolsLayout = safeGetLayout(mainLayout.layoutSetOverrides.phoneShifted, mainLayout.layoutSetOverrides.number)
     val numberBasicLayout = safeGetLayout("number_basic")
 
     val elements = mapOf(

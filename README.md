@@ -57,6 +57,9 @@ If you forgot to specify recursive clone, use this to fetch submodules:
 ```
 git submodule update --init --recursive
 ```
+This pulls in the keyboard layouts submodule which includes the T9 phone layout
+and other custom layouts. Without it the keyboard falls back to the number
+layout when switching to T9, so updating the submodule is recommended.
 
 You can then open the project in Android Studio and build it that way, or use gradle commands:
 ```
