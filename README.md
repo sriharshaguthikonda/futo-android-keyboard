@@ -32,12 +32,16 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - T9 phone layout accessible via the action key for quick number entry.
 - The T9 layout is also listed in the Keyboard Modes menu for easy access.
 - A new persistent T9 keyboard mode lets you keep the phone layout active until changed.
+
 - T9 multi-tap now replaces the previous letter instead of inserting multiple characters and backspace obeys the "delete whole words" option.
 - Long‑press spacebar drag now moves the cursor vertically when sliding up or down.
 - Colored overlays appear above and below the keyboard when dragging on the spacebar to show vertical and horizontal cursor control.
 - Custom themes can set different background colors for each settings item icon.
 - Settings icons can also use custom background images loaded from files.
 - Copying text shows an "AI Generate" option in the suggestion strip.
+
+- Long‑press spacebar drag now moves the cursor vertically when sliding up or down.
+
 
 The code is licensed under the [FUTO Source First License 1.1](LICENSE.md).
 
