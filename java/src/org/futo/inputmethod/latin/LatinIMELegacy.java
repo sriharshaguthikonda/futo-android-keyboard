@@ -1376,6 +1376,9 @@ public class LatinIMELegacy implements KeyboardActionListener,
     @Override
     public void onUpWithPointerActive() {
         mInputLogic.restartSuggestionsOnWordTouchedByCursor(mSettings.getCurrent(), false, mKeyboardSwitcher.getCurrentKeyboardScriptId());
+        if(mInputView instanceof InputView) {
+            ((InputView)mInputView).showCursorOverlays(false);
+        }
     }
 
     @Override
@@ -1387,6 +1390,13 @@ public class LatinIMELegacy implements KeyboardActionListener,
     public void onMovingCursorLockEvent(boolean canMoveCursor) {
         if(canMoveCursor) {
             hapticAndAudioFeedback(Constants.CODE_UNSPECIFIED, 0);
+            if(mInputView instanceof InputView) {
+                ((InputView)mInputView).showCursorOverlays(true);
+            }
+        } else {
+            if(mInputView instanceof InputView) {
+                ((InputView)mInputView).showCursorOverlays(false);
+            }
         }
     }
 

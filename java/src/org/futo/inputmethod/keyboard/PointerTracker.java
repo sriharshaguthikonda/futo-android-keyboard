@@ -1142,7 +1142,11 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 mStartY = mLastY;
                 sListener.onMovingCursorLockEvent(true);
                 return;
-            }else if(spacebarMode == Settings.SPACEBAR_MODE_SWIPE_CURSOR_ONLY) {
+            } else if(spacebarMode == Settings.SPACEBAR_MODE_SWIPE_CURSOR_ONLY) {
+                mSpacebarLongPressed = true;
+                mStartX = mLastX;
+                mStartY = mLastY;
+                sListener.onMovingCursorLockEvent(true);
                 return;
             }
 
@@ -1152,6 +1156,11 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 sListener.onReleaseKey(code, false /* withSliding */);
                 return;
             }
+            mSpacebarLongPressed = true;
+            mStartX = mLastX;
+            mStartY = mLastY;
+            sListener.onMovingCursorLockEvent(true);
+            return;
         }
 
         if (code >= Constants.CODE_ACTION_0 && code <= Constants.CODE_ACTION_MAX) {

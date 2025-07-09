@@ -93,9 +93,23 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
+import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.getSettingBlocking
 import org.futo.inputmethod.latin.uix.theme.Typography
+import org.futo.inputmethod.latin.uix.CustomHomePrimaryBgColor
+import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgColor
+import org.futo.inputmethod.latin.uix.CustomHomeTertiaryBgColor
+import org.futo.inputmethod.latin.uix.CustomMiscBgColor
+import org.futo.inputmethod.latin.uix.CustomMiscNoArrowBgColor
+import org.futo.inputmethod.latin.uix.CustomHomePrimaryBgImage
+import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgImage
+import org.futo.inputmethod.latin.uix.CustomHomeTertiaryBgImage
+import org.futo.inputmethod.latin.uix.CustomMiscBgImage
+import org.futo.inputmethod.latin.uix.CustomMiscNoArrowBgImage
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.unit.IntSize
 import kotlin.math.pow
 
 @Composable
@@ -608,21 +622,52 @@ fun NavigationItem(title: String, style: NavigationItemStyle, navigate: () -> Un
         onClick = navigate,
         icon = {
             icon?.let {
+                val scheme = LocalKeyboardScheme.current
                 val circleColor = when(style) {
-                    NavigationItemStyle.HomePrimary,
-                    NavigationItemStyle.HomeSecondary,
-                    NavigationItemStyle.HomeTertiary,
-                    NavigationItemStyle.MiscNoArrow,
-                    NavigationItemStyle.Misc -> LocalKeyboardScheme.current.settingsIconBackground
+
+                    NavigationItemStyle.HomePrimary -> runCatching {
+                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomePrimaryBgColor)))
+                    }.getOrElse { scheme.settingsIconBackground }
+                    NavigationItemStyle.HomeSecondary -> runCatching {
+                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomeSecondaryBgColor)))
+                    }.getOrElse { scheme.settingsIconBackground }
+                    NavigationItemStyle.HomeTertiary -> runCatching {
+                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomeTertiaryBgColor)))
+                    }.getOrElse { scheme.settingsIconBackground }
+                    NavigationItemStyle.Misc -> runCatching {
+                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomMiscBgColor)))
+                    }.getOrElse { scheme.settingsIconBackground }
+                    NavigationItemStyle.MiscNoArrow -> runCatching {
+                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomMiscNoArrowBgColor)))
+                    }.getOrElse { scheme.settingsIconBackground }
 
                     NavigationItemStyle.ExternalLink,
                     NavigationItemStyle.Mail -> Color.Transparent
                 }
 
+                val imagePath = when(style) {
+                    NavigationItemStyle.HomePrimary -> useDataStoreValue(CustomHomePrimaryBgImage)
+                    NavigationItemStyle.HomeSecondary -> useDataStoreValue(CustomHomeSecondaryBgImage)
+                    NavigationItemStyle.HomeTertiary -> useDataStoreValue(CustomHomeTertiaryBgImage)
+                    NavigationItemStyle.Misc -> useDataStoreValue(CustomMiscBgImage)
+                    NavigationItemStyle.MiscNoArrow -> useDataStoreValue(CustomMiscNoArrowBgImage)
+                    else -> ""
+                }
+                val bitmap = remember(imagePath) {
+                    imagePath.takeIf { it.isNotBlank() }?.let { BitmapFactory.decodeFile(it) }
+                }
+
                 val iconColor = LocalKeyboardScheme.current.settingsIconColor
 
                 Canvas(modifier = Modifier.size(48.dp)) {
-                    drawCircle(circleColor, this.size.maxDimension / 2.4f)
+                    if (bitmap != null) {
+                        drawImage(
+                            image = bitmap.asImageBitmap(),
+                            dstSize = IntSize(size.width.toInt(), size.height.toInt())
+                        )
+                    } else {
+                        drawCircle(circleColor, this.size.maxDimension / 2.4f)
+                    }
                     translate(
                         left = this.size.width / 2.0f - icon.intrinsicSize.width / 2.0f,
                         top = this.size.height / 2.0f - icon.intrinsicSize.height / 2.0f
