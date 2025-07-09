@@ -388,9 +388,19 @@ val CustomHomePrimaryBgColor = SettingsKey(
     default = CustomIconBgColor.default
 )
 
+val CustomHomePrimaryBgImage = SettingsKey(
+    key = stringPreferencesKey("custom_home_primary_bg_image"),
+    default = ""
+)
+
 val CustomHomeSecondaryBgColor = SettingsKey(
     key = stringPreferencesKey("custom_home_secondary_bg_color"),
     default = CustomIconBgColor.default
+)
+
+val CustomHomeSecondaryBgImage = SettingsKey(
+    key = stringPreferencesKey("custom_home_secondary_bg_image"),
+    default = ""
 )
 
 val CustomHomeTertiaryBgColor = SettingsKey(
@@ -398,14 +408,29 @@ val CustomHomeTertiaryBgColor = SettingsKey(
     default = CustomIconBgColor.default
 )
 
+val CustomHomeTertiaryBgImage = SettingsKey(
+    key = stringPreferencesKey("custom_home_tertiary_bg_image"),
+    default = ""
+)
+
 val CustomMiscBgColor = SettingsKey(
     key = stringPreferencesKey("custom_misc_bg_color"),
     default = CustomIconBgColor.default
 )
 
+val CustomMiscBgImage = SettingsKey(
+    key = stringPreferencesKey("custom_misc_bg_image"),
+    default = ""
+)
+
 val CustomMiscNoArrowBgColor = SettingsKey(
     key = stringPreferencesKey("custom_misc_noarrow_bg_color"),
     default = CustomIconBgColor.default
+)
+
+val CustomMiscNoArrowBgImage = SettingsKey(
+    key = stringPreferencesKey("custom_misc_noarrow_bg_image"),
+    default = ""
 )
 
 val CustomBackgroundImage = SettingsKey(
@@ -429,5 +454,4 @@ val SUGGESTION_BLACKLIST = SettingsKey(
 )
 
 val SHOW_EMOJI_SUGGESTIONS = SettingsKey(
-    key = booleanPreferencesKey("suggestEmojis"),
-    default = true)
+    key = booleanPreferencesKey("suggestEmojis"),    default = true)

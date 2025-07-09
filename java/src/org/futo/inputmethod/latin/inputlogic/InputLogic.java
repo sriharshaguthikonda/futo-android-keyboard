@@ -148,6 +148,10 @@ public final class InputLogic {
         final int digit = codePoint - '0';
         final long now = inputTransaction.mTimestamp;
         if (mLastPhoneDigit == digit && now - mLastPhoneTapTime < PHONE_MULTI_TAP_DELAY) {
+            // remove the previously inserted letter from the composing word and editor
+            mWordComposer.applyProcessedEvent(Event.createSoftwareKeypressEvent(Constants.CODE_DELETE,
+                    Constants.CODE_DELETE, event.mX, event.mY, false));
+            setComposingTextInternal(getTextWithUnderline(mWordComposer.getTypedWord()), 1);
             mConnection.deleteTextBeforeCursor(1);
             mLastPhoneTapIndex = (mLastPhoneTapIndex + 1) % PHONE_KEY_LETTERS[digit].length();
         } else {
@@ -1238,8 +1242,9 @@ public final class InputLogic {
             // When we exit this if-clause, mWordComposer.isComposingWord() will return false.
         }
 
-        final boolean deleteWholeWords = event.isKeyRepeat()
-                && Settings.getInstance().getCurrent().mBackspaceMode == Settings.BACKSPACE_MODE_WORDS;
+        final boolean deleteWholeWords =
+                Settings.getInstance().getCurrent().mBackspaceMode == Settings.BACKSPACE_MODE_WORDS &&
+                (event.isKeyRepeat() || isPhoneLayout());
 
         if (mWordComposer.isComposingWord()) {
             if (mWordComposer.isBatchMode()) {

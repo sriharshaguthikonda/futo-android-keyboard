@@ -102,6 +102,14 @@ import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgColor
 import org.futo.inputmethod.latin.uix.CustomHomeTertiaryBgColor
 import org.futo.inputmethod.latin.uix.CustomMiscBgColor
 import org.futo.inputmethod.latin.uix.CustomMiscNoArrowBgColor
+import org.futo.inputmethod.latin.uix.CustomHomePrimaryBgImage
+import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgImage
+import org.futo.inputmethod.latin.uix.CustomHomeTertiaryBgImage
+import org.futo.inputmethod.latin.uix.CustomMiscBgImage
+import org.futo.inputmethod.latin.uix.CustomMiscNoArrowBgImage
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.drawImage
 import kotlin.math.pow
 
 @Composable
@@ -635,10 +643,26 @@ fun NavigationItem(title: String, style: NavigationItemStyle, navigate: () -> Un
                     NavigationItemStyle.Mail -> Color.Transparent
                 }
 
+                val imagePath = when(style) {
+                    NavigationItemStyle.HomePrimary -> useDataStoreValue(CustomHomePrimaryBgImage)
+                    NavigationItemStyle.HomeSecondary -> useDataStoreValue(CustomHomeSecondaryBgImage)
+                    NavigationItemStyle.HomeTertiary -> useDataStoreValue(CustomHomeTertiaryBgImage)
+                    NavigationItemStyle.Misc -> useDataStoreValue(CustomMiscBgImage)
+                    NavigationItemStyle.MiscNoArrow -> useDataStoreValue(CustomMiscNoArrowBgImage)
+                    else -> ""
+                }
+                val bitmap = remember(imagePath) {
+                    imagePath.takeIf { it.isNotBlank() }?.let { BitmapFactory.decodeFile(it) }
+                }
+
                 val iconColor = LocalKeyboardScheme.current.settingsIconColor
 
                 Canvas(modifier = Modifier.size(48.dp)) {
-                    drawCircle(circleColor, this.size.maxDimension / 2.4f)
+                    if (bitmap != null) {
+                        drawImage(bitmap.asImageBitmap(), dstSize = IntSize(size.width.toInt(), size.height.toInt()))
+                    } else {
+                        drawCircle(circleColor, this.size.maxDimension / 2.4f)
+                    }
                     translate(
                         left = this.size.width / 2.0f - icon.intrinsicSize.width / 2.0f,
                         top = this.size.height / 2.0f - icon.intrinsicSize.height / 2.0f
