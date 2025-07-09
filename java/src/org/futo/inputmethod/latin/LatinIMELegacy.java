@@ -1310,6 +1310,18 @@ public class LatinIMELegacy implements KeyboardActionListener,
     }
 
     @Override
+    public void onMovePointerVertical(int steps) {
+        setNeutralSuggestionStrip();
+
+        mInputLogic.mConnection.beginBatchEdit();
+        final int keyCode = steps < 0 ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN;
+        for(int i = 0; i < Math.abs(steps); i++) {
+            mInputLogic.sendDownUpKeyEvent(keyCode, 0);
+        }
+        mInputLogic.mConnection.endBatchEdit();
+    }
+
+    @Override
     public void onMoveDeletePointer(int steps) {
         setNeutralSuggestionStrip();
         if (mInputLogic.mConnection.hasCursorPosition()) {

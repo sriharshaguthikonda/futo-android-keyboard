@@ -611,10 +611,10 @@ fun NavigationItem(title: String, style: NavigationItemStyle, navigate: () -> Un
                 val circleColor = when(style) {
                     NavigationItemStyle.HomePrimary,
                     NavigationItemStyle.HomeSecondary,
-                    NavigationItemStyle.HomeTertiary -> LocalKeyboardScheme.current.settingsIconBackground
-
+                    NavigationItemStyle.HomeTertiary,
                     NavigationItemStyle.MiscNoArrow,
-                    NavigationItemStyle.Misc,
+                    NavigationItemStyle.Misc -> LocalKeyboardScheme.current.settingsIconBackground
+
                     NavigationItemStyle.ExternalLink,
                     NavigationItemStyle.Mail -> Color.Transparent
                 }
