@@ -43,11 +43,13 @@ import org.futo.inputmethod.latin.uix.CustomKeyBgColor
 import org.futo.inputmethod.latin.uix.CustomModifierColor
 import org.futo.inputmethod.latin.uix.CustomBorderColor
 import org.futo.inputmethod.latin.uix.CustomBackgroundImage
+
 import org.futo.inputmethod.latin.uix.CustomHomePrimaryBgColor
 import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgColor
 import org.futo.inputmethod.latin.uix.CustomHomeTertiaryBgColor
 import org.futo.inputmethod.latin.uix.CustomMiscBgColor
 import org.futo.inputmethod.latin.uix.CustomMiscNoArrowBgColor
+
 import org.futo.inputmethod.latin.uix.CustomHomePrimaryBgImage
 import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgImage
 import org.futo.inputmethod.latin.uix.CustomHomeTertiaryBgImage
@@ -73,6 +75,7 @@ fun ThemeGeneratorScreen(navController: NavHostController) {
     val (homeTertiaryColor, setHomeTertiaryColor) = useDataStore(CustomHomeTertiaryBgColor)
     val (miscColor, setMiscColor) = useDataStore(CustomMiscBgColor)
     val (miscNoArrowColor, setMiscNoArrowColor) = useDataStore(CustomMiscNoArrowBgColor)
+
     val (homePrimaryBg, setHomePrimaryBg) = useDataStore(CustomHomePrimaryBgImage)
     val (homeSecondaryBg, setHomeSecondaryBg) = useDataStore(CustomHomeSecondaryBgImage)
     val (homeTertiaryBg, setHomeTertiaryBg) = useDataStore(CustomHomeTertiaryBgImage)
@@ -97,12 +100,15 @@ fun ThemeGeneratorScreen(navController: NavHostController) {
         ColorPicker("Home Tertiary Icon Background", homeTertiaryColor, setHomeTertiaryColor)
         ColorPicker("Misc Icon Background", miscColor, setMiscColor)
         ColorPicker("Misc No Arrow Icon Background", miscNoArrowColor, setMiscNoArrowColor)
+
         TextFieldWithLabel("Home Primary Item Image", homePrimaryBg, setHomePrimaryBg)
         TextFieldWithLabel("Home Secondary Item Image", homeSecondaryBg, setHomeSecondaryBg)
         TextFieldWithLabel("Home Tertiary Item Image", homeTertiaryBg, setHomeTertiaryBg)
         TextFieldWithLabel("Misc Item Image", miscBg, setMiscBg)
         TextFieldWithLabel("Misc No Arrow Item Image", miscNoArrowBg, setMiscNoArrowBg)
+
         ImagePicker("Background Image", bgImage, setBgImage)
+
         Button(onClick = { navController.navigateUp() }, modifier = Modifier.padding(16.dp)) {
             Text(stringResource(R.string.theme_generator_save))
         }
