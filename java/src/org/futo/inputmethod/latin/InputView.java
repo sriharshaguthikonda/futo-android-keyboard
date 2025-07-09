@@ -30,6 +30,8 @@ public final class InputView extends FrameLayout {
     private final Rect mInputViewRect = new Rect();
     private MainKeyboardView mMainKeyboardView;
     private MotionEventForwarder<?, ?> mActiveForwarder;
+    private View mOverlayTop;
+    private View mOverlayBottom;
 
     public InputView(final Context context, final AttributeSet attrs) {
         super(context, attrs, 0);
@@ -39,6 +41,8 @@ public final class InputView extends FrameLayout {
     protected void onFinishInflate() {
         super.onFinishInflate();
         mMainKeyboardView = (MainKeyboardView) findViewById(R.id.keyboard_view);
+        mOverlayTop = findViewById(R.id.cursor_overlay_top);
+        mOverlayBottom = findViewById(R.id.cursor_overlay_bottom);
     }
 
     @Override
@@ -76,6 +80,11 @@ public final class InputView extends FrameLayout {
         final int x = (int)me.getX(index) + rect.left;
         final int y = (int)me.getY(index) + rect.top;
         return mActiveForwarder.onTouchEvent(x, y, me);
+    }
+
+    public void showCursorOverlays(boolean show) {
+        if (mOverlayTop != null) mOverlayTop.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (mOverlayBottom != null) mOverlayBottom.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     /**

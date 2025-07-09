@@ -383,6 +383,31 @@ val CustomBorderColor = SettingsKey(
     default = "#444444"
 )
 
+val CustomHomePrimaryBgColor = SettingsKey(
+    key = stringPreferencesKey("custom_home_primary_bg_color"),
+    default = CustomIconBgColor.default
+)
+
+val CustomHomeSecondaryBgColor = SettingsKey(
+    key = stringPreferencesKey("custom_home_secondary_bg_color"),
+    default = CustomIconBgColor.default
+)
+
+val CustomHomeTertiaryBgColor = SettingsKey(
+    key = stringPreferencesKey("custom_home_tertiary_bg_color"),
+    default = CustomIconBgColor.default
+)
+
+val CustomMiscBgColor = SettingsKey(
+    key = stringPreferencesKey("custom_misc_bg_color"),
+    default = CustomIconBgColor.default
+)
+
+val CustomMiscNoArrowBgColor = SettingsKey(
+    key = stringPreferencesKey("custom_misc_noarrow_bg_color"),
+    default = CustomIconBgColor.default
+)
+
 val CustomBackgroundImage = SettingsKey(
     key = stringPreferencesKey("custom_background_image"),
     default = ""
@@ -405,5 +430,4 @@ val SUGGESTION_BLACKLIST = SettingsKey(
 
 val SHOW_EMOJI_SUGGESTIONS = SettingsKey(
     key = booleanPreferencesKey("suggestEmojis"),
-    default = true
-)
+    default = true)

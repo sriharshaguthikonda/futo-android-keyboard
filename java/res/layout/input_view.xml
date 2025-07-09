@@ -26,4 +26,24 @@
     <include
         android:id="@+id/main_keyboard_frame"
         layout="@layout/main_keyboard_frame" />
+    <TextView
+        android:id="@+id/cursor_overlay_top"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:layout_gravity="top"
+        android:background="#8000FF00"
+        android:gravity="center"
+        android:textColor="@android:color/white"
+        android:text="@string/cursor_overlay_vertical"
+        android:visibility="gone" />
+    <TextView
+        android:id="@+id/cursor_overlay_bottom"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:layout_gravity="bottom"
+        android:background="#80FF0000"
+        android:gravity="center"
+        android:textColor="@android:color/white"
+        android:text="@string/cursor_overlay_horizontal"
+        android:visibility="gone" />
 </org.futo.inputmethod.latin.InputView>

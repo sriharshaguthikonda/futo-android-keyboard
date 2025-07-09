@@ -93,9 +93,15 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
+import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.getSettingBlocking
 import org.futo.inputmethod.latin.uix.theme.Typography
+import org.futo.inputmethod.latin.uix.CustomHomePrimaryBgColor
+import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgColor
+import org.futo.inputmethod.latin.uix.CustomHomeTertiaryBgColor
+import org.futo.inputmethod.latin.uix.CustomMiscBgColor
+import org.futo.inputmethod.latin.uix.CustomMiscNoArrowBgColor
 import kotlin.math.pow
 
 @Composable
@@ -608,13 +614,23 @@ fun NavigationItem(title: String, style: NavigationItemStyle, navigate: () -> Un
         onClick = navigate,
         icon = {
             icon?.let {
+                val scheme = LocalKeyboardScheme.current
                 val circleColor = when(style) {
-                    NavigationItemStyle.HomePrimary,
-                    NavigationItemStyle.HomeSecondary,
-                    NavigationItemStyle.HomeTertiary -> LocalKeyboardScheme.current.settingsIconBackground
-
-                    NavigationItemStyle.MiscNoArrow,
-                    NavigationItemStyle.Misc,
+                    NavigationItemStyle.HomePrimary -> runCatching {
+                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomePrimaryBgColor)))
+                    }.getOrElse { scheme.settingsIconBackground }
+                    NavigationItemStyle.HomeSecondary -> runCatching {
+                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomeSecondaryBgColor)))
+                    }.getOrElse { scheme.settingsIconBackground }
+                    NavigationItemStyle.HomeTertiary -> runCatching {
+                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomeTertiaryBgColor)))
+                    }.getOrElse { scheme.settingsIconBackground }
+                    NavigationItemStyle.Misc -> runCatching {
+                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomMiscBgColor)))
+                    }.getOrElse { scheme.settingsIconBackground }
+                    NavigationItemStyle.MiscNoArrow -> runCatching {
+                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomMiscNoArrowBgColor)))
+                    }.getOrElse { scheme.settingsIconBackground }
                     NavigationItemStyle.ExternalLink,
                     NavigationItemStyle.Mail -> Color.Transparent
                 }

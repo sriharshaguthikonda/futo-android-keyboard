@@ -935,6 +935,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             }
 
             int steps = (x - mStartX) / pointerStep;
+            int vsteps = (y - mStartY) / pointerStep;
             final int swipeIgnoreTime = settingsValues.mKeyLongpressTimeout / MULTIPLIER_FOR_LONG_PRESS_TIMEOUT_IN_SLIDING_INPUT;
             if (steps != 0 && mStartTime + swipeIgnoreTime < System.currentTimeMillis()) {
                 mCursorMoved = true;
@@ -945,6 +946,12 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 } else {
                     sListener.onMovePointer(steps);
                 }
+            }
+
+            if (vsteps != 0 && mStartTime + swipeIgnoreTime < System.currentTimeMillis()) {
+                mCursorMoved = true;
+                mStartY += vsteps * pointerStep;
+                sListener.onMovePointerVertical(vsteps);
             }
 
             mLastX = x;
@@ -1135,7 +1142,11 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 mStartY = mLastY;
                 sListener.onMovingCursorLockEvent(true);
                 return;
-            }else if(spacebarMode == Settings.SPACEBAR_MODE_SWIPE_CURSOR_ONLY) {
+            } else if(spacebarMode == Settings.SPACEBAR_MODE_SWIPE_CURSOR_ONLY) {
+                mSpacebarLongPressed = true;
+                mStartX = mLastX;
+                mStartY = mLastY;
+                sListener.onMovingCursorLockEvent(true);
                 return;
             }
 
@@ -1145,6 +1156,11 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 sListener.onReleaseKey(code, false /* withSliding */);
                 return;
             }
+            mSpacebarLongPressed = true;
+            mStartX = mLastX;
+            mStartY = mLastY;
+            sListener.onMovingCursorLockEvent(true);
+            return;
         }
 
         if (code >= Constants.CODE_ACTION_0 && code <= Constants.CODE_ACTION_MAX) {
