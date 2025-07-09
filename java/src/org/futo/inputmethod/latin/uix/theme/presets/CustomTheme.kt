@@ -4,14 +4,44 @@ import android.graphics.Color.parseColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import org.futo.inputmethod.latin.R
-import org.futo.inputmethod.latin.uix.CustomAccentColor
-import org.futo.inputmethod.latin.uix.CustomBaseColor
 import org.futo.inputmethod.latin.uix.CustomIconColor
 import org.futo.inputmethod.latin.uix.CustomIconBgColor
 import org.futo.inputmethod.latin.uix.CustomKeyBgColor
 import org.futo.inputmethod.latin.uix.CustomModifierColor
 import org.futo.inputmethod.latin.uix.CustomBorderColor
 import org.futo.inputmethod.latin.uix.CustomBackgroundImage
+import org.futo.inputmethod.latin.uix.CustomPrimaryColor
+import org.futo.inputmethod.latin.uix.CustomOnPrimaryColor
+import org.futo.inputmethod.latin.uix.CustomPrimaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomOnPrimaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomSecondaryColor
+import org.futo.inputmethod.latin.uix.CustomOnSecondaryColor
+import org.futo.inputmethod.latin.uix.CustomSecondaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomOnSecondaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomTertiaryColor
+import org.futo.inputmethod.latin.uix.CustomOnTertiaryColor
+import org.futo.inputmethod.latin.uix.CustomTertiaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomOnTertiaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomErrorColor
+import org.futo.inputmethod.latin.uix.CustomOnErrorColor
+import org.futo.inputmethod.latin.uix.CustomErrorContainerColor
+import org.futo.inputmethod.latin.uix.CustomOnErrorContainerColor
+import org.futo.inputmethod.latin.uix.CustomOutlineColor
+import org.futo.inputmethod.latin.uix.CustomOutlineVariantColor
+import org.futo.inputmethod.latin.uix.CustomSurfaceColor
+import org.futo.inputmethod.latin.uix.CustomOnSurfaceColor
+import org.futo.inputmethod.latin.uix.CustomOnSurfaceVariantColor
+import org.futo.inputmethod.latin.uix.CustomSurfaceContainerHighestColor
+import org.futo.inputmethod.latin.uix.CustomShadowColor
+import org.futo.inputmethod.latin.uix.CustomKeyboardSurfaceColor
+import org.futo.inputmethod.latin.uix.CustomKeyboardContainerColor
+import org.futo.inputmethod.latin.uix.CustomKeyboardContainerVariantColor
+import org.futo.inputmethod.latin.uix.CustomOnKeyboardContainerColor
+import org.futo.inputmethod.latin.uix.CustomKeyboardPressColor
+import org.futo.inputmethod.latin.uix.CustomKeyboardFade0Color
+import org.futo.inputmethod.latin.uix.CustomKeyboardFade1Color
+import org.futo.inputmethod.latin.uix.CustomPrimaryTransparentColor
+import org.futo.inputmethod.latin.uix.CustomOnSurfaceTransparentColor
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.extendedDarkColorScheme
 import org.futo.inputmethod.latin.uix.theme.ThemeOption
@@ -20,64 +50,6 @@ private fun safeColor(code: String, fallback: String): Color {
     return try { Color(parseColor(code)) } catch (_: IllegalArgumentException) { Color(parseColor(fallback)) }
 }
 
-private fun lighten(color: Color, amount: Float): Color {
-    return Color(
-        red = color.red + (1f - color.red) * amount,
-        green = color.green + (1f - color.green) * amount,
-        blue = color.blue + (1f - color.blue) * amount,
-        alpha = color.alpha
-    )
-}
-
-private fun idealOnColor(color: Color): Color {
-    return if (color.luminance() > 0.5f) Color.Black else Color.White
-}
-
-private fun colorsFrom(
-    accent: Color,
-    base: Color,
-    icon: Color,
-    iconBg: Color,
-    keyBg: Color,
-    modifierBg: Color,
-    border: Color,
-    backgroundImage: String,
-) = extendedDarkColorScheme(
-    primary = accent,
-    onPrimary = idealOnColor(accent),
-    primaryContainer = accent,
-    onPrimaryContainer = idealOnColor(accent),
-    secondary = lighten(accent, 0.2f),
-    onSecondary = idealOnColor(lighten(accent, 0.2f)),
-    secondaryContainer = lighten(accent, 0.2f),
-    onSecondaryContainer = idealOnColor(lighten(accent, 0.2f)),
-    tertiary = lighten(accent, 0.4f),
-    onTertiary = idealOnColor(lighten(accent, 0.4f)),
-    tertiaryContainer = lighten(accent, 0.4f),
-    onTertiaryContainer = idealOnColor(lighten(accent, 0.4f)),
-    error = Color(0xFFFA6060),
-    onError = Color.Black,
-    errorContainer = Color(0xFF730000),
-    onErrorContainer = Color.White,
-    outline = border,
-    outlineVariant = border.copy(alpha = 0.4f),
-    surface = base,
-    onSurface = Color.White,
-    onSurfaceVariant = Color.White,
-    surfaceContainerHighest = base,
-    keyboardSurface = base,
-    keyboardContainer = keyBg,
-    keyboardContainerVariant = modifierBg,
-    onKeyboardContainer = idealOnColor(keyBg),
-    keyboardPress = accent.copy(alpha = 0.7f),
-    keyboardFade0 = base,
-    keyboardFade1 = base,
-    keyboardBackgroundShader = if (backgroundImage.isNotEmpty()) backgroundImage else null,
-    primaryTransparent = accent.copy(alpha = 0.3f),
-    onSurfaceTransparent = Color.White.copy(alpha = 0.1f),
-    settingsIconColor = icon,
-    keyboardSurfaceDim = base,
-)
 
 val CustomTheme = ThemeOption(
     dynamic = false,
