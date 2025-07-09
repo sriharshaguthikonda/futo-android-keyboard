@@ -113,6 +113,9 @@ To avoid Play Protect warnings when installing the APK, sign the release build w
 You can also provide these values in CI by setting the `KEYSTORE_*` secrets and
 running `setUpPropertiesCI.sh`.
 
-When running GitHub Actions workflows, use the latest `v4` releases of the standard actions such as `actions/upload-artifact@v4` to avoid deprecation errors.
+When running GitHub Actions workflows, use the latest `v4` releases of the standard actions such as `actions/upload-artifact@v4`. Using older versions like `v3` causes builds to fail with the error:
+```
+Error: This request has been automatically failed because it uses a deprecated version of actions/upload-artifact: v3.
+```
 
 An `update_with_backup.sh` script in the `tools` directory can install a new APK while exporting and restoring your existing preferences automatically.

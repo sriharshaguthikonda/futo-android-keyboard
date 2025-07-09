@@ -17,7 +17,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -154,7 +154,7 @@ private fun ImagePicker(label: String, value: String, setValue: (String) -> Job)
         Text(label)
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { launcher.launch(arrayOf("image/*")) }) {
-                Icon(Icons.Default.FolderOpen, contentDescription = null)
+                Icon(Icons.Filled.Folder, contentDescription = null)
             }
             if (value.isNotBlank()) Text(value)
         }
