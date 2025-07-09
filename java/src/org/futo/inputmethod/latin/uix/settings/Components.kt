@@ -624,7 +624,6 @@ fun NavigationItem(title: String, style: NavigationItemStyle, navigate: () -> Un
             icon?.let {
                 val scheme = LocalKeyboardScheme.current
                 val circleColor = when(style) {
-
                     NavigationItemStyle.HomePrimary -> runCatching {
                         Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomePrimaryBgColor)))
                     }.getOrElse { scheme.settingsIconBackground }
@@ -640,7 +639,6 @@ fun NavigationItem(title: String, style: NavigationItemStyle, navigate: () -> Un
                     NavigationItemStyle.MiscNoArrow -> runCatching {
                         Color(android.graphics.Color.parseColor(useDataStoreValue(CustomMiscNoArrowBgColor)))
                     }.getOrElse { scheme.settingsIconBackground }
-
                     NavigationItemStyle.ExternalLink,
                     NavigationItemStyle.Mail -> Color.Transparent
                 }

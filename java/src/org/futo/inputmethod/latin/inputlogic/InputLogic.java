@@ -152,7 +152,6 @@ public final class InputLogic {
             mWordComposer.applyProcessedEvent(Event.createSoftwareKeypressEvent(Constants.CODE_DELETE,
                     Constants.CODE_DELETE, event.mX, event.mY, false));
             setComposingTextInternal(getTextWithUnderline(mWordComposer.getTypedWord()), 1);
-
             mConnection.deleteTextBeforeCursor(1);
             mLastPhoneTapIndex = (mLastPhoneTapIndex + 1) % PHONE_KEY_LETTERS[digit].length();
         } else {

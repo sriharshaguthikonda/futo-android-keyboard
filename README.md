@@ -39,7 +39,6 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - Custom themes can set different background colors for each settings item icon.
 - Settings icons can also use custom background images loaded from files.
 - Copying text shows an "AI Generate" option in the suggestion strip.
-
 - Long‑press spacebar drag now moves the cursor vertically when sliding up or down.
 
 
