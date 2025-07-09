@@ -36,6 +36,7 @@ import org.futo.inputmethod.event.InputTransaction;
 import org.futo.inputmethod.keyboard.KeyDetector;
 import org.futo.inputmethod.keyboard.Keyboard;
 import org.futo.inputmethod.keyboard.KeyboardSwitcher;
+import org.futo.inputmethod.keyboard.internal.KeyboardLayoutKind;
 import org.futo.inputmethod.latin.Dictionary;
 import org.futo.inputmethod.latin.DictionaryFacilitator;
 import org.futo.inputmethod.latin.LastComposedWord;
@@ -110,6 +111,15 @@ public final class InputLogic {
     private boolean mIsAutoCorrectionIndicatorOn;
     private long mDoubleSpacePeriodCountdownStart;
 
+    // --- Persistent T9 phone layout support ---
+    private int mLastPhoneDigit = -1;
+    private int mLastPhoneTapIndex = 0;
+    private long mLastPhoneTapTime = 0;
+    private static final long PHONE_MULTI_TAP_DELAY = 800; // ms
+    private static final String[] PHONE_KEY_LETTERS = {
+            "", "", "ABC", "DEF", "GHI", "JKL", "MNO", "PQRS", "TUV", "WXYZ"
+    };
+
     // The word being corrected while the cursor is in the middle of the word.
     // Note: This does not have a composing span, so it must be handled separately.
     private String mWordBeingCorrectedByCursor = null;
@@ -120,6 +130,40 @@ public final class InputLogic {
     }
     public void endSuppressingLogic() {
         isLogicSuppressedByExternalLogic = false;
+    }
+
+    private boolean isPhoneLayout() {
+        final Keyboard keyboard = mLatinIMELegacy.mKeyboardSwitcher.getKeyboard();
+        if (keyboard == null) return false;
+        return keyboard.mId.mElement.getKind() == KeyboardLayoutKind.Phone;
+    }
+
+    private boolean handlePhoneMultiTap(final Event event, final InputTransaction inputTransaction,
+            final LatinIMELegacy.UIHandler handler) {
+        if (!isPhoneLayout() || event.isKeyRepeat()) return false;
+
+        final int codePoint = event.mCodePoint;
+        if (codePoint < '2' || codePoint > '9') return false;
+
+        final int digit = codePoint - '0';
+        final long now = inputTransaction.mTimestamp;
+        if (mLastPhoneDigit == digit && now - mLastPhoneTapTime < PHONE_MULTI_TAP_DELAY) {
+            // remove the previously inserted letter from the composing word and editor
+            mWordComposer.applyProcessedEvent(Event.createSoftwareKeypressEvent(Constants.CODE_DELETE,
+                    Constants.CODE_DELETE, event.mX, event.mY, false));
+            setComposingTextInternal(getTextWithUnderline(mWordComposer.getTypedWord()), 1);
+            mConnection.deleteTextBeforeCursor(1);
+            mLastPhoneTapIndex = (mLastPhoneTapIndex + 1) % PHONE_KEY_LETTERS[digit].length();
+        } else {
+            mLastPhoneDigit = digit;
+            mLastPhoneTapIndex = 0;
+        }
+        mLastPhoneTapTime = now;
+
+        final int letter = PHONE_KEY_LETTERS[digit].codePointAt(mLastPhoneTapIndex);
+        final Event letterEvent = Event.createSoftwareKeypressEvent(letter, letter, event.mX, event.mY, false);
+        handleNonFunctionalEvent(letterEvent, inputTransaction, handler);
+        return true;
     }
 
     /**
@@ -499,7 +543,7 @@ public final class InputLogic {
             } else if (currentEvent.isFunctionalKeyEvent()) {
                 handleFunctionalEvent(currentEvent, inputTransaction, currentKeyboardScriptId,
                         handler);
-            } else {
+            } else if (!handlePhoneMultiTap(currentEvent, inputTransaction, handler)) {
                 handleNonFunctionalEvent(currentEvent, inputTransaction, handler);
             }
             currentEvent = currentEvent.mNextEvent;
@@ -1174,6 +1218,8 @@ public final class InputLogic {
             final int currentKeyboardScriptId) {
         mSpaceState = SpaceState.NONE;
         mDeleteCount++;
+        mLastPhoneDigit = -1;
+        mLastPhoneTapIndex = 0;
 
         // In many cases after backspace, we need to update the shift state. Normally we need
         // to do this right away to avoid the shift state being out of date in case the user types
@@ -1198,8 +1244,9 @@ public final class InputLogic {
             // When we exit this if-clause, mWordComposer.isComposingWord() will return false.
         }
 
-        final boolean deleteWholeWords = event.isKeyRepeat()
-                && Settings.getInstance().getCurrent().mBackspaceMode == Settings.BACKSPACE_MODE_WORDS;
+        final boolean deleteWholeWords =
+                Settings.getInstance().getCurrent().mBackspaceMode == Settings.BACKSPACE_MODE_WORDS &&
+                (event.isKeyRepeat() || isPhoneLayout());
 
         if (mWordComposer.isComposingWord()) {
             if (mWordComposer.isBatchMode()) {

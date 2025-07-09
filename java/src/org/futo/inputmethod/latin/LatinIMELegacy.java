@@ -1310,6 +1310,18 @@ public class LatinIMELegacy implements KeyboardActionListener,
     }
 
     @Override
+    public void onMovePointerVertical(int steps) {
+        setNeutralSuggestionStrip();
+
+        mInputLogic.mConnection.beginBatchEdit();
+        final int keyCode = steps < 0 ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN;
+        for(int i = 0; i < Math.abs(steps); i++) {
+            mInputLogic.sendDownUpKeyEvent(keyCode, 0);
+        }
+        mInputLogic.mConnection.endBatchEdit();
+    }
+
+    @Override
     public void onMoveDeletePointer(int steps) {
         setNeutralSuggestionStrip();
         if (mInputLogic.mConnection.hasCursorPosition()) {
@@ -1364,6 +1376,9 @@ public class LatinIMELegacy implements KeyboardActionListener,
     @Override
     public void onUpWithPointerActive() {
         mInputLogic.restartSuggestionsOnWordTouchedByCursor(mSettings.getCurrent(), false, mKeyboardSwitcher.getCurrentKeyboardScriptId());
+        if(mInputView instanceof InputView) {
+            ((InputView)mInputView).showCursorOverlays(false);
+        }
     }
 
     @Override
@@ -1375,6 +1390,13 @@ public class LatinIMELegacy implements KeyboardActionListener,
     public void onMovingCursorLockEvent(boolean canMoveCursor) {
         if(canMoveCursor) {
             hapticAndAudioFeedback(Constants.CODE_UNSPECIFIED, 0);
+            if(mInputView instanceof InputView) {
+                ((InputView)mInputView).showCursorOverlays(true);
+            }
+        } else {
+            if(mInputView instanceof InputView) {
+                ((InputView)mInputView).showCursorOverlays(false);
+            }
         }
     }
 
