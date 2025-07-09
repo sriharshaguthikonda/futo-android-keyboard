@@ -132,8 +132,8 @@ fun RowScope.QuickClipView(state: QuickClipState, dismiss: () -> Unit) {
                 if(enableAi) {
                     QuickClipPill(
                         icon = painterResource(R.drawable.text_prediction),
-                        contentDescription = stringResource(R.string.quick_clip_ai_reply),
-                        text = stringResource(R.string.quick_clip_ai_reply),
+                        contentDescription = stringResource(R.string.quick_clip_ai_generate),
+                        text = stringResource(R.string.quick_clip_ai_generate),
                         uri = null
                     ) {
                         val clipboard = latestClipboardText(manager!!.getContext())

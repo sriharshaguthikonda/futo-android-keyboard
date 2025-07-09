@@ -48,7 +48,7 @@ open class KeyboardResizeHelper(
         var heightCorrection = 0.0f
         val bottomPadding = with(density) {
             var newBottomPadding = when (editedSettings.currentMode) {
-                KeyboardMode.Regular -> editedSettings.paddingDp.bottom
+                KeyboardMode.Regular, KeyboardMode.Phone -> editedSettings.paddingDp.bottom
                 KeyboardMode.Split -> editedSettings.splitPaddingDp.bottom
                 KeyboardMode.OneHanded -> editedSettings.oneHandedRectDp.bottom
                 KeyboardMode.Floating -> 0.dp
@@ -87,7 +87,7 @@ open class KeyboardResizeHelper(
         }
 
         editedSettings = when(editedSettings.currentMode) {
-            KeyboardMode.Regular -> editedSettings.copy(
+            KeyboardMode.Regular, KeyboardMode.Phone -> editedSettings.copy(
                 heightAdditionDp = editedSettings.heightAdditionDp + heightAdditionDiffDp.value,
                 paddingDp = editedSettings.paddingDp.copy(bottom = bottomPadding)
             )
@@ -106,7 +106,7 @@ open class KeyboardResizeHelper(
     fun applySymmetricalPaddingForRegular(sideDelta: Float) = with(density) {
         var newSidePadding =
             when (editedSettings.currentMode) {
-                KeyboardMode.Regular -> editedSettings.paddingDp.left
+                KeyboardMode.Regular, KeyboardMode.Phone -> editedSettings.paddingDp.left
                 KeyboardMode.Split -> editedSettings.splitPaddingDp.left
                 KeyboardMode.OneHanded -> editedSettings.oneHandedRectDp.left
                 KeyboardMode.Floating -> 0.dp
@@ -118,7 +118,7 @@ open class KeyboardResizeHelper(
         }
 
         editedSettings = when (editedSettings.currentMode) {
-            KeyboardMode.Regular -> editedSettings.copy(
+            KeyboardMode.Regular, KeyboardMode.Phone -> editedSettings.copy(
                 paddingDp = editedSettings.paddingDp.copy(
                     left = newSidePadding,
                     right = newSidePadding

@@ -33,9 +33,17 @@ import org.futo.inputmethod.v2keyboard.KeyboardMode
 import org.futo.inputmethod.v2keyboard.KeyboardSizingCalculator
 import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.latin.common.Constants
+import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 
 @Composable
-private fun RowScope.KeyboardMode(iconRes: Int, checkedIconRes: Int, name: String, sizingCalculator: KeyboardSizingCalculator, mode: KeyboardMode) {
+private fun RowScope.KeyboardMode(
+    iconRes: Int,
+    checkedIconRes: Int,
+    name: String,
+    sizingCalculator: KeyboardSizingCalculator,
+    mode: KeyboardMode,
+    manager: KeyboardManagerForAction
+) {
     val isChecked = sizingCalculator.getSavedSettings().currentMode == mode
 
     Surface(
@@ -55,6 +63,9 @@ private fun RowScope.KeyboardMode(iconRes: Int, checkedIconRes: Int, name: Strin
                         else -> it
                     }
                 }
+            }
+            if(mode == KeyboardMode.Phone) {
+                manager.sendCodePointEvent(Constants.CODE_TO_PHONE_LAYOUT)
             }
         },
         contentColor = if(isChecked) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onBackground
@@ -123,48 +134,36 @@ val KeyboardModeAction = Action(
                             R.drawable.keyboard_regular,
                             R.drawable.keyboard_fill_check,
                             stringResource(R.string.action_keyboard_modes_standard),
-                            sizeCalculator, KeyboardMode.Regular
+                            sizeCalculator, KeyboardMode.Regular, manager
                         )
 
                         KeyboardMode(
                             R.drawable.keyboard_left_handed,
                             R.drawable.keyboard_left_handed_fill_check,
                             stringResource(R.string.action_keyboard_modes_one_handed),
-                            sizeCalculator, KeyboardMode.OneHanded
+                            sizeCalculator, KeyboardMode.OneHanded, manager
                         )
 
                         KeyboardMode(
                             R.drawable.keyboard_split,
                             R.drawable.keyboard_split_fill_check,
                             stringResource(R.string.action_keyboard_modes_split),
-                            sizeCalculator, KeyboardMode.Split
+                            sizeCalculator, KeyboardMode.Split, manager
                         )
 
-                    KeyboardMode(
-                        R.drawable.keyboard_float,
-                        R.drawable.keyboard_float_fill_check,
-                        stringResource(R.string.action_keyboard_modes_floating),
-                        sizeCalculator, KeyboardMode.Floating
-                    )
+                        KeyboardMode(
+                            R.drawable.keyboard_float,
+                            R.drawable.keyboard_float_fill_check,
+                            stringResource(R.string.action_keyboard_modes_floating),
+                            sizeCalculator, KeyboardMode.Floating, manager
+                        )
 
-                    Surface(
-                        color = Color.Transparent,
-                        modifier = Modifier
-                            .weight(1.0f)
-                            .height(54.dp),
-                        onClick = {
-                            manager.sendCodePointEvent(Constants.CODE_TO_PHONE_LAYOUT)
-                            manager.closeActionWindow()
-                        },
-                        contentColor = MaterialTheme.colorScheme.onBackground
-                    ) {
-                        Box(Modifier.height(54.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(painterResource(R.drawable.numpad), contentDescription = null)
-                                Text(stringResource(R.string.action_keyboard_modes_phone), style = Typography.SmallMl)
-                            }
-                        }
-                    }
+                        KeyboardMode(
+                            R.drawable.numpad,
+                            R.drawable.numpad,
+                            stringResource(R.string.action_keyboard_modes_phone),
+                            sizeCalculator, KeyboardMode.Phone, manager
+                        )
                 }
             }
             }
@@ -176,5 +175,4 @@ val KeyboardModeAction = Action(
                 return CloseResult.Default
             }
         }
-    },
-)
+    },)
