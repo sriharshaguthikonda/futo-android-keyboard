@@ -153,12 +153,14 @@ val HomeScreenLite = UserSettingsMenu(
             title = R.string.misc_settings_title,
             style = NavigationItemStyle.MiscNoArrow,
             navigateTo = "misc",
+            icon = R.drawable.settings
         ),
 
         userSettingNavigationItem(
             title = R.string.credits_menu_title,
             style = NavigationItemStyle.MiscNoArrow,
             navigateTo = "credits",
+            icon = R.drawable.book
         ),
     )
 )

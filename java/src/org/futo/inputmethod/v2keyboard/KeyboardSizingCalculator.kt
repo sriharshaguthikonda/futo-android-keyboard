@@ -101,7 +101,8 @@ enum class KeyboardMode {
     Regular,
     Split,
     OneHanded,
-    Floating
+    Floating,
+    Phone
 }
 
 
@@ -350,6 +351,11 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                     heightAdditionDp = defaultSettings.heightAdditionDp,
                     paddingDp = defaultSettings.paddingDp
                 )
+                KeyboardMode.Phone -> it.copy(
+                    heightMultiplier = defaultSettings.heightMultiplier,
+                    heightAdditionDp = defaultSettings.heightAdditionDp,
+                    paddingDp = defaultSettings.paddingDp
+                )
                 KeyboardMode.Split -> it.copy(
                     splitPaddingDp = defaultSettings.splitPaddingDp,
                     splitHeightAdditionDp = defaultSettings.splitHeightAdditionDp,
@@ -387,6 +393,7 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
 
         val heightAddition = when(savedSettings.currentMode) {
             KeyboardMode.Regular -> dp(savedSettings.heightAdditionDp)
+            KeyboardMode.Phone -> dp(savedSettings.heightAdditionDp)
             KeyboardMode.Split -> dp(savedSettings.splitHeightAdditionDp)
             KeyboardMode.OneHanded -> dp(savedSettings.oneHandedHeightAdditionDp)
             KeyboardMode.Floating -> 0
@@ -394,6 +401,7 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
 
         val padding = when(savedSettings.currentMode) {
             KeyboardMode.Regular -> dp(savedSettings.paddingDp)
+            KeyboardMode.Phone -> dp(savedSettings.paddingDp)
             KeyboardMode.Split -> dp(savedSettings.splitPaddingDp)
             KeyboardMode.OneHanded -> dp(savedSettings.oneHandedRectDp).let { rect ->
                 when(savedSettings.oneHandedDirection) {
@@ -494,6 +502,14 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                     padding = padding
                 )
             }
+
+            savedSettings.currentMode == KeyboardMode.Phone ->
+                RegularKeyboardSize(
+                    width = width.coerceIn(dp(48), displayMetrics.widthPixels),
+                    height = recommendedHeight.roundToInt(),
+                    singleRowHeight = singularRowHeight.roundToInt(),
+                    padding = padding,
+                )
 
             else ->
                 RegularKeyboardSize(

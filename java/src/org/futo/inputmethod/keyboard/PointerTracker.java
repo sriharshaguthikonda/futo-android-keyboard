@@ -935,6 +935,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             }
 
             int steps = (x - mStartX) / pointerStep;
+            int vsteps = (y - mStartY) / pointerStep;
             final int swipeIgnoreTime = settingsValues.mKeyLongpressTimeout / MULTIPLIER_FOR_LONG_PRESS_TIMEOUT_IN_SLIDING_INPUT;
             if (steps != 0 && mStartTime + swipeIgnoreTime < System.currentTimeMillis()) {
                 mCursorMoved = true;
@@ -945,6 +946,12 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 } else {
                     sListener.onMovePointer(steps);
                 }
+            }
+
+            if (vsteps != 0 && mStartTime + swipeIgnoreTime < System.currentTimeMillis()) {
+                mCursorMoved = true;
+                mStartY += vsteps * pointerStep;
+                sListener.onMovePointerVertical(vsteps);
             }
 
             mLastX = x;

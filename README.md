@@ -31,6 +31,8 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - Quick Switch can be toggled in settings and uses an accessibility service to jump to your previously used app.
 - T9 phone layout accessible via the action key for quick number entry.
 - The T9 layout is also listed in the Keyboard Modes menu for easy access.
+- A new persistent T9 keyboard mode lets you keep the phone layout active until changed.
+- Long‑press spacebar drag now moves the cursor vertically when sliding up or down.
 
 The code is licensed under the [FUTO Source First License 1.1](LICENSE.md).
 
