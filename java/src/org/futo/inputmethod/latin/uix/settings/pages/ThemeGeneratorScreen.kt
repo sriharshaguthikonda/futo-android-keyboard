@@ -10,8 +10,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -37,6 +43,13 @@ import org.futo.inputmethod.latin.uix.CustomKeyBgColor
 import org.futo.inputmethod.latin.uix.CustomModifierColor
 import org.futo.inputmethod.latin.uix.CustomBorderColor
 import org.futo.inputmethod.latin.uix.CustomBackgroundImage
+
+import org.futo.inputmethod.latin.uix.CustomHomePrimaryBgColor
+import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgColor
+import org.futo.inputmethod.latin.uix.CustomHomeTertiaryBgColor
+import org.futo.inputmethod.latin.uix.CustomMiscBgColor
+import org.futo.inputmethod.latin.uix.CustomMiscNoArrowBgColor
+
 import org.futo.inputmethod.latin.uix.CustomHomePrimaryBgImage
 import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgImage
 import org.futo.inputmethod.latin.uix.CustomHomeTertiaryBgImage
@@ -57,6 +70,12 @@ fun ThemeGeneratorScreen(navController: NavHostController) {
     val (modBg, setModBg) = useDataStore(CustomModifierColor)
     val (border, setBorder) = useDataStore(CustomBorderColor)
     val (bgImage, setBgImage) = useDataStore(CustomBackgroundImage)
+    val (homePrimaryColor, setHomePrimaryColor) = useDataStore(CustomHomePrimaryBgColor)
+    val (homeSecondaryColor, setHomeSecondaryColor) = useDataStore(CustomHomeSecondaryBgColor)
+    val (homeTertiaryColor, setHomeTertiaryColor) = useDataStore(CustomHomeTertiaryBgColor)
+    val (miscColor, setMiscColor) = useDataStore(CustomMiscBgColor)
+    val (miscNoArrowColor, setMiscNoArrowColor) = useDataStore(CustomMiscNoArrowBgColor)
+
     val (homePrimaryBg, setHomePrimaryBg) = useDataStore(CustomHomePrimaryBgImage)
     val (homeSecondaryBg, setHomeSecondaryBg) = useDataStore(CustomHomeSecondaryBgImage)
     val (homeTertiaryBg, setHomeTertiaryBg) = useDataStore(CustomHomeTertiaryBgImage)
@@ -76,12 +95,20 @@ fun ThemeGeneratorScreen(navController: NavHostController) {
         ColorPicker("Key Background", keyBg, setKeyBg)
         ColorPicker("Modifier Key", modBg, setModBg)
         ColorPicker("Key Border", border, setBorder)
+        ColorPicker("Home Primary Icon Background", homePrimaryColor, setHomePrimaryColor)
+        ColorPicker("Home Secondary Icon Background", homeSecondaryColor, setHomeSecondaryColor)
+        ColorPicker("Home Tertiary Icon Background", homeTertiaryColor, setHomeTertiaryColor)
+        ColorPicker("Misc Icon Background", miscColor, setMiscColor)
+        ColorPicker("Misc No Arrow Icon Background", miscNoArrowColor, setMiscNoArrowColor)
+
         TextFieldWithLabel("Home Primary Item Image", homePrimaryBg, setHomePrimaryBg)
         TextFieldWithLabel("Home Secondary Item Image", homeSecondaryBg, setHomeSecondaryBg)
         TextFieldWithLabel("Home Tertiary Item Image", homeTertiaryBg, setHomeTertiaryBg)
         TextFieldWithLabel("Misc Item Image", miscBg, setMiscBg)
         TextFieldWithLabel("Misc No Arrow Item Image", miscNoArrowBg, setMiscNoArrowBg)
-        TextFieldWithLabel("Background Image", bgImage, setBgImage)
+
+        ImagePicker("Background Image", bgImage, setBgImage)
+
         Button(onClick = { navController.navigateUp() }, modifier = Modifier.padding(16.dp)) {
             Text(stringResource(R.string.theme_generator_save))
         }
@@ -115,5 +142,21 @@ private fun TextFieldWithLabel(label: String, value: String, setValue: (String) 
             onValueChange = { text = it; setValue(it) },
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+@Composable
+private fun ImagePicker(label: String, value: String, setValue: (String) -> Job) {
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { setValue(it.toString()) }
+    }
+    Column(Modifier.fillMaxWidth().padding(16.dp, 8.dp)) {
+        Text(label)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { launcher.launch(arrayOf("image/*")) }) {
+                Icon(Icons.Default.FolderOpen, contentDescription = null)
+            }
+            if (value.isNotBlank()) Text(value)
+        }
     }
 }
