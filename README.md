@@ -12,7 +12,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - AMOLED friendly dark themes with purple, red, blue, and green accents for battery savings.
 - Built-in theme generator lets you pick custom accent and base colors.
 - Theme generator now lets you pick accent, base, icon, and key colors with color pickers.
-- All colors from the default themes can be customized individually in the theme generator.
+- Every color from the default themes can be customized individually in the theme generator.
 - Background images can be loaded for custom themes.
 - Theme generator handles invalid color codes without crashing.
 - Settings icons use accent variations so each menu item has a unique color.
