@@ -109,7 +109,6 @@ import org.futo.inputmethod.latin.uix.CustomMiscBgImage
 import org.futo.inputmethod.latin.uix.CustomMiscNoArrowBgImage
 import android.graphics.BitmapFactory
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.drawImage
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.pow
 
