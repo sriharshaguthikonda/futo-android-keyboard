@@ -22,9 +22,12 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.rememberRipple
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,9 +35,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -557,6 +562,38 @@ ${if(clipboardFileSwap.exists()) { clipboardFileSwap.readText() } else { "File d
         saveClipboard()
     }
 
+    fun exportClipboard(uri: Uri) {
+        runBlocking {
+            saveClipboard()?.join()
+            context.contentResolver.openOutputStream(uri)?.use { out ->
+                val list = clipboardHistory.toList()
+                val json = Json.encodeToString(list)
+                out.write(json.toByteArray())
+            }
+        }
+    }
+
+    fun importClipboard(uri: Uri) {
+        coroutineScope.launch {
+            try {
+                val json = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText()
+                }
+                json?.let {
+                    val data = Json.decodeFromString<List<ClipboardEntry>>(it)
+                    withContext(Dispatchers.Main) {
+                        clipboardHistory.clear()
+                        clipboardHistory.addAll(data)
+                        clipboardLoaded = true
+                    }
+                    saveClipboard()
+                }
+            } catch (_: Exception) {
+                clipboardIOFailure.value = true
+            }
+        }
+    }
+
     override suspend fun cleanUp() {
         saveClipboard()?.join()
     }
@@ -737,13 +774,80 @@ val ClipboardHistoryAction = Action(
                         }
                     }
                 } else {
-                    LazyVerticalStaggeredGrid(
-                        modifier = Modifier.fillMaxWidth(),
-                        columns = StaggeredGridCells.Adaptive(140.dp),
-                        verticalItemSpacing = 4.dp,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        items(clipboardHistoryManager.clipboardHistory.size, key = { r_i ->
+                    var query by remember { mutableStateOf("") }
+                    val coroutineScope = rememberCoroutineScope()
+                    val launcherExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+                        uri?.let { clipboardHistoryManager.exportClipboard(it) }
+                    }
+                    val launcherImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                        uri?.let { clipboardHistoryManager.importClipboard(it) }
+                    }
+
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = query,
+                                onValueChange = { query = it },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(8.dp),
+                                placeholder = { Text(stringResource(R.string.action_clipboard_manager_search_hint)) },
+                                singleLine = true
+                            )
+                            IconButton(onClick = { launcherExport.launch("clipboard_history.json") }) {
+                                Icon(painterResource(id = R.drawable.arrow_up), contentDescription = stringResource(R.string.action_clipboard_manager_export))
+                            }
+                            IconButton(onClick = { launcherImport.launch(arrayOf("*/*")) }) {
+                                Icon(painterResource(id = R.drawable.arrow_down), contentDescription = stringResource(R.string.action_clipboard_manager_import))
+                            }
+                        }
+
+                        val filtered = clipboardHistoryManager.clipboardHistory.filter {
+                            query.isBlank() || (it.text?.contains(query, ignoreCase = true) == true)
+                        }
+
+                        LazyVerticalStaggeredGrid(
+                            modifier = Modifier.fillMaxWidth(),
+                            columns = StaggeredGridCells.Adaptive(140.dp),
+                            verticalItemSpacing = 4.dp,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            items(filtered.size, key = { r_i ->
+                                val i = filtered.size - r_i - 1
+                                val entry = filtered[i]
+
+                                entry.text?.let {
+                                    if(it.length > 512) {
+                                        it.toFNV1aHash()
+                                    } else {
+                                        it
+                                    }
+                                } ?: i
+                                i
+                            }) { r_i ->
+                                val i = filtered.size - r_i - 1
+                                val entry = filtered[i]
+                                ClipboardEntryView(
+                                    modifier = Modifier.animateItemPlacement(),
+                                    clipboardEntry = entry, onPaste = {
+                                        if (it.uri != null) {
+                                            manager.typeUri(it.uri, it.mimeTypes)
+                                        } else if (it.text != null) {
+                                            manager.typeText(it.text)
+                                        }
+                                        clipboardHistoryManager.onPaste(it)
+                                        manager.performHapticAndAudioFeedback(Constants.CODE_OUTPUT_TEXT, view)
+                                    }, onRemove = {
+                                        clipboardHistoryManager.onRemove(it)
+                                        manager.performHapticAndAudioFeedback(Constants.CODE_TAB, view)
+                                    }, onPin = {
+                                        clipboardHistoryManager.onPin(it)
+                                        manager.performHapticAndAudioFeedback(Constants.CODE_TAB, view)
+                                    })
+                            }
+                        }
+                    }
+                }
                             val i = clipboardHistoryManager.clipboardHistory.size - r_i - 1
                             val entry = clipboardHistoryManager.clipboardHistory[i]
 

@@ -10,6 +10,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - Settings search bar integrated into the settings screen with a helpful "Settings search or try typing here." placeholder. The field grows to fit long queries.
 - Most extra features, such as Quick Switch, can be enabled or disabled from the settings.
 - AMOLED friendly dark themes with purple, red, blue, and green accents for battery savings.
+- Material You dynamic color support on Android 12+ automatically matches accent colors to the system palette.
 - Built-in theme generator lets you pick custom accent and base colors.
 - Theme generator now lets you pick accent, base, icon, and key colors with color pickers.
 - All colors from the default themes can be customized individually in the theme generator.
@@ -42,6 +43,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - A file picker lets you choose a background image for the keyboard layout.
 - Each settings icon background color is adjustable from the theme generator.
 - Copying text shows an "AI Generate" option in the suggestion strip
+- Clipboard history now supports searching and importing/exporting for optional cross-device sync.
 
 - Long‑press spacebar drag now moves the cursor vertically when sliding up or down.
 
