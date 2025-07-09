@@ -85,21 +85,53 @@ val CustomTheme = ThemeOption(
     name = R.string.theme_custom,
     available = { true },
     obtainColors = {
-        val accentStr = it.getSetting(CustomAccentColor)
-        val baseStr = it.getSetting(CustomBaseColor)
-        val accent = safeColor(accentStr, CustomAccentColor.default)
-        val base = safeColor(baseStr, CustomBaseColor.default)
-        val iconStr = it.getSetting(CustomIconColor)
-        val icon = safeColor(iconStr, CustomIconColor.default)
-        val iconBgStr = it.getSetting(CustomIconBgColor)
-        val iconBg = safeColor(iconBgStr, CustomIconBgColor.default)
-        val keyBgStr = it.getSetting(CustomKeyBgColor)
-        val keyBg = safeColor(keyBgStr, CustomKeyBgColor.default)
-        val modBgStr = it.getSetting(CustomModifierColor)
-        val modBg = safeColor(modBgStr, CustomModifierColor.default)
-        val borderStr = it.getSetting(CustomBorderColor)
-        val border = safeColor(borderStr, CustomBorderColor.default)
+        val icon = safeColor(it.getSetting(CustomIconColor), CustomIconColor.default)
+        val iconBg = safeColor(it.getSetting(CustomIconBgColor), CustomIconBgColor.default)
+        val keyBg = safeColor(it.getSetting(CustomKeyBgColor), CustomKeyBgColor.default)
+        val modBg = safeColor(it.getSetting(CustomModifierColor), CustomModifierColor.default)
+        val border = safeColor(it.getSetting(CustomBorderColor), CustomBorderColor.default)
         val bgImage = it.getSetting(CustomBackgroundImage)
-        colorsFrom(accent, base, icon, iconBg, keyBg, modBg, border, bgImage)
+
+        extendedDarkColorScheme(
+            primary = safeColor(it.getSetting(CustomPrimaryColor), CustomPrimaryColor.default),
+            onPrimary = safeColor(it.getSetting(CustomOnPrimaryColor), CustomOnPrimaryColor.default),
+            primaryContainer = safeColor(it.getSetting(CustomPrimaryContainerColor), CustomPrimaryContainerColor.default),
+            onPrimaryContainer = safeColor(it.getSetting(CustomOnPrimaryContainerColor), CustomOnPrimaryContainerColor.default),
+            secondary = safeColor(it.getSetting(CustomSecondaryColor), CustomSecondaryColor.default),
+            onSecondary = safeColor(it.getSetting(CustomOnSecondaryColor), CustomOnSecondaryColor.default),
+            secondaryContainer = safeColor(it.getSetting(CustomSecondaryContainerColor), CustomSecondaryContainerColor.default),
+            onSecondaryContainer = safeColor(it.getSetting(CustomOnSecondaryContainerColor), CustomOnSecondaryContainerColor.default),
+            tertiary = safeColor(it.getSetting(CustomTertiaryColor), CustomTertiaryColor.default),
+            onTertiary = safeColor(it.getSetting(CustomOnTertiaryColor), CustomOnTertiaryColor.default),
+            tertiaryContainer = safeColor(it.getSetting(CustomTertiaryContainerColor), CustomTertiaryContainerColor.default),
+            onTertiaryContainer = safeColor(it.getSetting(CustomOnTertiaryContainerColor), CustomOnTertiaryContainerColor.default),
+            error = safeColor(it.getSetting(CustomErrorColor), CustomErrorColor.default),
+            onError = safeColor(it.getSetting(CustomOnErrorColor), CustomOnErrorColor.default),
+            errorContainer = safeColor(it.getSetting(CustomErrorContainerColor), CustomErrorContainerColor.default),
+            onErrorContainer = safeColor(it.getSetting(CustomOnErrorContainerColor), CustomOnErrorContainerColor.default),
+            outline = safeColor(it.getSetting(CustomOutlineColor), CustomOutlineColor.default),
+            outlineVariant = safeColor(it.getSetting(CustomOutlineVariantColor), CustomOutlineVariantColor.default),
+            surface = safeColor(it.getSetting(CustomSurfaceColor), CustomSurfaceColor.default),
+            onSurface = safeColor(it.getSetting(CustomOnSurfaceColor), CustomOnSurfaceColor.default),
+            onSurfaceVariant = safeColor(it.getSetting(CustomOnSurfaceVariantColor), CustomOnSurfaceVariantColor.default),
+            surfaceContainerHighest = safeColor(it.getSetting(CustomSurfaceContainerHighestColor), CustomSurfaceContainerHighestColor.default),
+            shadow = safeColor(it.getSetting(CustomShadowColor), CustomShadowColor.default),
+            keyboardSurface = safeColor(it.getSetting(CustomKeyboardSurfaceColor), CustomKeyboardSurfaceColor.default),
+            keyboardContainer = safeColor(it.getSetting(CustomKeyboardContainerColor), CustomKeyboardContainerColor.default),
+            keyboardContainerVariant = safeColor(it.getSetting(CustomKeyboardContainerVariantColor), CustomKeyboardContainerVariantColor.default),
+            onKeyboardContainer = safeColor(it.getSetting(CustomOnKeyboardContainerColor), CustomOnKeyboardContainerColor.default),
+            keyboardPress = safeColor(it.getSetting(CustomKeyboardPressColor), CustomKeyboardPressColor.default),
+            keyboardFade0 = safeColor(it.getSetting(CustomKeyboardFade0Color), CustomKeyboardFade0Color.default),
+            keyboardFade1 = safeColor(it.getSetting(CustomKeyboardFade1Color), CustomKeyboardFade1Color.default),
+            keyboardBackgroundGradient = null,
+            primaryTransparent = safeColor(it.getSetting(CustomPrimaryTransparentColor), CustomPrimaryTransparentColor.default),
+            onSurfaceTransparent = safeColor(it.getSetting(CustomOnSurfaceTransparentColor), CustomOnSurfaceTransparentColor.default),
+            settingsIconColor = icon,
+            settingsIconBackground = iconBg,
+            keyboardSurfaceDim = safeColor(it.getSetting(CustomSurfaceColor), CustomSurfaceColor.default),
+            keyboardContainerPressed = border.copy(alpha = 0.33f),
+            onKeyboardContainerPressed = Color.Transparent,
+            keyboardBackgroundShader = if (bgImage.isNotEmpty()) bgImage else null,
+        )
     }
 )

@@ -35,14 +35,44 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import androidx.navigation.NavHostController
 import org.futo.inputmethod.latin.R
-import org.futo.inputmethod.latin.uix.CustomAccentColor
-import org.futo.inputmethod.latin.uix.CustomBaseColor
 import org.futo.inputmethod.latin.uix.CustomIconColor
 import org.futo.inputmethod.latin.uix.CustomIconBgColor
 import org.futo.inputmethod.latin.uix.CustomKeyBgColor
 import org.futo.inputmethod.latin.uix.CustomModifierColor
 import org.futo.inputmethod.latin.uix.CustomBorderColor
 import org.futo.inputmethod.latin.uix.CustomBackgroundImage
+import org.futo.inputmethod.latin.uix.CustomPrimaryColor
+import org.futo.inputmethod.latin.uix.CustomOnPrimaryColor
+import org.futo.inputmethod.latin.uix.CustomPrimaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomOnPrimaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomSecondaryColor
+import org.futo.inputmethod.latin.uix.CustomOnSecondaryColor
+import org.futo.inputmethod.latin.uix.CustomSecondaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomOnSecondaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomTertiaryColor
+import org.futo.inputmethod.latin.uix.CustomOnTertiaryColor
+import org.futo.inputmethod.latin.uix.CustomTertiaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomOnTertiaryContainerColor
+import org.futo.inputmethod.latin.uix.CustomErrorColor
+import org.futo.inputmethod.latin.uix.CustomOnErrorColor
+import org.futo.inputmethod.latin.uix.CustomErrorContainerColor
+import org.futo.inputmethod.latin.uix.CustomOnErrorContainerColor
+import org.futo.inputmethod.latin.uix.CustomOutlineColor
+import org.futo.inputmethod.latin.uix.CustomOutlineVariantColor
+import org.futo.inputmethod.latin.uix.CustomSurfaceColor
+import org.futo.inputmethod.latin.uix.CustomOnSurfaceColor
+import org.futo.inputmethod.latin.uix.CustomOnSurfaceVariantColor
+import org.futo.inputmethod.latin.uix.CustomSurfaceContainerHighestColor
+import org.futo.inputmethod.latin.uix.CustomShadowColor
+import org.futo.inputmethod.latin.uix.CustomKeyboardSurfaceColor
+import org.futo.inputmethod.latin.uix.CustomKeyboardContainerColor
+import org.futo.inputmethod.latin.uix.CustomKeyboardContainerVariantColor
+import org.futo.inputmethod.latin.uix.CustomOnKeyboardContainerColor
+import org.futo.inputmethod.latin.uix.CustomKeyboardPressColor
+import org.futo.inputmethod.latin.uix.CustomKeyboardFade0Color
+import org.futo.inputmethod.latin.uix.CustomKeyboardFade1Color
+import org.futo.inputmethod.latin.uix.CustomPrimaryTransparentColor
+import org.futo.inputmethod.latin.uix.CustomOnSurfaceTransparentColor
 
 import org.futo.inputmethod.latin.uix.CustomHomePrimaryBgColor
 import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgColor
@@ -62,8 +92,40 @@ import org.futo.inputmethod.latin.uix.theme.presets.CustomTheme
 
 @Composable
 fun ThemeGeneratorScreen(navController: NavHostController) {
-    val (accent, setAccent) = useDataStore(CustomAccentColor)
-    val (base, setBase) = useDataStore(CustomBaseColor)
+    val colorSettings = listOf(
+        CustomPrimaryColor to "Primary",
+        CustomOnPrimaryColor to "On Primary",
+        CustomPrimaryContainerColor to "Primary Container",
+        CustomOnPrimaryContainerColor to "On Primary Container",
+        CustomSecondaryColor to "Secondary",
+        CustomOnSecondaryColor to "On Secondary",
+        CustomSecondaryContainerColor to "Secondary Container",
+        CustomOnSecondaryContainerColor to "On Secondary Container",
+        CustomTertiaryColor to "Tertiary",
+        CustomOnTertiaryColor to "On Tertiary",
+        CustomTertiaryContainerColor to "Tertiary Container",
+        CustomOnTertiaryContainerColor to "On Tertiary Container",
+        CustomErrorColor to "Error",
+        CustomOnErrorColor to "On Error",
+        CustomErrorContainerColor to "Error Container",
+        CustomOnErrorContainerColor to "On Error Container",
+        CustomOutlineColor to "Outline",
+        CustomOutlineVariantColor to "Outline Variant",
+        CustomSurfaceColor to "Surface",
+        CustomOnSurfaceColor to "On Surface",
+        CustomOnSurfaceVariantColor to "On Surface Variant",
+        CustomSurfaceContainerHighestColor to "Surface Container Highest",
+        CustomShadowColor to "Shadow",
+        CustomKeyboardSurfaceColor to "Keyboard Surface",
+        CustomKeyboardContainerColor to "Keyboard Container",
+        CustomKeyboardContainerVariantColor to "Keyboard Container Variant",
+        CustomOnKeyboardContainerColor to "On Keyboard Container",
+        CustomKeyboardPressColor to "Keyboard Press",
+        CustomKeyboardFade0Color to "Keyboard Fade0",
+        CustomKeyboardFade1Color to "Keyboard Fade1",
+        CustomPrimaryTransparentColor to "Primary Transparent",
+        CustomOnSurfaceTransparentColor to "On Surface Transparent"
+    )
     val (icon, setIcon) = useDataStore(CustomIconColor)
     val (iconBg, setIconBg) = useDataStore(CustomIconBgColor)
     val (keyBg, setKeyBg) = useDataStore(CustomKeyBgColor)
@@ -88,8 +150,10 @@ fun ThemeGeneratorScreen(navController: NavHostController) {
             .verticalScroll(scrollState)
     ) {
         ScreenTitle(stringResource(R.string.theme_generator_title), showBack = true, navController)
-        ColorPicker(stringResource(R.string.theme_generator_accent), accent, setAccent)
-        ColorPicker(stringResource(R.string.theme_generator_base), base, setBase)
+        colorSettings.forEach { (key, label) ->
+            val (value, setter) = useDataStore(key)
+            ColorPicker(label, value, setter)
+        }
         ColorPicker(stringResource(R.string.theme_generator_icon), icon, setIcon)
         ColorPicker("Icon Background", iconBg, setIconBg)
         ColorPicker("Key Background", keyBg, setKeyBg)

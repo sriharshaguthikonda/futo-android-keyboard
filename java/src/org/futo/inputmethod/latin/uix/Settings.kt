@@ -438,6 +438,135 @@ val CustomBackgroundImage = SettingsKey(
     default = ""
 )
 
+val CustomPrimaryColor = SettingsKey(
+    key = stringPreferencesKey("custom_primary_color"),
+    default = "#D0BCFF"
+)
+val CustomOnPrimaryColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_primary_color"),
+    default = "#381E72"
+)
+val CustomPrimaryContainerColor = SettingsKey(
+    key = stringPreferencesKey("custom_primary_container_color"),
+    default = "#3A2966"
+)
+val CustomOnPrimaryContainerColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_primary_container_color"),
+    default = "#E4D4FF"
+)
+val CustomSecondaryColor = SettingsKey(
+    key = stringPreferencesKey("custom_secondary_color"),
+    default = "#CFBAFF"
+)
+val CustomOnSecondaryColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_secondary_color"),
+    default = "#3E2663"
+)
+val CustomSecondaryContainerColor = SettingsKey(
+    key = stringPreferencesKey("custom_secondary_container_color"),
+    default = "#1E192B"
+)
+val CustomOnSecondaryContainerColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_secondary_container_color"),
+    default = "#AC9DC4"
+)
+val CustomTertiaryColor = SettingsKey(
+    key = stringPreferencesKey("custom_tertiary_color"),
+    default = "#F1FFA3"
+)
+val CustomOnTertiaryColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_tertiary_color"),
+    default = "#444D12"
+)
+val CustomTertiaryContainerColor = SettingsKey(
+    key = stringPreferencesKey("custom_tertiary_container_color"),
+    default = "#5A6618"
+)
+val CustomOnTertiaryContainerColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_tertiary_container_color"),
+    default = "#F9FFD6"
+)
+val CustomErrorColor = SettingsKey(
+    key = stringPreferencesKey("custom_error_color"),
+    default = "#FA7C75"
+)
+val CustomOnErrorColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_error_color"),
+    default = "#591A16"
+)
+val CustomErrorContainerColor = SettingsKey(
+    key = stringPreferencesKey("custom_error_container_color"),
+    default = "#8C1D18"
+)
+val CustomOnErrorContainerColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_error_container_color"),
+    default = "#F9AFA9"
+)
+val CustomOutlineColor = SettingsKey(
+    key = stringPreferencesKey("custom_outline_color"),
+    default = "#9E93AD"
+)
+val CustomOutlineVariantColor = SettingsKey(
+    key = stringPreferencesKey("custom_outline_variant_color"),
+    default = "#3B2D4F"
+)
+val CustomSurfaceColor = SettingsKey(
+    key = stringPreferencesKey("custom_surface_color"),
+    default = "#000000"
+)
+val CustomOnSurfaceColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_surface_color"),
+    default = "#E6E1E5"
+)
+val CustomOnSurfaceVariantColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_surface_variant_color"),
+    default = "#CCC1D6"
+)
+val CustomSurfaceContainerHighestColor = SettingsKey(
+    key = stringPreferencesKey("custom_surface_container_highest_color"),
+    default = "#232129"
+)
+val CustomShadowColor = SettingsKey(
+    key = stringPreferencesKey("custom_shadow_color"),
+    default = "#000000"
+)
+val CustomKeyboardSurfaceColor = SettingsKey(
+    key = stringPreferencesKey("custom_keyboard_surface_color"),
+    default = "#000000"
+)
+val CustomKeyboardContainerColor = SettingsKey(
+    key = stringPreferencesKey("custom_keyboard_container_color"),
+    default = "#1E192B"
+)
+val CustomKeyboardContainerVariantColor = SettingsKey(
+    key = stringPreferencesKey("custom_keyboard_container_variant_color"),
+    default = "#181324"
+)
+val CustomOnKeyboardContainerColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_keyboard_container_color"),
+    default = "#E6E1E5"
+)
+val CustomKeyboardPressColor = SettingsKey(
+    key = stringPreferencesKey("custom_keyboard_press_color"),
+    default = "#31264F"
+)
+val CustomKeyboardFade0Color = SettingsKey(
+    key = stringPreferencesKey("custom_keyboard_fade0_color"),
+    default = "#000000"
+)
+val CustomKeyboardFade1Color = SettingsKey(
+    key = stringPreferencesKey("custom_keyboard_fade1_color"),
+    default = "#000000"
+)
+val CustomPrimaryTransparentColor = SettingsKey(
+    key = stringPreferencesKey("custom_primary_transparent_color"),
+    default = "#D0BCFF"
+)
+val CustomOnSurfaceTransparentColor = SettingsKey(
+    key = stringPreferencesKey("custom_on_surface_transparent_color"),
+    default = "#E6E1E5"
+)
+
 val USE_SYSTEM_VOICE_INPUT = SettingsKey(
     key = booleanPreferencesKey("useSystemVoiceInput"),
     default = false
