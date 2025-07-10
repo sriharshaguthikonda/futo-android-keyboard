@@ -720,38 +720,32 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         }
 
         val viewHeight = composeView!!.height
-        val size = size.value ?: return
+        val localSize = size.value ?: return // Use localSize to avoid confusion with outer scope 'size' if any, and ensure it's the state's value
         latinIMELegacy.setInsets(outInsets!!.apply {
-            when(currentKeyboardSize) { // Changed 'size' to 'currentKeyboardSize' for clarity
+            when(localSize) {
                 is FloatingKeyboardSize -> {
-                    val height = uixManager.touchableHeight // uixManager.touchableHeight is from KeyboardSurface
+                    val height = uixManager.touchableHeight
 
                     val left   = uixManager.floatingPosition.x.toInt()
-                    val right  = (uixManager.floatingPosition.x + currentKeyboardSize.width).roundToInt()
+                    val right  = (uixManager.floatingPosition.x + localSize.width).roundToInt() // Use localSize
                     val top    = uixManager.floatingPosition.y.toInt()
                     val bottom = (uixManager.floatingPosition.y + height).roundToInt()
 
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
                     touchableRegion.set(left, top, right, bottom)
-                    contentTopInsets = viewHeight // For floating, content is effectively behind it.
+                    contentTopInsets = viewHeight
                     visibleTopInsets = viewHeight
                 }
-                else -> { // Non-floating modes (includes normal keyboard and our combined clipboard search mode)
+                else -> {
                     touchableInsets = Insets.TOUCHABLE_INSETS_CONTENT
 
-                    // uixManager.touchableHeight should reflect the actual rendered height of the KeyboardSurface content,
-                    // which in clipboard search mode will be ClipboardSearchUI + KeyboardKeys.
                     val imeContentHeight = uixManager.touchableHeight
 
                     val topInsetCalculated = if (imeContentHeight > 0 && imeContentHeight < viewHeight) {
                         viewHeight - imeContentHeight
                     } else {
-                        // Fallback or if it's taking full height (e.g. landscape fullscreen before proper layout)
-                        // This path might need to be reviewed if imeContentHeight is ever 0 or >= viewHeight unexpectedly.
-                        // For now, using a logic similar to original for non-floating, non-standard touchableHeight,
-                        // but ensuring it doesn't go negative if imeContentHeight is very large.
                         val actionBarHeight = sizingCalculator.calculateTotalActionBarHeightPx()
-                        (viewHeight - currentKeyboardSize.height - actionBarHeight).coerceAtLeast(0)
+                        (viewHeight - localSize.height - actionBarHeight).coerceAtLeast(0) // Use localSize
                     }
 
                     contentTopInsets = topInsetCalculated
