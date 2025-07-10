@@ -48,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.lifecycle.LifecycleCoroutineScope
-import androidx.compose.foundation.lazy.animateItemPlacement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -829,7 +828,7 @@ val ClipboardHistoryAction = Action(
                                 val i = filtered.size - r_i - 1
                                 val entry = filtered[i]
                                 ClipboardEntryView(
-                                    modifier = Modifier.animateItemPlacement(),
+                                    modifier = Modifier,
                                     clipboardEntry = entry, onPaste = {
                                         if (it.uri != null) {
                                             manager.typeUri(it.uri, it.mimeTypes)
