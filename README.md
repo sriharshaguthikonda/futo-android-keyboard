@@ -9,7 +9,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - Offline-first keyboard with privacy-focused design.
 - Settings search bar integrated into the settings screen with a helpful "Settings search or try typing here." placeholder. The field grows to fit long queries.
 - Most extra features, such as Quick Switch, can be enabled or disabled from the settings.
-- AMOLED friendly dark themes with purple, red, blue, and green accents for battery savings.
+- AMOLED friendly dark themes with purple, red, green, and several blue shades (classic, cyan, indigo, sky) for battery savings.
 - Material You dynamic color support on Android 12+ automatically matches accent colors to the system palette.
 - Built-in theme generator lets you pick custom accent and base colors.
 - Theme generator now lets you pick accent, base, icon, and key colors with color pickers.

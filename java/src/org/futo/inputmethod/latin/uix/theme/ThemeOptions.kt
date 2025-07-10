@@ -8,6 +8,9 @@ import org.futo.inputmethod.latin.uix.theme.presets.AMOLEDDarkPurple
 import org.futo.inputmethod.latin.uix.theme.presets.AMOLEDDarkRed
 import org.futo.inputmethod.latin.uix.theme.presets.AMOLEDDarkBlue
 import org.futo.inputmethod.latin.uix.theme.presets.AMOLEDDarkGreen
+import org.futo.inputmethod.latin.uix.theme.presets.AMOLEDDarkCyan
+import org.futo.inputmethod.latin.uix.theme.presets.AMOLEDDarkIndigo
+import org.futo.inputmethod.latin.uix.theme.presets.AMOLEDDarkSky
 import org.futo.inputmethod.latin.uix.theme.presets.ClassicMaterialDark
 import org.futo.inputmethod.latin.uix.theme.presets.ClassicMaterialLight
 import org.futo.inputmethod.latin.uix.theme.presets.CottonCandy
@@ -51,6 +54,9 @@ val ThemeOptions = mapOf(
     AMOLEDDarkRed.key to AMOLEDDarkRed,
     AMOLEDDarkBlue.key to AMOLEDDarkBlue,
     AMOLEDDarkGreen.key to AMOLEDDarkGreen,
+    AMOLEDDarkCyan.key to AMOLEDDarkCyan,
+    AMOLEDDarkIndigo.key to AMOLEDDarkIndigo,
+    AMOLEDDarkSky.key to AMOLEDDarkSky,
 
     Sunflower.key to Sunflower,
     Snowfall.key to Snowfall,

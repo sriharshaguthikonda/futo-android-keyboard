@@ -156,6 +156,9 @@
     <string name="theme_amoled_dark_red">AMOLED Dark Red</string>
     <string name="theme_amoled_dark_blue">AMOLED Dark Blue</string>
     <string name="theme_amoled_dark_green">AMOLED Dark Green</string>
+    <string name="theme_amoled_dark_cyan">AMOLED Dark Cyan</string>
+    <string name="theme_amoled_dark_indigo">AMOLED Dark Indigo</string>
+    <string name="theme_amoled_dark_sky">AMOLED Dark Sky</string>
     <string name="theme_classic_dark">AOSP Material Dark</string>
     <string name="theme_classic_light">AOSP Material Light</string>
     <string name="theme_vi">FUTO VI Theme</string>
