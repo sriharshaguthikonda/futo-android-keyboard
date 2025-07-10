@@ -57,7 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import kotlin.math.roundToInt
 
-@Composable // Removed @OptIn(ExperimentalFoundationApi::class) as it's not directly used here
+@OptIn(ExperimentalFoundationApi::class) // Restored OptIn for combinedClickable
+@Composable
 fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searchQuery: String, onPaste: (ClipboardEntry) -> Unit, onRemove: (ClipboardEntry) -> Unit, onPin: (ClipboardEntry) -> Unit) {
     val textToDisplay = clipboardEntry.text ?: ""
     val annotatedText = buildAnnotatedString {
