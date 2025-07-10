@@ -57,8 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
+@Composable // Removed @OptIn(ExperimentalFoundationApi::class) as it's not directly used here
 fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searchQuery: String, onPaste: (ClipboardEntry) -> Unit, onRemove: (ClipboardEntry) -> Unit, onPin: (ClipboardEntry) -> Unit) {
     val textToDisplay = clipboardEntry.text ?: ""
     val annotatedText = buildAnnotatedString {
@@ -71,7 +70,8 @@ fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searc
                     break
                 }
                 append(textToDisplay.substring(startIndex, indexOfMatch))
-                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, backgroundColor = Color.Yellow.copy(alpha = 0.5f))) {
+                // Corrected: SpanStyle uses 'background' not 'backgroundColor'
+                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, background = Color.Yellow.copy(alpha = 0.5f))) {
                     append(textToDisplay.substring(indexOfMatch, indexOfMatch + searchQuery.length))
                 }
                 startIndex = indexOfMatch + searchQuery.length
