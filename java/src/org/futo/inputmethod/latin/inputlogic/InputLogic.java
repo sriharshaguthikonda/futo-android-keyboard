@@ -1216,9 +1216,9 @@ public final class InputLogic {
      */
     private void handleBackspaceEvent(final Event event, final InputTransaction inputTransaction,
             final int currentKeyboardScriptId) {
-        final org.futo.inputmethod.latin.uix.UixManager uixManager = mLatinIMELegacy.uixManager;
+        final org.futo.inputmethod.latin.uix.UixManager uixManager = mLatinIMELegacy.getUixManager(); // Changed to getter
         if (uixManager.isClipboardSearchFocused().getValue()) {
-            uixManager.keyboardManagerForAction().handleClipboardSearchKeyEvent(Constants.CODE_DELETE, 0);
+            uixManager.getKeyboardManagerForAction().handleClipboardSearchKeyEvent(Constants.CODE_DELETE, 0); // Changed to getter
             // We might need to update suggestions/UI after delete for search
             // However, the TextField's onValueChange should trigger recomposition if the query state changes.
             // We still need to manage the general input transaction states if they affect UI.
@@ -2442,12 +2442,12 @@ public final class InputLogic {
      */
     // TODO: replace these two parameters with an InputTransaction
     private void sendKeyCodePoint(final SettingsValues settingsValues, final int codePoint) {
-        final org.futo.inputmethod.latin.uix.UixManager uixManager = mLatinIMELegacy.uixManager;
+        final org.futo.inputmethod.latin.uix.UixManager uixManager = mLatinIMELegacy.getUixManager(); // Changed to getter
         if (uixManager.isClipboardSearchFocused().getValue()) {
             if (Character.isDefined(codePoint) && codePoint != Constants.CODE_ENTER && codePoint != Constants.CODE_SPACE) { // Basic chars, not enter/space yet
-                uixManager.setClipboardSearchQuery(uixManager.getClipboardSearchQuery() + StringUtils.newSingleCodePointString(codePoint));
+                uixManager.getKeyboardManagerForAction().setClipboardSearchQuery(uixManager.getKeyboardManagerForAction().getClipboardSearchQuery() + StringUtils.newSingleCodePointString(codePoint));
             } else if (codePoint == Constants.CODE_SPACE) {
-                uixManager.setClipboardSearchQuery(uixManager.getClipboardSearchQuery() + " ");
+                uixManager.getKeyboardManagerForAction().setClipboardSearchQuery(uixManager.getKeyboardManagerForAction().getClipboardSearchQuery() + " ");
             }
             // TODO: Handle Enter for search if needed, or let it be handled by higher-level onCodeInput
             return;

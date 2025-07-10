@@ -525,7 +525,7 @@ class UixManager(private val latinIME: LatinIME) {
     private var persistentStates: HashMap<Action, PersistentActionState?> = hashMapOf()
 
     private var inlineSuggestions: MutableState<List<MutableState<View?>>> = mutableStateOf(emptyList())
-    internal val keyboardManagerForAction = UixActionKeyboardManager(this, latinIME) // Made internal
+    val keyboardManagerForAction = UixActionKeyboardManager(this, latinIME) // Now public (default visibility)
 
     private var mainKeyboardHidden = mutableStateOf(false)
 
