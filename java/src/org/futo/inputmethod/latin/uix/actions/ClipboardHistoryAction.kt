@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -564,22 +565,19 @@ ${if(clipboardFileSwap.exists()) { clipboardFileSwap.readText() } else { "File d
     }
 
     fun exportClipboard(uri: Uri) {
-        runBlocking {
+        coroutineScope.launch(context = ClipboardIOContext) {
             saveClipboard()?.join()
             context.contentResolver.openOutputStream(uri)?.use { out ->
-                val list = clipboardHistory.toList()
-                val json = Json.encodeToString(list)
+                val json = Json.encodeToString(clipboardHistory.toList())
                 out.write(json.toByteArray())
             }
         }
     }
 
     fun importClipboard(uri: Uri) {
-        coroutineScope.launch {
+        coroutineScope.launch(context = ClipboardIOContext) {
             try {
-                val json = withContext(Dispatchers.IO) {
-                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText()
-                }
+                val json = context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText()
                 json?.let {
                     val data = Json.decodeFromString<List<ClipboardEntry>>(it)
                     withContext(Dispatchers.Main) {
@@ -775,7 +773,7 @@ val ClipboardHistoryAction = Action(
                         }
                     }
                 } else {
-                    var query by remember { mutableStateOf("") }
+                    var query by rememberSaveable { mutableStateOf("") }
                     val launcherExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
                         uri?.let { clipboardHistoryManager.exportClipboard(it) }
                     }
