@@ -2,11 +2,12 @@ package org.futo.voiceinput.shared.ggml
 
 import androidx.annotation.Keep
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import java.nio.Buffer
 
-@OptIn(DelicateCoroutinesApi::class)
+@OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
 val inferenceContext = newSingleThreadContext("whisper-ggml-inference")
 
 enum class DecodingMode(val value: Int) {

@@ -47,10 +47,16 @@ import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.SettingSlider
 import org.futo.inputmethod.latin.uix.settings.SettingToggleDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
-// Import new files
-import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryData.*
+// Explicit imports for ClipboardHistoryData symbols
+import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryEnabled
+import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryItemsToKeep
+import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryTimeToKeep
+import org.futo.inputmethod.latin.uix.actions.ClipboardHistorySaveSensitive
+// Explicit import for ClipboardHistoryManager
 import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryManager
-import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryComposables.*
+// Explicit imports for ClipboardHistoryComposables symbols
+import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryWindowContent
+import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryWindowTitleBar
 // Required for persistentState lambda
 import org.futo.inputmethod.latin.uix.UixManager
 

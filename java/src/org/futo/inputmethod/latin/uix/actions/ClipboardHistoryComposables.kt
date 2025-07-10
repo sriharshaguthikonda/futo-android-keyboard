@@ -40,7 +40,8 @@ import androidx.compose.ui.unit.dp
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.uix.DialogRequestItem
-import org.futo.inputmethod.latin.uix.UixManager
+// Replaced UixManager with KeyboardManagerForAction as per Action.kt definition
+import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.pages.ParagraphText
@@ -176,7 +177,7 @@ fun ClipboardEntryViewPreview() {
 @Composable
 fun ClipboardHistoryWindowTitleBar(
     rowScope: RowScope,
-    manager: UixManager,
+    manager: KeyboardManagerForAction, // Changed UixManager to KeyboardManagerForAction
     clipboardHistoryManager: ClipboardHistoryManager,
     unlocked: Boolean
 ) {
@@ -242,7 +243,7 @@ fun ClipboardHistoryWindowTitleBar(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ClipboardHistoryWindowContent(
-    manager: UixManager,
+    manager: KeyboardManagerForAction, // Changed UixManager to KeyboardManagerForAction
     clipboardHistoryManager: ClipboardHistoryManager,
     unlocked: Boolean,
     keyboardShown: Boolean
