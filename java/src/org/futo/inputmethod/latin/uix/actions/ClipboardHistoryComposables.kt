@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import android.util.Log
 import androidx.compose.ui.unit.dp
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.common.Constants
@@ -265,6 +266,7 @@ fun ClipboardHistoryWindowContent(
                 .fillMaxWidth()
                 .padding(8.dp)
                 .onFocusChanged { focusState ->
+                    Log.d("ClipboardSearch", "Search TextField focus changed: ${focusState.isFocused}")
                     manager.setClipboardSearchFocus(focusState.isFocused)
                 }
         )
@@ -380,5 +382,4 @@ fun ClipboardHistoryWindowContent(
             }
         }
     }
-}
 }

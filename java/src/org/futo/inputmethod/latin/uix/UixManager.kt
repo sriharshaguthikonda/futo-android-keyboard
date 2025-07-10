@@ -468,11 +468,17 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     override fun getSuggestionBlacklist(): SuggestionBlacklist = latinIME.suggestionBlacklist
 
     override fun setClipboardSearchFocus(isFocused: Boolean) {
+        Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: new isFocused = $isFocused, current uixManager.isClipboardSearchFocused = ${uixManager.isClipboardSearchFocused.value}")
         uixManager.isClipboardSearchFocused.value = isFocused
+        if (isFocused) {
+            // Tentative Fix: Ensure main keyboard area is not generally hidden when search gets focus
+            uixManager.mainKeyboardHidden.value = false
+        }
         if (!isFocused) {
             // Clear search query when focus is lost from search field
             uixManager.clipboardSearchQuery.value = ""
         }
+        Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: new uixManager.isClipboardSearchFocused = ${uixManager.isClipboardSearchFocused.value}")
     }
 
     override fun getClipboardSearchQuery(): String {
@@ -1181,6 +1187,7 @@ class UixManager(private val latinIME: LatinIME) {
                 Column {
                     val isClipboardSearchModeActive = isClipboardSearchFocused.value &&
                             currWindowAction.value?.name == R.string.action_clipboard_manager_title // Check if it's clipboard history action
+                    Log.d("ClipboardSearch", "UixManager.Content: isClipboardSearchFocused=${isClipboardSearchFocused.value}, currAction=${currWindowAction.value?.name}, isClipboardSearchModeActive=$isClipboardSearchModeActive, mainKeyboardHidden=${mainKeyboardHidden.value}")
 
                     if (isClipboardSearchModeActive) {
                         // Mode: Clipboard History with Search Focused
@@ -1208,6 +1215,7 @@ class UixManager(private val latinIME: LatinIME) {
                     } else {
                         isMainKeyboardHidden.value // Standard visibility logic for other action windows
                     }
+                    Log.d("ClipboardSearch", "UixManager.Content: legacyKeyboardActuallyHidden=$legacyKeyboardActuallyHidden")
                     latinIME.LegacyKeyboardView(hidden = legacyKeyboardActuallyHidden)
 
                     if(latinIME.size.value !is FloatingKeyboardSize) {

@@ -543,6 +543,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
     // shown, but resized to 0 if an action window is open
     @Composable
     internal fun LegacyKeyboardView(hidden: Boolean) {
+        Log.d("ClipboardSearch", "LatinIME.LegacyKeyboardView called with hidden: $hidden")
         val modifier = if(hidden) {
             Modifier
                 .clipToBounds()
