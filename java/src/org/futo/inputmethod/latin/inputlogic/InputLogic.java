@@ -1216,9 +1216,10 @@ public final class InputLogic {
      */
     private void handleBackspaceEvent(final Event event, final InputTransaction inputTransaction,
             final int currentKeyboardScriptId) {
-        final org.futo.inputmethod.latin.uix.UixManager uixManager = mLatinIMELegacy.getUixManager(); // Changed to getter
+        // Corrected access to UixManager
+        final org.futo.inputmethod.latin.uix.UixManager uixManager = ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager();
         if (uixManager.isClipboardSearchFocused().getValue()) {
-            uixManager.getKeyboardManagerForAction().handleClipboardSearchKeyEvent(Constants.CODE_DELETE, 0); // Changed to getter
+            uixManager.getKeyboardManagerForAction().handleClipboardSearchKeyEvent(Constants.CODE_DELETE, 0);
             // We might need to update suggestions/UI after delete for search
             // However, the TextField's onValueChange should trigger recomposition if the query state changes.
             // We still need to manage the general input transaction states if they affect UI.
@@ -2442,7 +2443,8 @@ public final class InputLogic {
      */
     // TODO: replace these two parameters with an InputTransaction
     private void sendKeyCodePoint(final SettingsValues settingsValues, final int codePoint) {
-        final org.futo.inputmethod.latin.uix.UixManager uixManager = mLatinIMELegacy.getUixManager(); // Changed to getter
+        // Corrected access to UixManager
+        final org.futo.inputmethod.latin.uix.UixManager uixManager = ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager();
         if (uixManager.isClipboardSearchFocused().getValue()) {
             if (Character.isDefined(codePoint) && codePoint != Constants.CODE_ENTER && codePoint != Constants.CODE_SPACE) { // Basic chars, not enter/space yet
                 uixManager.getKeyboardManagerForAction().setClipboardSearchQuery(uixManager.getKeyboardManagerForAction().getClipboardSearchQuery() + StringUtils.newSingleCodePointString(codePoint));
