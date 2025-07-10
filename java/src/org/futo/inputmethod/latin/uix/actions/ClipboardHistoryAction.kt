@@ -35,7 +35,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -775,7 +774,6 @@ val ClipboardHistoryAction = Action(
                     }
                 } else {
                     var query by remember { mutableStateOf("") }
-                    val coroutineScope = rememberCoroutineScope()
                     val launcherExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
                         uri?.let { clipboardHistoryManager.exportClipboard(it) }
                     }
@@ -845,42 +843,6 @@ val ClipboardHistoryAction = Action(
                                         manager.performHapticAndAudioFeedback(Constants.CODE_TAB, view)
                                     })
                             }
-                        }
-                    }
-                }
-                            val i = clipboardHistoryManager.clipboardHistory.size - r_i - 1
-                            val entry = clipboardHistoryManager.clipboardHistory[i]
-
-                            entry.text?.let {
-                                if(it.length > 512) {
-                                    // Compose really doesn't like extremely long keys, so
-                                    // to avoid crashing we just provide a hash
-                                    it.toFNV1aHash()
-                                } else {
-                                    it
-                                }
-                            } ?: i
-                            i
-                        }) { r_i ->
-                            val i = clipboardHistoryManager.clipboardHistory.size - r_i - 1
-                            val entry = clipboardHistoryManager.clipboardHistory[i]
-                            ClipboardEntryView(
-                                modifier = Modifier.animateItemPlacement(),
-                                clipboardEntry = entry, onPaste = {
-                                    if (it.uri != null) {
-                                        manager.typeUri(it.uri, it.mimeTypes)
-                                    } else if (it.text != null) {
-                                        manager.typeText(it.text)
-                                    }
-                                    clipboardHistoryManager.onPaste(it)
-                                    manager.performHapticAndAudioFeedback(Constants.CODE_OUTPUT_TEXT, view)
-                                }, onRemove = {
-                                    clipboardHistoryManager.onRemove(it)
-                                    manager.performHapticAndAudioFeedback(Constants.CODE_TAB, view)
-                                }, onPin = {
-                                    clipboardHistoryManager.onPin(it)
-                                    manager.performHapticAndAudioFeedback(Constants.CODE_TAB, view)
-                                })
                         }
                     }
                 }
