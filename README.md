@@ -28,7 +28,6 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - Groq Voice API settings under Voice Input show only Whisper models.
 - The voice input spinner turns orange when using Groq and green for local recognition.
 - New settings search button at the bottom of the settings screen highlights itself with a smooth repeating border animation for easier discovery.
-- AI Reply menu for configuring Groq-powered quick replies.
 - AI reply generation now streams responses using coroutines for smoother updates.
 - Quick Switch can be toggled in settings and uses an accessibility service to jump to your previously used app.
 - T9 phone layout accessible via the action key for quick number entry.
