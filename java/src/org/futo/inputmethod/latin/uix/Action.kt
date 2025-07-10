@@ -103,6 +103,11 @@ interface KeyboardManagerForAction {
     fun markTutorialCompleted()
 
     fun overrideKeyboardTypeface(typeface: Typeface?)
+
+    fun setClipboardSearchFocus(isFocused: Boolean)
+    fun getClipboardSearchQuery(): String
+    fun setClipboardSearchQuery(query: String)
+    fun handleClipboardSearchKeyEvent(keyCode: Int, metaState: Int): Boolean // Returns true if handled
 }
 
 enum class CloseResult {

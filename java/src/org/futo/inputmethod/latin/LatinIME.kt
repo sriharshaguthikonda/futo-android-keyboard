@@ -722,34 +722,40 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         val viewHeight = composeView!!.height
         val size = size.value ?: return
         latinIMELegacy.setInsets(outInsets!!.apply {
-            when(size) {
+            when(currentKeyboardSize) { // Changed 'size' to 'currentKeyboardSize' for clarity
                 is FloatingKeyboardSize -> {
-                    val height = uixManager.touchableHeight
+                    val height = uixManager.touchableHeight // uixManager.touchableHeight is from KeyboardSurface
 
                     val left   = uixManager.floatingPosition.x.toInt()
-                    val right  = (uixManager.floatingPosition.x + size.width).roundToInt()
+                    val right  = (uixManager.floatingPosition.x + currentKeyboardSize.width).roundToInt()
                     val top    = uixManager.floatingPosition.y.toInt()
                     val bottom = (uixManager.floatingPosition.y + height).roundToInt()
 
                     touchableInsets = Insets.TOUCHABLE_INSETS_REGION
                     touchableRegion.set(left, top, right, bottom)
-                    contentTopInsets = viewHeight
+                    contentTopInsets = viewHeight // For floating, content is effectively behind it.
                     visibleTopInsets = viewHeight
                 }
-                else -> {
+                else -> { // Non-floating modes (includes normal keyboard and our combined clipboard search mode)
                     touchableInsets = Insets.TOUCHABLE_INSETS_CONTENT
 
-                    val touchableHeight = uixManager.touchableHeight
-                    val topInset = if(touchableHeight < 1 || touchableHeight >= viewHeight - 1) {
-                        val actionBarHeight = sizingCalculator.calculateTotalActionBarHeightPx()
+                    // uixManager.touchableHeight should reflect the actual rendered height of the KeyboardSurface content,
+                    // which in clipboard search mode will be ClipboardSearchUI + KeyboardKeys.
+                    val imeContentHeight = uixManager.touchableHeight
 
-                        viewHeight - size.height - actionBarHeight
+                    val topInsetCalculated = if (imeContentHeight > 0 && imeContentHeight < viewHeight) {
+                        viewHeight - imeContentHeight
                     } else {
-                        viewHeight - touchableHeight
+                        // Fallback or if it's taking full height (e.g. landscape fullscreen before proper layout)
+                        // This path might need to be reviewed if imeContentHeight is ever 0 or >= viewHeight unexpectedly.
+                        // For now, using a logic similar to original for non-floating, non-standard touchableHeight,
+                        // but ensuring it doesn't go negative if imeContentHeight is very large.
+                        val actionBarHeight = sizingCalculator.calculateTotalActionBarHeightPx()
+                        (viewHeight - currentKeyboardSize.height - actionBarHeight).coerceAtLeast(0)
                     }
 
-                    contentTopInsets = topInset
-                    visibleTopInsets = topInset
+                    contentTopInsets = topInsetCalculated
+                    visibleTopInsets = topInsetCalculated
                 }
             }
 

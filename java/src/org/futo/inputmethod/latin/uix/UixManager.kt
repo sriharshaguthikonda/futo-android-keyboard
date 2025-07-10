@@ -466,6 +466,34 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     override fun getLatinIMEForDebug(): LatinIME = latinIME
 
     override fun getSuggestionBlacklist(): SuggestionBlacklist = latinIME.suggestionBlacklist
+
+    override fun setClipboardSearchFocus(isFocused: Boolean) {
+        uixManager.isClipboardSearchFocused.value = isFocused
+        if (!isFocused) {
+            // Clear search query when focus is lost from search field
+            uixManager.clipboardSearchQuery.value = ""
+        }
+    }
+
+    override fun getClipboardSearchQuery(): String {
+        return uixManager.clipboardSearchQuery.value
+    }
+
+    override fun setClipboardSearchQuery(query: String) {
+        uixManager.clipboardSearchQuery.value = query
+    }
+
+    override fun handleClipboardSearchKeyEvent(keyCode: Int, metaState: Int): Boolean {
+        if (keyCode == Constants.CODE_DELETE) {
+            val currentQuery = uixManager.clipboardSearchQuery.value
+            if (currentQuery.isNotEmpty()) {
+                uixManager.clipboardSearchQuery.value = currentQuery.substring(0, currentQuery.length - 1)
+            }
+            return true
+        }
+        // Could handle other keys like arrows if needed, but text commit should handle characters.
+        return false
+    }
 }
 
 data class ActiveDialogRequest(
@@ -497,7 +525,7 @@ class UixManager(private val latinIME: LatinIME) {
     private var persistentStates: HashMap<Action, PersistentActionState?> = hashMapOf()
 
     private var inlineSuggestions: MutableState<List<MutableState<View?>>> = mutableStateOf(emptyList())
-    private val keyboardManagerForAction = UixActionKeyboardManager(this, latinIME)
+    internal val keyboardManagerForAction = UixActionKeyboardManager(this, latinIME) // Made internal
 
     private var mainKeyboardHidden = mutableStateOf(false)
 
@@ -526,6 +554,8 @@ class UixManager(private val latinIME: LatinIME) {
     val foldingOptions = mutableStateOf(FoldingOptions(null))
 
     var isInputOverridden = mutableStateOf(false)
+    val isClipboardSearchFocused: MutableState<Boolean> = mutableStateOf(false)
+    val clipboardSearchQuery: MutableState<String> = mutableStateOf("")
 
     var currWindowActionWindow: MutableState<ActionWindow?> = mutableStateOf(null)
 
@@ -563,10 +593,11 @@ class UixManager(private val latinIME: LatinIME) {
     }
 
     @Composable
-    private fun MainKeyboardViewWithActionBar() {
+    private fun MainKeyboardViewWithActionBar(showActionBarOverride: Boolean? = null) {
         val view = LocalView.current
 
-        val actionBarShown = useDataStore(ActionBarDisplayedSetting)
+        val systemActionBarSetting = useDataStore(ActionBarDisplayedSetting)
+        val actuallyShowActionBar = showActionBarOverride ?: systemActionBarSetting.value
 
         Column {
             // Don't show suggested words when it's not meant to be shown
@@ -576,7 +607,7 @@ class UixManager(private val latinIME: LatinIME) {
                 null
             }
 
-            if(actionBarShown.value) {
+            if(actuallyShowActionBar) {
                 ActionBar(
                     suggestedWordsOrNull,
                     latinIME.latinIMELegacy as SuggestionStripViewListener,
@@ -1148,17 +1179,36 @@ class UixManager(private val latinIME: LatinIME) {
 
             KeyboardWindowSelector { gap ->
                 Column {
-                    when {
-                        currWindowActionWindow.value != null -> ActionViewWithHeader(
-                            currWindowActionWindow.value!!
-                        )
+                    val isClipboardSearchModeActive = isClipboardSearchFocused.value &&
+                            currWindowAction.value?.name == R.string.action_clipboard_manager_title // Check if it's clipboard history action
 
-                        else -> MainKeyboardViewWithActionBar()
+                    if (isClipboardSearchModeActive) {
+                        // Mode: Clipboard History with Search Focused
+                        // 1. Show Clipboard Action Window (includes search bar)
+                        currWindowActionWindow.value?.let { ActionViewWithHeader(it) }
+
+                        // 2. NO standard action bar/suggestion strip for the main keyboard
+                        //    The LegacyKeyboardView will be shown below.
+                        //    The 'gap' might be irrelevant here or could be a specific small spacer.
+                        Spacer(modifier = Modifier.height(0.dp)) // Minimal or no gap
+
+                    } else if (currWindowActionWindow.value != null) {
+                        // Mode: Other Action Window is active
+                        ActionViewWithHeader(currWindowActionWindow.value!!)
+                        Spacer(modifier = Modifier.height(gap)) // Standard gap calculation applies
+                    } else {
+                        // Mode: No Action Window, just main keyboard
+                        MainKeyboardViewWithActionBar() // Shows suggestions/actions as per its internal logic
+                        Spacer(modifier = Modifier.height(gap))
                     }
 
-                    Spacer(modifier = Modifier.height(gap))
-
-                    latinIME.LegacyKeyboardView(hidden = isMainKeyboardHidden.value)
+                    // Determine visibility of the LegacyKeyboardView (the actual keys)
+                    val legacyKeyboardActuallyHidden = if (isClipboardSearchModeActive) {
+                        false // Force keyboard to be shown for clipboard search
+                    } else {
+                        isMainKeyboardHidden.value // Standard visibility logic for other action windows
+                    }
+                    latinIME.LegacyKeyboardView(hidden = legacyKeyboardActuallyHidden)
 
                     if(latinIME.size.value !is FloatingKeyboardSize) {
                         Spacer(Modifier.height(navBarHeight()))

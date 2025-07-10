@@ -1216,6 +1216,27 @@ public final class InputLogic {
      */
     private void handleBackspaceEvent(final Event event, final InputTransaction inputTransaction,
             final int currentKeyboardScriptId) {
+        final org.futo.inputmethod.latin.uix.UixManager uixManager = mLatinIMELegacy.uixManager;
+        if (uixManager.isClipboardSearchFocused().getValue()) {
+            uixManager.keyboardManagerForAction().handleClipboardSearchKeyEvent(Constants.CODE_DELETE, 0);
+            // We might need to update suggestions/UI after delete for search
+            // However, the TextField's onValueChange should trigger recomposition if the query state changes.
+            // We still need to manage the general input transaction states if they affect UI.
+            mSpaceState = SpaceState.NONE; // Reset space state as we are in a special input field
+            mDeleteCount++; // Keep delete count for potential future accelerated delete in search
+
+            // Determine shift update kind as original logic does
+            final int shiftUpdateKind =
+                event.isKeyRepeat() && mConnection.getExpectedSelectionStart() > 0
+                ? InputTransaction.SHIFT_UPDATE_LATER : InputTransaction.SHIFT_UPDATE_NOW;
+            inputTransaction.requireShiftUpdate(shiftUpdateKind);
+
+            // Since this is a controlled text field, no complex composition/revert logic applies.
+            // No need to call mConnection.endBatchEdit() here as we didn't start one for this path,
+            // and more importantly, we are NOT interacting with the mConnection for text.
+            return; // Skip original backspace logic
+        }
+
         mSpaceState = SpaceState.NONE;
         mDeleteCount++;
         mLastPhoneDigit = -1;
@@ -2421,6 +2442,17 @@ public final class InputLogic {
      */
     // TODO: replace these two parameters with an InputTransaction
     private void sendKeyCodePoint(final SettingsValues settingsValues, final int codePoint) {
+        final org.futo.inputmethod.latin.uix.UixManager uixManager = mLatinIMELegacy.uixManager;
+        if (uixManager.isClipboardSearchFocused().getValue()) {
+            if (Character.isDefined(codePoint) && codePoint != Constants.CODE_ENTER && codePoint != Constants.CODE_SPACE) { // Basic chars, not enter/space yet
+                uixManager.setClipboardSearchQuery(uixManager.getClipboardSearchQuery() + StringUtils.newSingleCodePointString(codePoint));
+            } else if (codePoint == Constants.CODE_SPACE) {
+                uixManager.setClipboardSearchQuery(uixManager.getClipboardSearchQuery() + " ");
+            }
+            // TODO: Handle Enter for search if needed, or let it be handled by higher-level onCodeInput
+            return;
+        }
+
         // TODO: we should do this also when the editor has TYPE_NULL
         if (Constants.CODE_ENTER == codePoint && settingsValues.isBeforeJellyBean()) {
             // Backward compatibility mode. Before Jelly bean, the keyboard would simulate

@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -252,16 +253,20 @@ fun ClipboardHistoryWindowContent(
     val view = LocalView.current
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
-    var searchQuery by remember { mutableStateOf("") }
+    // Search query is now managed by UixManager via KeyboardManagerForAction
+    // val searchQuery by remember { mutableStateOf("") } // Old local state
 
     Column(modifier = Modifier.fillMaxWidth()) {
         TextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
+            value = manager.getClipboardSearchQuery(), // Get value from manager
+            onValueChange = { manager.setClipboardSearchQuery(it) }, // Set value via manager
             label = { Text(stringResource(R.string.search_clipboard_history_label)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp)
+                .onFocusChanged { focusState ->
+                    manager.setClipboardSearchFocus(focusState.isFocused)
+                }
         )
 
         if (!unlocked) {
@@ -328,11 +333,12 @@ fun ClipboardHistoryWindowContent(
             }
         }
     } else {
-        val filteredList = if (searchQuery.isBlank()) {
+        val currentSearchQuery = manager.getClipboardSearchQuery()
+        val filteredList = if (currentSearchQuery.isBlank()) {
             clipboardHistoryManager.clipboardHistory.toList() // Use a copy for stability during recomposition
         } else {
             clipboardHistoryManager.clipboardHistory.filter {
-                it.text?.contains(searchQuery, ignoreCase = true) == true
+                it.text?.contains(currentSearchQuery, ignoreCase = true) == true
             }
         }
 
@@ -352,7 +358,7 @@ fun ClipboardHistoryWindowContent(
                 ClipboardEntryView(
                     modifier = Modifier.animateItemPlacement(),
                     clipboardEntry = entry,
-                    searchQuery = searchQuery, // Pass the search query for highlighting
+                    searchQuery = currentSearchQuery, // Pass the search query from manager
                     onPaste = {
                         if (it.uri != null) {
                             manager.typeUri(it.uri, it.mimeTypes)
@@ -374,5 +380,4 @@ fun ClipboardHistoryWindowContent(
             }
         }
     }
-}
 }
