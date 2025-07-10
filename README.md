@@ -15,6 +15,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - Every color from the default themes can be customized individually in the theme generator.
 - Background images can be loaded for custom themes.
 - Theme generator handles invalid color codes without crashing.
+- Clipboard history logic is now split into smaller modules for easier maintenance.
 - Settings icons use accent variations so each menu item has a unique color.
 - AI Reply menu for configuring Groq-powered quick replies using chat completion models fetched from Groq.
   The model picker now lists Llama chat models only.
