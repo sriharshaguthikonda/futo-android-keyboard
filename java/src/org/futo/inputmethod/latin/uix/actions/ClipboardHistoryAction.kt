@@ -1,7 +1,7 @@
 package org.futo.inputmethod.latin.uix.actions
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.animateItemPlacement
+import androidx.compose.foundation.lazy.animateItemPlacement
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.material3.Button

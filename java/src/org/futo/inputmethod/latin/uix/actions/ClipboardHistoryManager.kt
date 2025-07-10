@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.futo.inputmethod.latin.uix.PersistentActionState
 import org.futo.inputmethod.latin.uix.getSetting
@@ -29,6 +30,8 @@ import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryTimeToKeep
 import org.futo.inputmethod.latin.uix.actions.DefaultClipboardEntry
 import org.futo.inputmethod.latin.uix.actions.ClipboardFileName
 import org.futo.inputmethod.latin.uix.actions.clipboardFile
+import org.futo.inputmethod.latin.uix.actions.BugViewerState
+import org.futo.inputmethod.latin.uix.actions.BugInfo
 import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
