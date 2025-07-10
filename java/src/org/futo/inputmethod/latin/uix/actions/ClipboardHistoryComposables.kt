@@ -24,8 +24,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -44,11 +48,38 @@ import org.futo.inputmethod.latin.uix.settings.pages.PaymentSurface
 import org.futo.inputmethod.latin.uix.settings.pages.PaymentSurfaceHeading
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.theme.Typography
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, onPaste: (ClipboardEntry) -> Unit, onRemove: (ClipboardEntry) -> Unit, onPin: (ClipboardEntry) -> Unit) {
+fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searchQuery: String, onPaste: (ClipboardEntry) -> Unit, onRemove: (ClipboardEntry) -> Unit, onPin: (ClipboardEntry) -> Unit) {
+    val textToDisplay = clipboardEntry.text ?: ""
+    val annotatedText = buildAnnotatedString {
+        if (searchQuery.isNotEmpty() && textToDisplay.contains(searchQuery, ignoreCase = true)) {
+            var startIndex = 0
+            while (startIndex < textToDisplay.length) {
+                val indexOfMatch = textToDisplay.indexOf(searchQuery, startIndex, ignoreCase = true)
+                if (indexOfMatch == -1) {
+                    append(textToDisplay.substring(startIndex))
+                    break
+                }
+                append(textToDisplay.substring(startIndex, indexOfMatch))
+                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, backgroundColor = Color.Yellow.copy(alpha = 0.5f))) {
+                    append(textToDisplay.substring(indexOfMatch, indexOfMatch + searchQuery.length))
+                }
+                startIndex = indexOfMatch + searchQuery.length
+            }
+        } else {
+            append(textToDisplay)
+        }
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -102,15 +133,16 @@ fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, onPas
                 }
             }
 
-            val text = (clipboardEntry.text ?: "").let {
-                if(it.length > 256) {
-                    it.substring(0, 256) + "..."
-                } else {
-                    it
+            val displayedText = if (annotatedText.text.length > 256) {
+                buildAnnotatedString {
+                    append(annotatedText.subSequence(0, 256))
+                    append("...")
                 }
+            } else {
+                annotatedText
             }
 
-            Text(text, modifier = Modifier.padding(8.dp, 2.dp), style = Typography.SmallMl)
+            Text(displayedText, modifier = Modifier.padding(8.dp, 2.dp), style = Typography.SmallMl)
 
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -120,7 +152,8 @@ fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, onPas
 @Preview(showBackground = true)
 @Composable
 fun ClipboardEntryViewPreview() {
-    val sampleText = listOf("This is an entry", "Copying text a lot", "hunter2", "https://www.example.com/forum/viewpost/1234573193.html?parameter=1234")
+    val sampleText = listOf("This is an entry with searchterm", "Copying text a lot", "searchterm here too", "https://www.example.com/forum/viewpost/1234573193.html?parameter=1234")
+    val searchQuery = "searchterm"
     LazyVerticalStaggeredGrid(
         modifier = Modifier.fillMaxWidth(),
         columns = StaggeredGridCells.Adaptive(160.dp),
@@ -128,7 +161,14 @@ fun ClipboardEntryViewPreview() {
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         items(sampleText.size) {
-            ClipboardEntryView(modifier = Modifier, clipboardEntry = ClipboardEntry(0L, it % 2 == 0, sampleText[it], null, listOf()), onPin = {}, onPaste = {}, onRemove = {})
+            ClipboardEntryView(
+                modifier = Modifier,
+                clipboardEntry = ClipboardEntry(0L, it % 2 == 0, sampleText[it], null, listOf()),
+                searchQuery = searchQuery,
+                onPin = {},
+                onPaste = {},
+                onRemove = {}
+            )
         }
     }
 }
@@ -205,15 +245,26 @@ fun ClipboardHistoryWindowContent(
     manager: UixManager,
     clipboardHistoryManager: ClipboardHistoryManager,
     unlocked: Boolean,
-    keyboardShown: Boolean // keyboardShown might not be used here, but good to keep if original logic depended on it
+    keyboardShown: Boolean
 ) {
     val view = LocalView.current
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
+    var searchQuery by remember { mutableStateOf("") }
 
-    if (!unlocked) {
-        ScrollableList {
-            PaymentSurface(isPrimary = true) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        TextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            label = { Text(stringResource(R.string.search_clipboard_history_label)) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        )
+
+        if (!unlocked) {
+            ScrollableList {
+                PaymentSurface(isPrimary = true) {
                 PaymentSurfaceHeading(title = stringResource(R.string.action_clipboard_manager_error_device_locked_title))
                 ParagraphText(stringResource(R.string.action_clipboard_manager_error_device_locked_text))
             }
@@ -275,6 +326,14 @@ fun ClipboardHistoryWindowContent(
             }
         }
     } else {
+        val filteredList = if (searchQuery.isBlank()) {
+            clipboardHistoryManager.clipboardHistory.toList() // Use a copy for stability during recomposition
+        } else {
+            clipboardHistoryManager.clipboardHistory.filter {
+                it.text?.contains(searchQuery, ignoreCase = true) == true
+            }
+        }
+
         LazyVerticalStaggeredGrid(
             modifier = Modifier.fillMaxWidth(),
             columns = StaggeredGridCells.Adaptive(140.dp),
@@ -282,21 +341,16 @@ fun ClipboardHistoryWindowContent(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             items(
-                items = clipboardHistoryManager.clipboardHistory.reversed(),
+                items = filteredList.reversed(), // Show newest first
                 key = { entry ->
-                entry.text?.let {
-                    if(it.length > 512) {
-                        // Compose really doesn't like extremely long keys, so
-                        // to avoid crashing we just provide a hash
-                        it.toFNV1aHash()
-                    } else {
-                        it
-                    }
-                } ?: entry.timestamp // Fallback key if text is null
-            }) { entry ->
+                    // Ensure unique keys, especially if text can be null or identical
+                    (entry.text ?: "") + entry.timestamp.toString()
+                }
+            ) { entry ->
                 ClipboardEntryView(
                     modifier = Modifier.animateItemPlacement(),
                     clipboardEntry = entry,
+                    searchQuery = searchQuery, // Pass the search query for highlighting
                     onPaste = {
                         if (it.uri != null) {
                             manager.typeUri(it.uri, it.mimeTypes)
