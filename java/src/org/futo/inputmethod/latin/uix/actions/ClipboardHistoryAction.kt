@@ -1,9 +1,10 @@
 package org.futo.inputmethod.latin.uix.actions
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.lazy.animateItemPlacement
+import androidx.compose.foundation.lazy.staggeredgrid.animateItemPlacement
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,6 +24,7 @@ import org.futo.inputmethod.latin.uix.Action
 import org.futo.inputmethod.latin.uix.ActionWindow
 import org.futo.inputmethod.latin.uix.DialogRequestItem
 import org.futo.inputmethod.latin.uix.PersistentStateInitialization
+import org.futo.inputmethod.latin.uix.actions.BugViewerAction
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.SettingSlider
