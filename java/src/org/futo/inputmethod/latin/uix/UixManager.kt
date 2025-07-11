@@ -469,16 +469,22 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
 
     override fun setClipboardSearchFocus(isFocused: Boolean) {
         Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: new isFocused = $isFocused, current uixManager.isClipboardSearchFocused = ${uixManager.isClipboardSearchFocused.value}")
+        val oldFocusedState = uixManager.isClipboardSearchFocused.value
         uixManager.isClipboardSearchFocused.value = isFocused
-        if (isFocused) {
+
+        if (isFocused && !oldFocusedState) {
             // Tentative Fix: Ensure main keyboard area is not generally hidden when search gets focus
             uixManager.mainKeyboardHidden.value = false
-        }
-        if (!isFocused) {
+            Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: Became focused. Setting requestSearchFocus = true")
+            uixManager.requestSearchFocus.value = true // Trigger the focus request
+        } else if (!isFocused && oldFocusedState) {
             // Clear search query when focus is lost from search field
             uixManager.clipboardSearchQuery.value = ""
+            Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: Lost focus.")
+            // Ensure request is reset if focus is lost externally
+            if(uixManager.requestSearchFocus.value) uixManager.requestSearchFocus.value = false
         }
-        Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: new uixManager.isClipboardSearchFocused = ${uixManager.isClipboardSearchFocused.value}")
+        Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: new uixManager.isClipboardSearchFocused = ${uixManager.isClipboardSearchFocused.value}, requestSearchFocus = ${uixManager.requestSearchFocus.value}")
     }
 
     override fun getClipboardSearchQuery(): String {
@@ -503,6 +509,14 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
 
     override fun isClipboardSearchFocusedState(): androidx.compose.runtime.State<Boolean> {
         return uixManager.isClipboardSearchFocused
+    }
+
+    override fun getRequestSearchFocusState(): androidx.compose.runtime.State<Boolean> {
+        return uixManager.requestSearchFocus
+    }
+
+    override fun acknowledgeSearchFocusRequest() {
+        uixManager.requestSearchFocus.value = false
     }
 }
 
@@ -566,6 +580,7 @@ class UixManager(private val latinIME: LatinIME) {
     var isInputOverridden = mutableStateOf(false)
     val isClipboardSearchFocused: MutableState<Boolean> = mutableStateOf(false)
     val clipboardSearchQuery: MutableState<String> = mutableStateOf("")
+    val requestSearchFocus: MutableState<Boolean> = mutableStateOf(false) // New state
 
     var currWindowActionWindow: MutableState<ActionWindow?> = mutableStateOf(null)
 

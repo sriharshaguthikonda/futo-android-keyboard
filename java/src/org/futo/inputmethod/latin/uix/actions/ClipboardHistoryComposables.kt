@@ -36,6 +36,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -259,6 +260,7 @@ fun ClipboardHistoryWindowContent(
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
     val focusRequester = remember { FocusRequester() }
+    val localFocusManager = LocalFocusManager.current
 
     Column(modifier = Modifier.fillMaxWidth()) {
         TextField(
@@ -270,38 +272,45 @@ fun ClipboardHistoryWindowContent(
                 .padding(8.dp)
                 .focusRequester(focusRequester)
                 .onFocusChanged { focusState ->
-                    Log.d("ClipboardSearch", "Search TextField onFocusChanged: isFocused = ${focusState.isFocused}. Current manager state: ${manager.isClipboardSearchFocusedState().value}")
-                    manager.setClipboardSearchFocus(focusState.isFocused)
-                    // Removed immediate focusRequester.requestFocus() from here to isolate LaunchedEffect
+                    Log.d("ClipboardSearch", "SearchField onFocusChanged: focusState.isFocused=${focusState.isFocused}. Current manager.isClipboardSearchFocused: ${manager.isClipboardSearchFocusedState().value}")
+                    if (focusState.isFocused) {
+                        // This block executes when the TextField gains focus (e.g., due to user tap).
+                        Log.d("ClipboardSearch", "SearchField ON GAIN FOCUS (isFocused=true). Setting manager state and attempting direct focus.")
+                        manager.setClipboardSearchFocus(true) // This will set mainKeyboardHidden=false and requestSearchFocus=true in manager
+
+                        // Aggressive direct focus attempt:
+                        Log.d("ClipboardSearch", "SearchField ON GAIN FOCUS: Attempting localFocusManager.clearFocus(force=true) then focusRequester.requestFocus()")
+                        localFocusManager.clearFocus(force = true) // Clear any other focus
+                        focusRequester.requestFocus()              // Request focus for this TextField
+                        Log.d("ClipboardSearch", "SearchField ON GAIN FOCUS: Direct focus request sent via focusRequester.")
+                    } else {
+                        // This block executes when the TextField loses focus.
+                        Log.d("ClipboardSearch", "SearchField ON LOST FOCUS (isFocused=false). Current manager.isClipboardSearchFocused: ${manager.isClipboardSearchFocusedState().value}")
+                        if (manager.isClipboardSearchFocusedState().value) { // Check current state before updating
+                            Log.d("ClipboardSearch", "SearchField ON LOST FOCUS: Manager thought search was focused. Setting manager.setClipboardSearchFocus(false).")
+                            manager.setClipboardSearchFocus(false)
+                        } else {
+                            Log.d("ClipboardSearch", "SearchField ON LOST FOCUS: Manager already knew search was not focused. No change to manager.setClipboardSearchFocus.")
+                        }
+                    }
                 }
         )
 
-        val isClipboardSearchFocusedState = manager.isClipboardSearchFocusedState()
+        // Removed the LaunchedEffect keyed on requestSearchFocusState as it was ineffective.
+        // The focus request is now more direct in onFocusChanged.
 
-        // Test LaunchedEffect to see if it runs at all in this composable's scope
+        // Keep this for general composition logging
         LaunchedEffect(Unit) {
-            Log.d("ClipboardSearch", "[Test LaunchedEffect(Unit)] In ClipboardHistoryWindowContent. This should appear once on composition.")
+            Log.d("ClipboardSearch", "[TestLE ClipboardHistoryWindowContent] Composed. This shows the composable itself is being composed.")
         }
 
-        LaunchedEffect(isClipboardSearchFocusedState.value) {
-            Log.d("ClipboardSearch", "[State LaunchedEffect START] Key (isClipboardSearchFocusedState.value): ${isClipboardSearchFocusedState.value}")
-
-            if (isClipboardSearchFocusedState.value) {
-                try {
-                    Log.d("ClipboardSearch", "[State LaunchedEffect IF_TRUE_START] Condition is true. Will delay and attempt focus.")
-                    delay(150)
-                    Log.d("ClipboardSearch", "[State LaunchedEffect IF_TRUE_AFTER_DELAY] Attempting focusRequester.requestFocus()")
-                    focusRequester.requestFocus()
-                    Log.d("ClipboardSearch", "[State LaunchedEffect IF_TRUE_AFTER_REQUEST] Focus request sent.")
-                } catch (e: Exception) {
-                    Log.e("ClipboardSearch", "[State LaunchedEffect ERROR] Error requesting focus: ${e.message}")
-                }
-            } else {
-                Log.d("ClipboardSearch", "[State LaunchedEffect IF_FALSE] Condition is false. No focus action.")
-            }
-            Log.d("ClipboardSearch", "[State LaunchedEffect END] For key value: ${isClipboardSearchFocusedState.value}")
+        // Keep this to observe the manager's clipboard search focus state for diagnostics
+        // This is the LCE I referred to as "[State LaunchedEffect...]" in previous comments
+        val isClipboardSearchFocusedStateObserved = manager.isClipboardSearchFocusedState()
+        LaunchedEffect(isClipboardSearchFocusedStateObserved.value) {
+            Log.d("ClipboardSearch", "[StateLE isClipboardSearchFocused] manager.isClipboardSearchFocusedState changed to: ${isClipboardSearchFocusedStateObserved.value}")
+            // No actions here, just logging this state's changes.
         }
-
 
         if (!unlocked) {
             ScrollableList {
