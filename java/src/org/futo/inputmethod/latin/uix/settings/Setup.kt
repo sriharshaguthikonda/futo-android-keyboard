@@ -133,10 +133,32 @@ fun SetupEnableIME() {
     }
 }
 
+@Composable
+fun SetupOrMain(
+    imeEnabled: Boolean,
+    imeSelected: Boolean,
+    doublePackage: Boolean,
+    mainSettings: @Composable () -> Unit
+) {
+    val context = LocalContext.current
+    val navController = (LocalContext.current as SettingsActivity).navController
+
+    var currentStep by remember { mutableStateOf(if (!imeEnabled) 1 else if (!imeSelected) 2 else 3) }
+
+    when (currentStep) {
+        1 -> SetupEnableIME { currentStep = 2 }
+        2 -> SetupChangeDefaultIME(doublePackage) { currentStep = 3 }
+        3 -> SetupRestoreBackup { currentStep = 4 }
+        4 -> SetupRequestPermissions { currentStep = 5 }
+        5 -> SetupFinish { currentStep = 6 }
+        else -> mainSettings()
+    }
+}
+
 
 @Composable
 @Preview
-fun SetupChangeDefaultIME(doublePackage: Boolean = true) {
+fun SetupChangeDefaultIME(doublePackage: Boolean = true, onFinished: () -> Unit = { }) {
     val context = LocalContext.current
 
     val launchImeOptions = {
@@ -146,6 +168,7 @@ fun SetupChangeDefaultIME(doublePackage: Boolean = true) {
         inputMethodManager.showInputMethodPicker()
 
         (context as SettingsActivity).updateSystemState()
+        onFinished()
     }
 
     SetupContainer {
@@ -154,7 +177,7 @@ fun SetupChangeDefaultIME(doublePackage: Boolean = true) {
                 Tip(stringResource(R.string.setup_warning_multiple_versions))
             }
 
-            Step(fraction = 2.0f/3.0f, text = stringResource(R.string.setup_step_2))
+            Step(fraction = 2.0f/5.0f, text = stringResource(R.string.setup_step_2))
 
             Text(
                 stringResource(R.string.setup_active_input_method),

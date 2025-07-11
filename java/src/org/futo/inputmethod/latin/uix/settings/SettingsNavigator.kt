@@ -97,6 +97,12 @@ fun SettingsNavigator(
         ) {
             composable("home") { HomeScreen(navController) }
             composable("search") { SearchScreen(navController) }
+
+            // Setup Pages
+            composable("setup_restore_backup") { SetupRestoreBackup { navController.navigate("setup_permissions") } }
+            composable("setup_permissions") { SetupRequestPermissions { navController.navigate("setup_finish") } }
+            composable("setup_finish") { SetupFinish { navController.navigate("home") } }
+
             composable("languages") { LanguagesScreen(navController) }
             composable("addLanguage") { SelectLanguageScreen(navController) }
             composable("addLayout/{lang}") {

@@ -165,7 +165,7 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
                                 SetupOrMain(
                                     inputMethodEnabled.value,
                                     inputMethodSelected.value,
-                                    doublePackage.value
+                                    doublePackage.value,
                                 ) {
                                     SettingsNavigator(navController = navController)
                                 }

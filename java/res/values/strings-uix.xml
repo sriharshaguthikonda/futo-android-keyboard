@@ -594,6 +594,11 @@
     <string name="setup_active_input_method">Please select FUTO Keyboard as your active input method.</string>
     <string name="setup_switch_input_methods">Switch Input Methods</string>
 
+    <string name="setup_step_restore_backup">Step 3: Restore Backup (Optional)</string>
+    <string name="setup_restore_backup_text">Would you like to restore your settings from a backup file?</string>
+    <string name="setup_restore_backup_button">Restore from backup</string>
+    <string name="setup_skip_button">Skip</string>
+
     <!-- Credits menu -->
     <string name="credits_menu_title">Credits</string>
     <string name="credits_menu_header_text">Thanks to these people for helping make FUTO Keyboard a great app!</string>
