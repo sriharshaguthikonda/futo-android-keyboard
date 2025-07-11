@@ -270,28 +270,36 @@ fun ClipboardHistoryWindowContent(
                 .padding(8.dp)
                 .focusRequester(focusRequester)
                 .onFocusChanged { focusState ->
-                    Log.d("ClipboardSearch", "Search TextField focus changed: ${focusState.isFocused}")
+                    Log.d("ClipboardSearch", "Search TextField onFocusChanged: isFocused = ${focusState.isFocused}. Current manager state: ${manager.isClipboardSearchFocusedState().value}")
                     manager.setClipboardSearchFocus(focusState.isFocused)
+                    // Removed immediate focusRequester.requestFocus() from here to isolate LaunchedEffect
                 }
         )
 
-        // Attempt to reclaim focus if clipboard search is active and keyboard is shown
-        // manager.isClipboardSearchFocused() is not directly available here,
-        // but we can infer from keyboardShown and if the action is clipboard
-        // This logic might need refinement based on UixManager's state propagation.
-        // For now, we assume `keyboardShown` implies the main keyboard is visible due to search focus.
         val isClipboardSearchFocusedState = manager.isClipboardSearchFocusedState()
+
+        // Test LaunchedEffect to see if it runs at all in this composable's scope
+        LaunchedEffect(Unit) {
+            Log.d("ClipboardSearch", "[Test LaunchedEffect(Unit)] In ClipboardHistoryWindowContent. This should appear once on composition.")
+        }
+
         LaunchedEffect(isClipboardSearchFocusedState.value) {
+            Log.d("ClipboardSearch", "[State LaunchedEffect START] Key (isClipboardSearchFocusedState.value): ${isClipboardSearchFocusedState.value}")
+
             if (isClipboardSearchFocusedState.value) {
                 try {
-                    Log.d("ClipboardSearch", "Attempting to request focus for search text field because isClipboardSearchFocused is true")
-                    delay(100) // Delay to allow UI to settle after keyboard becomes visible
+                    Log.d("ClipboardSearch", "[State LaunchedEffect IF_TRUE_START] Condition is true. Will delay and attempt focus.")
+                    delay(150)
+                    Log.d("ClipboardSearch", "[State LaunchedEffect IF_TRUE_AFTER_DELAY] Attempting focusRequester.requestFocus()")
                     focusRequester.requestFocus()
-                    Log.d("ClipboardSearch", "Focus requested for search text field")
+                    Log.d("ClipboardSearch", "[State LaunchedEffect IF_TRUE_AFTER_REQUEST] Focus request sent.")
                 } catch (e: Exception) {
-                    Log.e("ClipboardSearch", "Error requesting focus: ${e.message}")
+                    Log.e("ClipboardSearch", "[State LaunchedEffect ERROR] Error requesting focus: ${e.message}")
                 }
+            } else {
+                Log.d("ClipboardSearch", "[State LaunchedEffect IF_FALSE] Condition is false. No focus action.")
             }
+            Log.d("ClipboardSearch", "[State LaunchedEffect END] For key value: ${isClipboardSearchFocusedState.value}")
         }
 
 

@@ -105,6 +105,10 @@ val ClipboardHistoryAction = Action(
 
             @Composable
             override fun WindowContents(keyboardShown: Boolean) {
+                // Test LaunchedEffect stability one level up
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    android.util.Log.d("ClipboardSearch", "[Test LaunchedEffect(Unit) in ClipboardHistoryAction.WindowContents] Composed.")
+                }
                 ClipboardHistoryWindowContent(manager, clipboardHistoryManager, unlocked, keyboardShown)
             }
         }
