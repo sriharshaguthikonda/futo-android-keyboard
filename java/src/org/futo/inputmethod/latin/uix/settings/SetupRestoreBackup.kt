@@ -4,8 +4,6 @@ import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,10 +13,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,14 +45,19 @@ fun SetupRestoreBackup(onFinished: () -> Unit = { }) {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.let { uri ->
+                Log.d("SetupRestoreBackup", "Selected backup uri: $uri")
                 isLoading = true
                 scope.launch {
                     try {
-                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                            SettingsExporter.loadSettings(context, inputStream, true)
+                        withContext(Dispatchers.IO) {
+                            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                                Log.d("SetupRestoreBackup", "Loading settings...")
+                                SettingsExporter.loadSettings(context, inputStream, true)
+                            }
                         }
+                        Log.d("SetupRestoreBackup", "Settings loaded")
                     } catch (e: Exception) {
-                        // Handle error
+                        Log.e("SetupRestoreBackup", "Error loading settings", e)
                     }
                     isLoading = false
                     onFinished()
