@@ -533,7 +533,7 @@ class UixManager(private val latinIME: LatinIME) {
     private var inlineSuggestions: MutableState<List<MutableState<View?>>> = mutableStateOf(emptyList())
     val keyboardManagerForAction = UixActionKeyboardManager(this, latinIME) // Now public (default visibility)
 
-    private var mainKeyboardHidden = mutableStateOf(false)
+    var mainKeyboardHidden = mutableStateOf(false) // Changed to public (default visibility)
 
     private var numSuggestionsSinceNotice = 0
     private var currentNotice: MutableState<ImportantNotice?> = mutableStateOf(null)

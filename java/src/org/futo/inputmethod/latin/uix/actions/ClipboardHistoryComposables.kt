@@ -383,4 +383,4 @@ fun ClipboardHistoryWindowContent(
         }
     }
 }
-    }
+}
