@@ -712,6 +712,16 @@ class UixManager(private val latinIME: LatinIME) {
 
         latinIME.window.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        // Ensure clipboard search state is cleared when closing any action window
+        if (isClipboardSearchFocused.value) {
+            Log.d("ClipboardSearch", "returnBackToMainKeyboardViewFromAction: Clearing clipboard search focus on close")
+            isClipboardSearchFocused.value = false
+        }
+        if (clipboardSearchQuery.value.isNotEmpty()) {
+            clipboardSearchQuery.value = ""
+        }
+        if (requestSearchFocus.value) requestSearchFocus.value = false
+
         keyboardManagerForAction.announce(latinIME.getString(R.string.action_menu_closed, name))
         return true
     }
