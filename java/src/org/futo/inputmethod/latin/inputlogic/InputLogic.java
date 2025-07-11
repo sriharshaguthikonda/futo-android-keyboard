@@ -16,6 +16,10 @@
 
 package org.futo.inputmethod.latin.inputlogic;
 
+// Added imports for logging and LatinIME
+import android.util.Log;
+import org.futo.inputmethod.latin.LatinIME;
+
 import android.graphics.Color;
 import android.os.SystemClock;
 import android.text.SpannableString;
@@ -307,6 +311,7 @@ public final class InputLogic {
         if (SpaceState.PHANTOM == mSpaceState) {
             insertAutomaticSpaceIfOptionsAndTextAllow(settingsValues);
         }
+        Log.d("ClipboardSearchInput", "InputLogic.onTextInput: Calling mConnection.commitText(\"" + text + "\"). isClipboardSearchFocused: " + ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager().isClipboardSearchFocused().getValue());
         mConnection.commitText(text, 1);
         StatsUtils.onWordCommitUserTyped(mEnteredText, mWordComposer.isBatchMode());
         mConnection.endBatchEdit();
@@ -387,6 +392,7 @@ public final class InputLogic {
             mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
             inputTransaction.requireShiftUpdate(InputTransaction.SHIFT_UPDATE_NOW);
             resetComposingState(true /* alsoResetLastComposedWord */);
+            Log.d("ClipboardSearchInput", "InputLogic.onPickSuggestionManually (APP_DEFINED): Calling mConnection.commitCompletion. isClipboardSearchFocused: " + ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager().isClipboardSearchFocused().getValue());
             mConnection.commitCompletion(suggestionInfo.mApplicationSpecifiedCompletionInfo);
             mConnection.endBatchEdit();
             return inputTransaction;
@@ -729,6 +735,7 @@ public final class InputLogic {
         // and we enter both of the following if clauses.
         final CharSequence textToCommit = event.getTextToCommit();
         if (!TextUtils.isEmpty(textToCommit)) {
+            Log.d("ClipboardSearchInput", "InputLogic.handleConsumedEvent: Calling mConnection.commitText(\"" + textToCommit + "\"). isClipboardSearchFocused: " + ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager().isClipboardSearchFocused().getValue());
             mConnection.commitText(textToCommit, 1);
             inputTransaction.setDidAffectContents();
         }
@@ -1219,6 +1226,7 @@ public final class InputLogic {
         // Corrected access to UixManager
         final org.futo.inputmethod.latin.uix.UixManager uixManager = ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager();
         if (uixManager.isClipboardSearchFocused().getValue()) {
+            Log.d("ClipboardSearchInput", "InputLogic.handleBackspaceEvent: Clipboard search focused. Handling DELETE.");
             uixManager.getKeyboardManagerForAction().handleClipboardSearchKeyEvent(Constants.CODE_DELETE, 0);
             // We might need to update suggestions/UI after delete for search
             // However, the TextField's onValueChange should trigger recomposition if the query state changes.
@@ -1377,6 +1385,7 @@ public final class InputLogic {
                         - mConnection.getExpectedSelectionStart();
                 mConnection.setSelection(mConnection.getExpectedSelectionEnd(),
                         mConnection.getExpectedSelectionEnd());
+                Log.d("ClipboardSearchInput", "InputLogic.handleBackspaceEvent (selection): Calling mConnection.deleteTextBeforeCursor(" + numCharsDeleted + "). isClipboardSearchFocused: " + uixManager.isClipboardSearchFocused().getValue());
                 mConnection.deleteTextBeforeCursor(numCharsDeleted);
                 StatsUtils.onBackspaceSelectedText(numCharsDeleted);
             } else {
@@ -1452,6 +1461,7 @@ public final class InputLogic {
                     }
 
                     Log.d(TAG, "lengthToDelete=" + lengthToDelete + ", textDeleted=" + textDeleted);
+                    Log.d("ClipboardSearchInput", "InputLogic.handleBackspaceEvent (single char): Calling mConnection.deleteTextBeforeCursor(" + lengthToDelete + "). isClipboardSearchFocused: " + uixManager.isClipboardSearchFocused().getValue());
                     mConnection.deleteTextBeforeCursor(lengthToDelete);
                     int totalDeletedLength = lengthToDelete;
                     if (mDeleteCount > Constants.DELETE_ACCELERATE_AT) {
@@ -1465,6 +1475,7 @@ public final class InputLogic {
                         if (codePointBeforeCursorToDeleteAgain != Constants.NOT_A_CODE) {
                             final int lengthToDeleteAgain = Character.isSupplementaryCodePoint(
                                     codePointBeforeCursorToDeleteAgain) ? 2 : 1;
+                            Log.d("ClipboardSearchInput", "InputLogic.handleBackspaceEvent (accelerated): Calling mConnection.deleteTextBeforeCursor(" + lengthToDeleteAgain + "). isClipboardSearchFocused: " + uixManager.isClipboardSearchFocused().getValue());
                             mConnection.deleteTextBeforeCursor(lengthToDeleteAgain);
                             totalDeletedLength += lengthToDeleteAgain;
                         }
@@ -2113,6 +2124,7 @@ public final class InputLogic {
                         + "\", but before the cursor we found \"" + wordBeforeCursor + "\"");
             }
         }
+        Log.d("ClipboardSearchInput", "InputLogic.revertCommit: Calling mConnection.deleteTextBeforeCursor(" + deleteLength + "). isClipboardSearchFocused: " + ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager().isClipboardSearchFocused().getValue());
         mConnection.deleteTextBeforeCursor(deleteLength);
         if (!TextUtils.isEmpty(committedWord)) {
             unlearnWord(committedWordString, inputTransaction.mSettingsValues,
@@ -2156,6 +2168,7 @@ public final class InputLogic {
         }
 
         if (inputTransaction.mSettingsValues.mSpacingAndPunctuations.mCurrentLanguageHasSpaces) {
+            Log.d("ClipboardSearchInput", "InputLogic.revertCommit: Calling mConnection.commitText(\"" + textToCommit + "\"). isClipboardSearchFocused: " + ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager().isClipboardSearchFocused().getValue());
             mConnection.commitText(textToCommit, 1);
             if (usePhantomSpace) {
                 mSpaceState = SpaceState.PHANTOM;
@@ -2446,9 +2459,12 @@ public final class InputLogic {
         // Corrected access to UixManager
         final org.futo.inputmethod.latin.uix.UixManager uixManager = ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager();
         if (uixManager.isClipboardSearchFocused().getValue()) {
+            Log.d("ClipboardSearchInput", "InputLogic.sendKeyCodePoint: Clipboard search focused. CodePoint: " + codePoint);
             if (Character.isDefined(codePoint) && codePoint != Constants.CODE_ENTER && codePoint != Constants.CODE_SPACE) { // Basic chars, not enter/space yet
+                Log.d("ClipboardSearchInput", "InputLogic.sendKeyCodePoint: Appending char to search: \"" + StringUtils.newSingleCodePointString(codePoint) + "\"");
                 uixManager.getKeyboardManagerForAction().setClipboardSearchQuery(uixManager.getKeyboardManagerForAction().getClipboardSearchQuery() + StringUtils.newSingleCodePointString(codePoint));
             } else if (codePoint == Constants.CODE_SPACE) {
+                Log.d("ClipboardSearchInput", "InputLogic.sendKeyCodePoint: Appending space to search.");
                 uixManager.getKeyboardManagerForAction().setClipboardSearchQuery(uixManager.getKeyboardManagerForAction().getClipboardSearchQuery() + " ");
             }
             // TODO: Handle Enter for search if needed, or let it be handled by higher-level onCodeInput
@@ -2463,6 +2479,7 @@ public final class InputLogic {
             // relying on this behavior so we continue to support it for older apps.
             sendDownUpKeyEvent(KeyEvent.KEYCODE_ENTER, 0);
         } else {
+            Log.d("ClipboardSearchInput", "InputLogic.sendKeyCodePoint: ELSE Calling mConnection.commitText(\"" + StringUtils.newSingleCodePointString(codePoint) + "\"). isClipboardSearchFocused: " + uixManager.isClipboardSearchFocused().getValue());
             mConnection.commitText(StringUtils.newSingleCodePointString(codePoint), 1);
         }
     }
@@ -2663,6 +2680,7 @@ public final class InputLogic {
             Log.d(TAG, "commitChosenWord() : NgramContext = " + ngramContext);
             startTimeMillis = System.currentTimeMillis();
         }
+        Log.d("ClipboardSearchInput", "InputLogic.commitChosenWord: Calling mConnection.commitText(\"" + chosenWordWithSuggestions + "\"). isClipboardSearchFocused: " + ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager().isClipboardSearchFocused().getValue());
         mConnection.commitText(chosenWordWithSuggestions, 1);
         if (DebugFlags.DEBUG_ENABLED) {
             long runTimeMillis = System.currentTimeMillis() - startTimeMillis;
@@ -2794,6 +2812,7 @@ public final class InputLogic {
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE | Spanned.SPAN_COMPOSING);
             composingTextToBeSet = spannable;
         }
+        Log.d("ClipboardSearchInput", "InputLogic: Calling mConnection.setComposingText(\"" + newComposingText + "\"). isClipboardSearchFocused: " + ((org.futo.inputmethod.latin.LatinIME) mLatinIMELegacy.getInputMethodService()).getUixManager().isClipboardSearchFocused().getValue());
         mConnection.setComposingText(composingTextToBeSet, newCursorPosition);
     }
 
