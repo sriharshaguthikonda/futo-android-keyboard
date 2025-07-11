@@ -783,6 +783,10 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if(keyCode == KeyEvent.KEYCODE_BACK && uixManager.currWindowAction.value != null) {
+            uixManager.closeActionWindow()
+            return true
+        }
         return latinIMELegacy.onKeyDown(keyCode, event) || super.onKeyDown(keyCode, event)
     }
 

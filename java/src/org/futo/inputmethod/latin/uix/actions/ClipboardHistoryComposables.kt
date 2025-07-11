@@ -311,6 +311,7 @@ fun ClipboardHistoryWindowContent(
         }
     }
 
+
     Column(modifier = Modifier.fillMaxWidth()) {
         // Use TextField with TextFieldValue for better cursor control
         TextField(
