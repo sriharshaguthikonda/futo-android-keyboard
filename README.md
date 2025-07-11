@@ -16,6 +16,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - Background images can be loaded for custom themes.
 - Theme generator handles invalid color codes without crashing.
 - Settings icons use accent variations so each menu item has a unique color.
+- Settings restore now runs on a background IO thread with debug logs for faster restoring.
 - AI Reply menu for configuring Groq-powered quick replies using chat completion models fetched from Groq.
   The model picker now lists Llama chat models only.
 - Groq Reply API settings store a separate API key and model for chat completions.
