@@ -60,6 +60,9 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -262,13 +265,27 @@ fun ClipboardHistoryWindowContent(
     val focusRequester = remember { FocusRequester() }
     // val localFocusManager = LocalFocusManager.current // Not strictly needed if we change focus logic
 
-    // Local state for search query to ensure proper cursor handling
-    var searchQuery by remember { mutableStateOf(manager.getClipboardSearchQuery()) }
+    // Use TextFieldValue to manage cursor position
+    var textFieldValue by remember { 
+        mutableStateOf(TextFieldValue(manager.getClipboardSearchQuery())) 
+    }
     
-    // Update local state when manager's state changes
+    // Track if we're currently updating from the manager to prevent loops
+    var isUpdatingFromManager by remember { mutableStateOf(false) }
+    
+    // Sync with manager's state
     LaunchedEffect(manager.getClipboardSearchQuery()) {
-        if (searchQuery != manager.getClipboardSearchQuery()) {
-            searchQuery = manager.getClipboardSearchQuery()
+        if (!isUpdatingFromManager) {
+            val currentText = textFieldValue.text
+            val managerText = manager.getClipboardSearchQuery()
+            
+            if (currentText != managerText) {
+                // Update the text and move cursor to the end
+                textFieldValue = TextFieldValue(
+                    text = managerText,
+                    selection = androidx.compose.ui.text.TextRange(managerText.length)
+                )
+            }
         }
     }
     
@@ -295,11 +312,17 @@ fun ClipboardHistoryWindowContent(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
+        // Use TextField with TextFieldValue for better cursor control
         TextField(
-            value = searchQuery,
-            onValueChange = {
-                searchQuery = it
-                manager.setClipboardSearchQuery(it)
+            value = textFieldValue,
+            onValueChange = { newValue ->
+                textFieldValue = newValue
+                isUpdatingFromManager = true
+                try {
+                    manager.setClipboardSearchQuery(newValue.text)
+                } finally {
+                    isUpdatingFromManager = false
+                }
             },
             singleLine = true,
             label = { Text(stringResource(R.string.search_clipboard_history_label)) },
