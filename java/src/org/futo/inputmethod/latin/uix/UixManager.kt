@@ -703,6 +703,12 @@ class UixManager(private val latinIME: LatinIME) {
             return false
         }
 
+        // If we are closing the clipboard history window, ensure the clipboard
+        // search state is reset so normal keyboard input works again.
+        if (currWindowAction.value == ClipboardHistoryAction) {
+            keyboardManagerForAction.setClipboardSearchFocus(false)
+        }
+
         currWindowAction.value = null
         currWindowActionWindow.value = null
 
