@@ -38,6 +38,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -259,6 +260,9 @@ fun ClipboardHistoryWindowContent(
     unlocked: Boolean,
     keyboardShown: Boolean
 ) {
+    BackHandler(enabled = true) {
+        manager.closeActionWindow()
+    }
     val view = LocalView.current
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
