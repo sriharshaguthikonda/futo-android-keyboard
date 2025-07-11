@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.BackHandler
 import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
 import androidx.lifecycle.LifecycleCoroutineScope
@@ -1202,6 +1203,10 @@ class UixManager(private val latinIME: LatinIME) {
     @Composable
     fun Content() {
         ProvidersAndWrapper {
+            BackHandler(currWindowActionWindow.value != null) {
+                closeActionWindow()
+            }
+
             InputDarkener(isInputOverridden.value || isShowingActionEditor.value) {
                 closeActionWindow()
                 isShowingActionEditor.value = false
