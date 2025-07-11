@@ -500,6 +500,10 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
         // Could handle other keys like arrows if needed, but text commit should handle characters.
         return false
     }
+
+    override fun isClipboardSearchFocusedState(): androidx.compose.runtime.State<Boolean> {
+        return uixManager.isClipboardSearchFocused
+    }
 }
 
 data class ActiveDialogRequest(

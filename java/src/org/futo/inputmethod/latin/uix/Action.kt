@@ -108,6 +108,7 @@ interface KeyboardManagerForAction {
     fun getClipboardSearchQuery(): String
     fun setClipboardSearchQuery(query: String)
     fun handleClipboardSearchKeyEvent(keyCode: Int, metaState: Int): Boolean // Returns true if handled
+    fun isClipboardSearchFocusedState(): androidx.compose.runtime.State<Boolean>
 }
 
 enum class CloseResult {

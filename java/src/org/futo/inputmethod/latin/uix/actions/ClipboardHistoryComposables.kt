@@ -31,6 +31,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -57,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalFoundationApi::class) // Restored OptIn for combinedClickable
@@ -254,8 +257,7 @@ fun ClipboardHistoryWindowContent(
     val view = LocalView.current
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
-    // Search query is now managed by UixManager via KeyboardManagerForAction
-    // val searchQuery by remember { mutableStateOf("") } // Old local state
+    val focusRequester = remember { FocusRequester() }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         TextField(
@@ -265,11 +267,32 @@ fun ClipboardHistoryWindowContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp)
+                .focusRequester(focusRequester)
                 .onFocusChanged { focusState ->
                     Log.d("ClipboardSearch", "Search TextField focus changed: ${focusState.isFocused}")
                     manager.setClipboardSearchFocus(focusState.isFocused)
                 }
         )
+
+        // Attempt to reclaim focus if clipboard search is active and keyboard is shown
+        // manager.isClipboardSearchFocused() is not directly available here,
+        // but we can infer from keyboardShown and if the action is clipboard
+        // This logic might need refinement based on UixManager's state propagation.
+        // For now, we assume `keyboardShown` implies the main keyboard is visible due to search focus.
+        val isClipboardSearchFocusedState = manager.isClipboardSearchFocusedState()
+        LaunchedEffect(isClipboardSearchFocusedState.value) {
+            if (isClipboardSearchFocusedState.value) {
+                try {
+                    Log.d("ClipboardSearch", "Attempting to request focus for search text field because isClipboardSearchFocused is true")
+                    delay(100) // Delay to allow UI to settle after keyboard becomes visible
+                    focusRequester.requestFocus()
+                    Log.d("ClipboardSearch", "Focus requested for search text field")
+                } catch (e: Exception) {
+                    Log.e("ClipboardSearch", "Error requesting focus: ${e.message}")
+                }
+            }
+        }
+
 
         if (!unlocked) {
             ScrollableList {
