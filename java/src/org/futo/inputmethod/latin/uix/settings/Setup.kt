@@ -97,7 +97,7 @@ fun Step(fraction: Float, text: String) {
 // TODO: May wish to have a skip option
 @Composable
 @Preview
-fun SetupEnableIME() {
+fun SetupEnableIME(onFinished: () -> Unit = { }) {
     val context = LocalContext.current
 
     val launchImeOptions = {
@@ -114,7 +114,7 @@ fun SetupEnableIME() {
 
     SetupContainer {
         Column {
-            Step(fraction = 1.0f/3.0f, text = stringResource(R.string.setup_step_1))
+            Step(fraction = 1.0f/5.0f, text = stringResource(R.string.setup_step_1))
 
             Text(
                 stringResource(R.string.setup_welcome_text),
@@ -122,7 +122,10 @@ fun SetupEnableIME() {
                 modifier = Modifier.fillMaxWidth()
             )
             Button(
-                onClick = launchImeOptions,
+                onClick = {
+                    launchImeOptions()
+                    onFinished()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -134,11 +137,11 @@ fun SetupEnableIME() {
 }
 
 @Composable
-fun SetupOrMain(
+fun SetupNavigation(
     imeEnabled: Boolean,
     imeSelected: Boolean,
     doublePackage: Boolean,
-    mainSettings: @Composable () -> Unit
+    main: @Composable () -> Unit
 ) {
     val context = LocalContext.current
     val navController = (LocalContext.current as SettingsActivity).navController

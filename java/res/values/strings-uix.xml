@@ -594,6 +594,9 @@
     <string name="setup_active_input_method">Please select FUTO Keyboard as your active input method.</string>
     <string name="setup_switch_input_methods">Switch Input Methods</string>
 
+    <string name="setup_permissions_text">Please grant necessary permissions for the app to function correctly.</string>
+    <string name="setup_grant_permissions_button">Grant Permissions</string>
+
     <string name="setup_step_restore_backup">Step 3: Restore Backup (Optional)</string>
     <string name="setup_restore_backup_text">Would you like to restore your settings from a backup file?</string>
     <string name="setup_restore_backup_button">Restore from backup</string>

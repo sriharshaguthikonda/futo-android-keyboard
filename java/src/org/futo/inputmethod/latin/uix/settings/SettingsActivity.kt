@@ -162,10 +162,11 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
                             color = MaterialTheme.colorScheme.background
                         ) {
                             Box(Modifier.safeDrawingPadding()) {
-                                SetupOrMain(
-                                    inputMethodEnabled.value,
-                                    inputMethodSelected.value,
-                                    doublePackage.value,
+                                // Calling SetupNavigation from Setup.kt
+                                SetupNavigation(
+                                    imeEnabled = inputMethodEnabled.value,
+                                    imeSelected = inputMethodSelected.value,
+                                    doublePackage = doublePackage.value
                                 ) {
                                     SettingsNavigator(navController = navController)
                                 }
