@@ -154,7 +154,7 @@ fun SetupNavigation(
         3 -> SetupRestoreBackup { currentStep = 4 }
         4 -> SetupRequestPermissions { currentStep = 5 }
         5 -> SetupFinish { currentStep = 6 }
-        else -> mainSettings()
+        else -> main()
     }
 }
 

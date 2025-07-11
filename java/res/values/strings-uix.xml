@@ -602,6 +602,10 @@
     <string name="setup_restore_backup_button">Restore from backup</string>
     <string name="setup_skip_button">Skip</string>
 
+    <string name="setup_step_4">Step 4: Finished</string>
+    <string name="setup_congrats">You\'re all set up! Enjoy FUTO Keyboard.</string>
+    <string name="setup_button_finish">Finish</string>
+
     <!-- Credits menu -->
     <string name="credits_menu_title">Credits</string>
     <string name="credits_menu_header_text">Thanks to these people for helping make FUTO Keyboard a great app!</string>
