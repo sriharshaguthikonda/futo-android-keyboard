@@ -1,5 +1,6 @@
 package org.futo.inputmethod.latin.uix.actions
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -261,6 +262,9 @@ fun ClipboardHistoryWindowContent(
 ) {
     val view = LocalView.current
     val context = LocalContext.current
+    BackHandler {
+        manager.closeActionWindow()
+    }
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
     val focusRequester = remember { FocusRequester() }
     // val localFocusManager = LocalFocusManager.current // Not strictly needed if we change focus logic

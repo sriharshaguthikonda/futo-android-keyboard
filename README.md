@@ -43,6 +43,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - A file picker lets you choose a background image for the keyboard layout.
 - Each settings icon background color is adjustable from the theme generator.
 - Copying text shows an "AI Generate" option in the suggestion strip
+- Pressing Android's back button while clipboard history is open now collapses it and returns focus to your input field
 
 - Long‑press spacebar drag now moves the cursor vertically when sliding up or down.
 
