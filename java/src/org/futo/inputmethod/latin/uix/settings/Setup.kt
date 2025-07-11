@@ -21,12 +21,16 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.CircularProgressIndicator
+import org.futo.inputmethod.latin.uix.IS_SETUP_COMPLETE
+import org.futo.inputmethod.latin.uix.dataStore
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -145,16 +149,45 @@ fun SetupNavigation(
 ) {
     val context = LocalContext.current
     val navController = (LocalContext.current as SettingsActivity).navController
+    var isSetupComplete by remember { mutableStateOf<Boolean?>(null) }
 
-    var currentStep by remember { mutableStateOf(if (!imeEnabled) 1 else if (!imeSelected) 2 else 3) }
+    LaunchedEffect(Unit) {
+        context.dataStore.data.collect { preferences ->
+            isSetupComplete = preferences[IS_SETUP_COMPLETE] ?: false
+        }
+    }
 
-    when (currentStep) {
-        1 -> SetupEnableIME { currentStep = 2 }
-        2 -> SetupChangeDefaultIME(doublePackage) { currentStep = 3 }
-        3 -> SetupRestoreBackup { currentStep = 4 }
-        4 -> SetupRequestPermissions { currentStep = 5 }
-        5 -> SetupFinish { currentStep = 6 }
-        else -> main()
+    var currentStep by remember { mutableStateOf(0) }
+
+    LaunchedEffect(isSetupComplete, imeEnabled, imeSelected) {
+        isSetupComplete?.let {
+            currentStep = if (it) {
+                6 // Go directly to main settings
+            } else if (!imeEnabled) {
+                1
+            } else if (!imeSelected) {
+                2
+            } else {
+                3
+            }
+        }
+    }
+
+
+    if (isSetupComplete == null) {
+        // Show a loading indicator or a blank screen while checking the flag
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        when (currentStep) {
+            1 -> SetupEnableIME { currentStep = 2 }
+            2 -> SetupChangeDefaultIME(doublePackage) { currentStep = 3 }
+            3 -> SetupRestoreBackup { currentStep = 4 }
+            4 -> SetupRequestPermissions { currentStep = 5 }
+            5 -> SetupFinish { currentStep = 6 }
+            else -> main()
+        }
     }
 }
 
