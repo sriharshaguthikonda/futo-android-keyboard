@@ -706,6 +706,9 @@ class UixManager(private val latinIME: LatinIME) {
         currWindowAction.value = null
         currWindowActionWindow.value = null
 
+        // Ensure clipboard search state is reset when leaving the action
+        keyboardManagerForAction.setClipboardSearchFocus(false)
+
         mainKeyboardHidden.value = false
 
         latinIME.onKeyboardShown()
