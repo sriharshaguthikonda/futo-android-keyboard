@@ -585,3 +585,8 @@ val SUGGESTION_BLACKLIST = SettingsKey(
 val SHOW_EMOJI_SUGGESTIONS = SettingsKey(
     key = booleanPreferencesKey("suggestEmojis"),
     default = true)
+
+val IS_SETUP_COMPLETE = SettingsKey(
+    key = booleanPreferencesKey("is_setup_complete"),
+    default = false
+)

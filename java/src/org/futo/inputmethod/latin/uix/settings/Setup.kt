@@ -153,7 +153,7 @@ fun SetupNavigation(
 
     LaunchedEffect(Unit) {
         context.dataStore.data.collect { preferences ->
-            isSetupComplete = preferences[IS_SETUP_COMPLETE] ?: false
+            isSetupComplete = preferences[IS_SETUP_COMPLETE.key] ?: IS_SETUP_COMPLETE.default
         }
     }
 

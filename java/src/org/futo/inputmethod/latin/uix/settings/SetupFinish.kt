@@ -38,7 +38,7 @@ fun SetupFinish(onFinished: () -> Unit = { }) {
                     scope.launch {
                         context.dataStore.updateData { preferences ->
                             preferences.toMutablePreferences().apply {
-                                this[IS_SETUP_COMPLETE] = true
+                                this[IS_SETUP_COMPLETE.key] = true
                             }
                         }
                     }
