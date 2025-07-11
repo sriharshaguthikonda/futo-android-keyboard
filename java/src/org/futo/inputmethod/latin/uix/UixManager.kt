@@ -713,6 +713,13 @@ class UixManager(private val latinIME: LatinIME) {
         latinIME.window.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         keyboardManagerForAction.announce(latinIME.getString(R.string.action_menu_closed, name))
+
+        // Ensure clipboard search mode is fully reset when leaving an action
+        if(isClipboardSearchFocused.value) {
+            isClipboardSearchFocused.value = false
+            clipboardSearchQuery.value = ""
+            requestSearchFocus.value = false
+        }
         return true
     }
 
