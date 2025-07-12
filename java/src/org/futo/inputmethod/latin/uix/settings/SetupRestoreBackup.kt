@@ -13,12 +13,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import android.util.Log
+import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
@@ -32,6 +34,8 @@ import kotlinx.coroutines.launch
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.IMPORT_SETTINGS_REQUEST
 import org.futo.inputmethod.latin.uix.SettingsExporter
+import org.futo.inputmethod.latin.uix.dataStore
+import org.futo.inputmethod.latin.uix.BACKUP_RESTORE_PROMPT_SHOWN
 
 @Composable
 @Preview
@@ -39,6 +43,12 @@ fun SetupRestoreBackup(onFinished: () -> Unit = { }) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        context.dataStore.edit { prefs ->
+            prefs[BACKUP_RESTORE_PROMPT_SHOWN] = true
+        }
+    }
 
     val importSettings = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()

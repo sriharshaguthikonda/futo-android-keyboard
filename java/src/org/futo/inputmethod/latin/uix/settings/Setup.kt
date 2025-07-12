@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.CircularProgressIndicator
 import org.futo.inputmethod.latin.uix.IS_SETUP_COMPLETE
+import org.futo.inputmethod.latin.uix.BACKUP_RESTORE_PROMPT_SHOWN
 import org.futo.inputmethod.latin.uix.dataStore
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -150,25 +151,30 @@ fun SetupNavigation(
     val context = LocalContext.current
     val navController = (LocalContext.current as SettingsActivity).navController
     var isSetupComplete by remember { mutableStateOf<Boolean?>(null) }
+    var isBackupPromptShown by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(Unit) {
         context.dataStore.data.collect { preferences ->
             isSetupComplete = preferences[IS_SETUP_COMPLETE] ?: false
+            isBackupPromptShown = preferences[BACKUP_RESTORE_PROMPT_SHOWN] ?: false
         }
     }
 
     var currentStep by remember { mutableStateOf(0) }
 
-    LaunchedEffect(isSetupComplete, imeEnabled, imeSelected) {
+    LaunchedEffect(isSetupComplete, imeEnabled, imeSelected, isBackupPromptShown) {
         isSetupComplete?.let {
+            val backupShown = isBackupPromptShown ?: false
             currentStep = if (it) {
                 6 // Go directly to main settings
             } else if (!imeEnabled) {
                 1
             } else if (!imeSelected) {
                 2
-            } else {
+            } else if (!backupShown) {
                 3
+            } else {
+                4
             }
         }
     }
