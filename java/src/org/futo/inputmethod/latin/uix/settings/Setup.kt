@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.CircularProgressIndicator
 import org.futo.inputmethod.latin.uix.IS_SETUP_COMPLETE
+import org.futo.inputmethod.latin.uix.RESTORE_BACKUP_PROMPT_SHOWN
 import org.futo.inputmethod.latin.uix.dataStore
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -150,16 +151,18 @@ fun SetupNavigation(
     val context = LocalContext.current
     val navController = (LocalContext.current as SettingsActivity).navController
     var isSetupComplete by remember { mutableStateOf<Boolean?>(null) }
+    var backupPromptShown by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(Unit) {
         context.dataStore.data.collect { preferences ->
             isSetupComplete = preferences[IS_SETUP_COMPLETE] ?: false
+            backupPromptShown = preferences[RESTORE_BACKUP_PROMPT_SHOWN] ?: false
         }
     }
 
     var currentStep by remember { mutableStateOf(0) }
 
-    LaunchedEffect(isSetupComplete, imeEnabled, imeSelected) {
+    LaunchedEffect(isSetupComplete, backupPromptShown, imeEnabled, imeSelected) {
         isSetupComplete?.let {
             currentStep = if (it) {
                 6 // Go directly to main settings
@@ -167,8 +170,10 @@ fun SetupNavigation(
                 1
             } else if (!imeSelected) {
                 2
-            } else {
+            } else if (backupPromptShown == false) {
                 3
+            } else {
+                4
             }
         }
     }
@@ -182,7 +187,9 @@ fun SetupNavigation(
     } else {
         when (currentStep) {
             1 -> SetupEnableIME { currentStep = 2 }
-            2 -> SetupChangeDefaultIME(doublePackage) { currentStep = 3 }
+            2 -> SetupChangeDefaultIME(doublePackage) {
+                currentStep = if (backupPromptShown == false) 3 else 4
+            }
             3 -> SetupRestoreBackup { currentStep = 4 }
             4 -> SetupRequestPermissions { currentStep = 5 }
             5 -> SetupFinish { currentStep = 6 }
