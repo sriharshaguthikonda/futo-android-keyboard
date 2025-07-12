@@ -31,7 +31,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - New settings search button at the bottom of the settings screen highlights itself with a smooth repeating border animation for easier discovery.
 - AI Reply menu for configuring Groq-powered quick replies.
 - AI reply generation now streams responses using coroutines for smoother updates.
-- Quick Switch can be toggled in settings and uses an accessibility service to jump to your previously used app.
+- Quick Switch can be toggled in settings and opens your last app directly using usage access (falls back to recents if permission isn't granted).
 - T9 phone layout accessible via the action key for quick number entry.
 - The T9 layout is also listed in the Keyboard Modes menu for easy access.
 - A new persistent T9 keyboard mode lets you keep the phone layout active until changed.
