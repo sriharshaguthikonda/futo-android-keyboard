@@ -32,6 +32,8 @@ import kotlinx.coroutines.launch
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.IMPORT_SETTINGS_REQUEST
 import org.futo.inputmethod.latin.uix.SettingsExporter
+import org.futo.inputmethod.latin.uix.HAS_SEEN_RESTORE_BACKUP
+import org.futo.inputmethod.latin.uix.dataStore
 
 @Composable
 @Preview
@@ -60,10 +62,12 @@ fun SetupRestoreBackup(onFinished: () -> Unit = { }) {
                         Log.e("SetupRestoreBackup", "Error loading settings", e)
                     }
                     isLoading = false
+                    context.dataStore.edit { it[HAS_SEEN_RESTORE_BACKUP] = true }
                     onFinished()
                 }
             } ?: onFinished()
         } else {
+            scope.launch { context.dataStore.edit { it[HAS_SEEN_RESTORE_BACKUP] = true } }
             onFinished()
         }
     }
@@ -105,7 +109,10 @@ fun SetupRestoreBackup(onFinished: () -> Unit = { }) {
                 }
 
                 Button(
-                    onClick = onFinished,
+                    onClick = {
+                        scope.launch { context.dataStore.edit { it[HAS_SEEN_RESTORE_BACKUP] = true } }
+                        onFinished()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
