@@ -37,7 +37,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -266,9 +265,6 @@ fun ClipboardHistoryWindowContent(
     val focusRequester = remember { FocusRequester() }
     // val localFocusManager = LocalFocusManager.current // Not strictly needed if we change focus logic
 
-    BackHandler {
-        manager.closeActionWindow()
-    }
 
     // Use TextFieldValue to manage cursor position
     var textFieldValue by remember {
