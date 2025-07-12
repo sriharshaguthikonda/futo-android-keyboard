@@ -22,21 +22,26 @@ class QuickSwitchService : AccessibilityService() {
     fun switchToPreviousApp() {
         val usm = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
         val end = System.currentTimeMillis()
-        val begin = end - 60_000 // look back up to a minute
+        val begin = end - 5 * 60_000 // look back five minutes
         val events = usm.queryEvents(begin, end)
-        var lastPackage: String? = null
-        var prevPackage: String? = null
         val event = UsageEvents.Event()
+
+        var prevPackage: String? = null
+        var lastPackage: String? = null
+        val ignore = setOf(packageName, "com.android.settings")
+
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                prevPackage = lastPackage
-                lastPackage = event.packageName
+            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED && event.packageName !in ignore) {
+                if (event.packageName != lastPackage) {
+                    prevPackage = lastPackage
+                    lastPackage = event.packageName
+                }
             }
         }
 
         val pkgToLaunch = prevPackage
-        if (pkgToLaunch != null && pkgToLaunch != packageName) {
+        if (pkgToLaunch != null) {
             val intent = packageManager.getLaunchIntentForPackage(pkgToLaunch)
             if (intent != null) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
