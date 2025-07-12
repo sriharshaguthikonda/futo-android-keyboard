@@ -32,6 +32,8 @@ import kotlinx.coroutines.launch
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.IMPORT_SETTINGS_REQUEST
 import org.futo.inputmethod.latin.uix.SettingsExporter
+import org.futo.inputmethod.latin.uix.HAS_SEEN_RESTORE_BACKUP_PROMPT
+import org.futo.inputmethod.latin.uix.dataStore
 
 @Composable
 @Preview
@@ -39,6 +41,16 @@ fun SetupRestoreBackup(onFinished: () -> Unit = { }) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
+
+    val markSeen: () -> Unit = {
+        scope.launch {
+            context.dataStore.updateData { prefs ->
+                prefs.toMutablePreferences().apply {
+                    this[HAS_SEEN_RESTORE_BACKUP_PROMPT] = true
+                }
+            }
+        }
+    }
 
     val importSettings = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -60,10 +72,15 @@ fun SetupRestoreBackup(onFinished: () -> Unit = { }) {
                         Log.e("SetupRestoreBackup", "Error loading settings", e)
                     }
                     isLoading = false
+                    markSeen()
                     onFinished()
                 }
-            } ?: onFinished()
+            } ?: run {
+                markSeen()
+                onFinished()
+            }
         } else {
+            markSeen()
             onFinished()
         }
     }
@@ -105,7 +122,10 @@ fun SetupRestoreBackup(onFinished: () -> Unit = { }) {
                 }
 
                 Button(
-                    onClick = onFinished,
+                    onClick = {
+                        markSeen()
+                        onFinished()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
