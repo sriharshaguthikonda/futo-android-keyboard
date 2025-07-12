@@ -22,9 +22,28 @@ val SwitchAppsAction = Action(
         val service = QuickSwitchService.instance
 
         fun usageGranted(): Boolean {
-            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-            val mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), context.packageName)
-            return mode == AppOpsManager.MODE_ALLOWED
+            try {
+                val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+                val mode = appOps.checkOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    android.os.Process.myUid(),
+                    context.packageName
+                )
+                return mode == AppOpsManager.MODE_ALLOWED
+            } catch (e: Exception) {
+                // Fallback: try to actually use the UsageStatsManager
+                return try {
+                    val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+                    val stats = usageStatsManager.queryUsageStats(
+                        android.app.usage.UsageStatsManager.INTERVAL_DAILY,
+                        System.currentTimeMillis() - 1000 * 60,
+                        System.currentTimeMillis()
+                    )
+                    stats != null && stats.isNotEmpty()
+                } catch (ex: Exception) {
+                    false
+                }
+            }
         }
 
         if (service != null) {
