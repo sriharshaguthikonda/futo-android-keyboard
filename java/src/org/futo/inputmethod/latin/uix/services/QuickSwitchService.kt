@@ -28,11 +28,10 @@ class QuickSwitchService : AccessibilityService() {
 
         var prevPackage: String? = null
         var lastPackage: String? = null
-        val ignore = setOf(packageName, "com.android.settings")
 
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED && event.packageName !in ignore) {
+            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED && event.packageName != packageName) {
                 if (event.packageName != lastPackage) {
                     prevPackage = lastPackage
                     lastPackage = event.packageName
