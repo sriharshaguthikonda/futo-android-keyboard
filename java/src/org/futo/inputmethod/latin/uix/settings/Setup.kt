@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.CircularProgressIndicator
 import org.futo.inputmethod.latin.uix.IS_SETUP_COMPLETE
+import org.futo.inputmethod.latin.uix.HAS_SHOWN_RESTORE_BACKUP
 import org.futo.inputmethod.latin.uix.dataStore
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -150,16 +151,18 @@ fun SetupNavigation(
     val context = LocalContext.current
     val navController = (LocalContext.current as SettingsActivity).navController
     var isSetupComplete by remember { mutableStateOf<Boolean?>(null) }
+    var hasShownRestoreBackup by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(Unit) {
         context.dataStore.data.collect { preferences ->
             isSetupComplete = preferences[IS_SETUP_COMPLETE] ?: false
+            hasShownRestoreBackup = preferences[HAS_SHOWN_RESTORE_BACKUP] ?: false
         }
     }
 
     var currentStep by remember { mutableStateOf(0) }
 
-    LaunchedEffect(isSetupComplete, imeEnabled, imeSelected) {
+    LaunchedEffect(isSetupComplete, hasShownRestoreBackup, imeEnabled, imeSelected) {
         isSetupComplete?.let {
             currentStep = if (it) {
                 6 // Go directly to main settings
@@ -167,8 +170,10 @@ fun SetupNavigation(
                 1
             } else if (!imeSelected) {
                 2
-            } else {
+            } else if (hasShownRestoreBackup != true) {
                 3
+            } else {
+                4
             }
         }
     }
@@ -187,6 +192,14 @@ fun SetupNavigation(
             4 -> SetupRequestPermissions { currentStep = 5 }
             5 -> SetupFinish { currentStep = 6 }
             else -> main()
+        }
+    }
+
+    LaunchedEffect(currentStep) {
+        if(currentStep == 3 && hasShownRestoreBackup != true) {
+            context.dataStore.updateData { prefs ->
+                prefs.toMutablePreferences().apply { this[HAS_SHOWN_RESTORE_BACKUP] = true }
+            }
         }
     }
 }
