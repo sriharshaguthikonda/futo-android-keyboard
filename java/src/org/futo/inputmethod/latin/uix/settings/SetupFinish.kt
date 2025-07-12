@@ -36,13 +36,20 @@ fun SetupFinish(onFinished: () -> Unit = { }) {
             Button(
                 onClick = {
                     scope.launch {
-                        context.dataStore.updateData { preferences ->
-                            preferences.toMutablePreferences().apply {
-                                this[IS_SETUP_COMPLETE] = true
+                        try {
+                            // First update the setup completion flag
+                            context.dataStore.updateData { preferences ->
+                                preferences.toMutablePreferences().apply {
+                                    this[IS_SETUP_COMPLETE] = true
+                                }
                             }
+                            // Only call onFinished after the flag is successfully updated
+                            onFinished()
+                        } catch (e: Exception) {
+                            // If there's an error, still proceed to avoid blocking the user
+                            onFinished()
                         }
                     }
-                    onFinished()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
