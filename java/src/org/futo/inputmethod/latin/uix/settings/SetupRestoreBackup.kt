@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,8 @@ import kotlinx.coroutines.launch
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.IMPORT_SETTINGS_REQUEST
 import org.futo.inputmethod.latin.uix.SettingsExporter
+import org.futo.inputmethod.latin.uix.dataStore
+import org.futo.inputmethod.latin.uix.HAS_SHOWN_BACKUP_PROMPT
 
 @Composable
 @Preview
@@ -39,6 +42,14 @@ fun SetupRestoreBackup(onFinished: () -> Unit = { }) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        context.dataStore.updateData { prefs ->
+            prefs.toMutablePreferences().apply {
+                this[HAS_SHOWN_BACKUP_PROMPT] = true
+            }
+        }
+    }
 
     val importSettings = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()

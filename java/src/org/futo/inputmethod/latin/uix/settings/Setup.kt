@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.CircularProgressIndicator
 import org.futo.inputmethod.latin.uix.IS_SETUP_COMPLETE
+import org.futo.inputmethod.latin.uix.HAS_SHOWN_BACKUP_PROMPT
 import org.futo.inputmethod.latin.uix.dataStore
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -150,31 +151,36 @@ fun SetupNavigation(
     val context = LocalContext.current
     val navController = (LocalContext.current as SettingsActivity).navController
     var isSetupComplete by remember { mutableStateOf<Boolean?>(null) }
+    var hasShownBackupPrompt by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(Unit) {
         context.dataStore.data.collect { preferences ->
             isSetupComplete = preferences[IS_SETUP_COMPLETE] ?: false
+            hasShownBackupPrompt = preferences[HAS_SHOWN_BACKUP_PROMPT] ?: false
         }
     }
 
     var currentStep by remember { mutableStateOf(0) }
 
-    LaunchedEffect(isSetupComplete, imeEnabled, imeSelected) {
+    LaunchedEffect(isSetupComplete, imeEnabled, imeSelected, hasShownBackupPrompt) {
         isSetupComplete?.let {
+            val shownBackup = hasShownBackupPrompt ?: false
             currentStep = if (it) {
                 6 // Go directly to main settings
             } else if (!imeEnabled) {
                 1
             } else if (!imeSelected) {
                 2
-            } else {
+            } else if (!shownBackup) {
                 3
+            } else {
+                4
             }
         }
     }
 
 
-    if (isSetupComplete == null) {
+    if (isSetupComplete == null || hasShownBackupPrompt == null) {
         // Show a loading indicator or a blank screen while checking the flag
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()

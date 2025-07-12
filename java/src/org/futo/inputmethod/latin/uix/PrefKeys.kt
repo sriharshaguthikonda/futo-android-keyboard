@@ -6,3 +6,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
  * Key used to track whether the initial setup flow has been completed.
  */
 val IS_SETUP_COMPLETE = booleanPreferencesKey("is_setup_complete")
+
+/**
+ * Key used to track whether the user has already been prompted to restore a backup
+ */
+val HAS_SHOWN_BACKUP_PROMPT = booleanPreferencesKey("has_shown_backup_prompt")
