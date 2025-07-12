@@ -38,10 +38,12 @@ fun SetupRequestPermissions(onFinished: () -> Unit = { }) {
                     val component = ComponentName(context, QuickSwitchService::class.java)
                     val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         Intent(Settings.ACTION_ACCESSIBILITY_DETAILS_SETTINGS).apply {
-                            putExtra(Settings.EXTRA_ACCESSIBILITY_SERVICE_COMPONENT_NAME, component.flattenToString())
+                            putExtra(Intent.EXTRA_COMPONENT_NAME, component.flattenToString())
                         }
                     } else {
-                        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                            putExtra(Intent.EXTRA_COMPONENT_NAME, component.flattenToString())
+                        }
                     }
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(intent)
