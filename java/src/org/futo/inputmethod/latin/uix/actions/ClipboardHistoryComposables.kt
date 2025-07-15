@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -293,6 +294,7 @@ fun ClipboardHistoryWindowContent(
     // Focus management effect - only run when the component is first composed or when explicitly requested
     LaunchedEffect(Unit) {
         Log.d("ClipboardSearch", "Initial focus setup")
+        manager.setClipboardSearchFocus(true)
         // Initial focus request with retry logic
         var retryCount = 0
         val maxRetries = 3
@@ -309,6 +311,12 @@ fun ClipboardHistoryWindowContent(
                     delay(50) // Wait before retry
                 }
             }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            manager.setClipboardSearchFocus(false)
         }
     }
 
