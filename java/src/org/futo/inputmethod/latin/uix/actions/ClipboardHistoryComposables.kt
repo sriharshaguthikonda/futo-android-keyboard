@@ -263,7 +263,7 @@ fun ClipboardHistoryWindowContent(
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
     val focusRequester = remember { FocusRequester() }
-    // val localFocusManager = LocalFocusManager.current // Not strictly needed if we change focus logic
+    val requestFocusState = manager.getRequestSearchFocusState()
 
 
     // Use TextFieldValue to manage cursor position
@@ -290,25 +290,11 @@ fun ClipboardHistoryWindowContent(
         }
     }
     
-    // Focus management effect - only run when the component is first composed or when explicitly requested
-    LaunchedEffect(Unit) {
-        Log.d("ClipboardSearch", "Initial focus setup")
-        // Initial focus request with retry logic
-        var retryCount = 0
-        val maxRetries = 3
-        
-        while (retryCount < maxRetries) {
-            try {
-                focusRequester.requestFocus()
-                Log.d("ClipboardSearch", "Successfully requested focus (attempt ${retryCount + 1})")
-                break
-            } catch (e: IllegalStateException) {
-                Log.e("ClipboardSearch", "Failed to request focus (attempt ${retryCount + 1}): ${e.message}")
-                retryCount++
-                if (retryCount < maxRetries) {
-                    delay(50) // Wait before retry
-                }
-            }
+    // Request focus whenever the manager asks for it
+    LaunchedEffect(requestFocusState.value) {
+        if (requestFocusState.value) {
+            focusRequester.requestFocus()
+            manager.acknowledgeSearchFocusRequest()
         }
     }
 
@@ -333,34 +319,14 @@ fun ClipboardHistoryWindowContent(
                 .padding(8.dp)
                 .focusRequester(focusRequester)
                 .onFocusChanged { focusState ->
-                    Log.d("ClipboardSearch", "SearchField onFocusChanged: focusState.isFocused=${focusState.isFocused}. Current manager.isClipboardSearchFocused: ${manager.isClipboardSearchFocusedState().value}")
-                    
-                    // Only update the manager's state if there's a real change
                     val currentManagerState = manager.isClipboardSearchFocusedState().value
-                    if (focusState.isFocused && !currentManagerState) {
-                        Log.d("ClipboardSearch", "SearchField GAINED FOCUS: Updating manager state")
-                        manager.setClipboardSearchFocus(true)
-                    } else if (!focusState.isFocused && currentManagerState) {
-                        // Before updating the manager, check if this is a temporary focus loss
-                        Log.d("ClipboardSearch", "SearchField LOST FOCUS: Checking if we should update manager state")
-                        
-                        // Only update the manager if this isn't part of a focus change we're handling
-                        view.postDelayed({
-                            val focusedView = view.findFocus()
-                            val hasFocus = focusedView?.hasFocus() ?: false
-                            if (!hasFocus) {
-                                Log.d("ClipboardSearch", "Confirming focus loss, updating manager state")
-                                manager.setClipboardSearchFocus(false)
-                            } else {
-                                Log.d("ClipboardSearch", "Focus was restored, not updating manager state")
-                            }
-                        }, 100) // Small delay to allow focus to stabilize
+                    if (focusState.isFocused != currentManagerState) {
+                        manager.setClipboardSearchFocus(focusState.isFocused)
                     }
                 }
         )
 
-        // Removed the LaunchedEffect keyed on requestSearchFocusState as it was ineffective.
-        // The focus request is now more direct in onFocusChanged.
+        // Observe focus state changes mainly for diagnostics
 
         // Keep this for general composition logging
         LaunchedEffect(Unit) {
