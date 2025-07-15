@@ -105,11 +105,16 @@ val ClipboardHistoryAction = Action(
 
             @Composable
             override fun WindowContents(keyboardShown: Boolean) {
-                // Test LaunchedEffect stability one level up
+                // Ensure the search field gains focus whenever this window is opened
                 androidx.compose.runtime.LaunchedEffect(Unit) {
-                    android.util.Log.d("ClipboardSearch", "[Test LaunchedEffect(Unit) in ClipboardHistoryAction.WindowContents] Composed.")
+                    manager.setClipboardSearchFocus(true)
                 }
-                ClipboardHistoryWindowContent(manager, clipboardHistoryManager, unlocked, keyboardShown)
+                ClipboardHistoryWindowContent(
+                    manager,
+                    clipboardHistoryManager,
+                    unlocked,
+                    keyboardShown
+                )
             }
         }
     },

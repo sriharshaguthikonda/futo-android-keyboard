@@ -312,6 +312,15 @@ fun ClipboardHistoryWindowContent(
         }
     }
 
+    // If the manager requests focus, handle it here
+    val requestSearchFocusState = manager.getRequestSearchFocusState()
+    LaunchedEffect(requestSearchFocusState.value) {
+        if (requestSearchFocusState.value) {
+            focusRequester.requestFocus()
+            manager.acknowledgeSearchFocusRequest()
+        }
+    }
+
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Use TextField with TextFieldValue for better cursor control
@@ -359,8 +368,7 @@ fun ClipboardHistoryWindowContent(
                 }
         )
 
-        // Removed the LaunchedEffect keyed on requestSearchFocusState as it was ineffective.
-        // The focus request is now more direct in onFocusChanged.
+        // Focus requests triggered by the manager are handled via requestSearchFocusState
 
         // Keep this for general composition logging
         LaunchedEffect(Unit) {
