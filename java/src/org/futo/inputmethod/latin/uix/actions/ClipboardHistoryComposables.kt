@@ -290,23 +290,24 @@ fun ClipboardHistoryWindowContent(
         }
     }
     
-    // Focus management effect - only run when the component is first composed or when explicitly requested
-    LaunchedEffect(Unit) {
-        Log.d("ClipboardSearch", "Initial focus setup")
-        // Initial focus request with retry logic
-        var retryCount = 0
-        val maxRetries = 3
-        
-        while (retryCount < maxRetries) {
-            try {
-                focusRequester.requestFocus()
-                Log.d("ClipboardSearch", "Successfully requested focus (attempt ${retryCount + 1})")
-                break
-            } catch (e: IllegalStateException) {
-                Log.e("ClipboardSearch", "Failed to request focus (attempt ${retryCount + 1}): ${e.message}")
-                retryCount++
-                if (retryCount < maxRetries) {
-                    delay(50) // Wait before retry
+    // Focus management effect - request focus whenever the clipboard history is shown
+    LaunchedEffect(keyboardShown) {
+        if (keyboardShown) {
+            Log.d("ClipboardSearch", "Requesting focus for clipboard search field")
+            // Retry a few times in case the TextField isn't ready yet
+            var retryCount = 0
+            val maxRetries = 3
+            while (retryCount < maxRetries) {
+                try {
+                    focusRequester.requestFocus()
+                    Log.d("ClipboardSearch", "Successfully requested focus (attempt ${retryCount + 1})")
+                    break
+                } catch (e: IllegalStateException) {
+                    Log.e("ClipboardSearch", "Failed to request focus (attempt ${retryCount + 1}): ${e.message}")
+                    retryCount++
+                    if (retryCount < maxRetries) {
+                        delay(50)
+                    }
                 }
             }
         }
