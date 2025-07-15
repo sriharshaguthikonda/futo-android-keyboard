@@ -108,6 +108,8 @@ val ClipboardHistoryAction = Action(
                 // Test LaunchedEffect stability one level up
                 androidx.compose.runtime.LaunchedEffect(Unit) {
                     android.util.Log.d("ClipboardSearch", "[Test LaunchedEffect(Unit) in ClipboardHistoryAction.WindowContents] Composed.")
+                    // Move keyboard focus into the search field when the clipboard history opens
+                    manager.setClipboardSearchFocus(true)
                 }
                 ClipboardHistoryWindowContent(manager, clipboardHistoryManager, unlocked, keyboardShown)
             }
