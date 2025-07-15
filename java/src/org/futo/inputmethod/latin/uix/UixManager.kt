@@ -690,6 +690,11 @@ class UixManager(private val latinIME: LatinIME) {
                 R.string.action_menu_opened,
                 latinIME.resources.getString(action.name)
             ))
+
+        // Automatically focus clipboard search bar when opening clipboard history
+        if (action.name == R.string.action_clipboard_manager_title) {
+            keyboardManagerForAction.setClipboardSearchFocus(true)
+        }
     }
 
     private fun returnBackToMainKeyboardViewFromAction(allowSkipClosing: Boolean): Boolean {

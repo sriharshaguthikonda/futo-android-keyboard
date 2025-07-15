@@ -312,6 +312,15 @@ fun ClipboardHistoryWindowContent(
         }
     }
 
+    // Request focus when manager asks for it (e.g., when opening clipboard history)
+    val requestSearchFocusState = manager.getRequestSearchFocusState()
+    LaunchedEffect(requestSearchFocusState.value) {
+        if (requestSearchFocusState.value) {
+            focusRequester.requestFocus()
+            manager.acknowledgeSearchFocusRequest()
+        }
+    }
+
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Use TextField with TextFieldValue for better cursor control
