@@ -598,6 +598,12 @@ class UixManager(private val latinIME: LatinIME) {
             ActionRegistry.getActionOverride(latinIME, rawAction)
         }
 
+        if(action == ClipboardHistoryAction) {
+            // Immediately focus the clipboard search field so typed text updates the query
+            isClipboardSearchFocused.value = true
+            requestSearchFocus.value = true
+        }
+
         if (action.windowImpl != null) {
             enterActionWindowView(action)
         } else if (action.simplePressImpl != null) {
