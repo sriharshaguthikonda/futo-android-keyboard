@@ -598,6 +598,12 @@ class UixManager(private val latinIME: LatinIME) {
             ActionRegistry.getActionOverride(latinIME, rawAction)
         }
 
+        if(action == ClipboardHistoryAction) {
+            // Immediately focus the clipboard search field so typed text updates the query
+            isClipboardSearchFocused.value = true
+            requestSearchFocus.value = true
+        }
+
         if (action.windowImpl != null) {
             enterActionWindowView(action)
         } else if (action.simplePressImpl != null) {
@@ -1499,6 +1505,14 @@ class UixManager(private val latinIME: LatinIME) {
         }
 
         quickClipState.value = QuickClip.getCurrentState(latinIME)
+
+        // Reset clipboard search focus when a new input connection starts so
+        // typed characters go to the newly selected text field.
+        if (isClipboardSearchFocused.value) {
+            isClipboardSearchFocused.value = false
+            requestSearchFocus.value = false
+            clipboardSearchQuery.value = ""
+        }
     }
 
     fun onInputFinishing() {
