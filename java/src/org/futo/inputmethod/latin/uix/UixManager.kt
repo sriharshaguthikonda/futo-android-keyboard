@@ -58,6 +58,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -468,55 +469,92 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     override fun getSuggestionBlacklist(): SuggestionBlacklist = latinIME.suggestionBlacklist
 
     override fun setClipboardSearchFocus(isFocused: Boolean) {
-        Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: new isFocused = $isFocused, current uixManager.isClipboardSearchFocused = ${uixManager.isClipboardSearchFocused.value}")
-        val oldFocusedState = uixManager.isClipboardSearchFocused.value
-        uixManager.isClipboardSearchFocused.value = isFocused
+        Log.d("ClipboardSearch", "setClipboardSearchFocus: $isFocused")
 
-        if (isFocused && !oldFocusedState) {
-            // Tentative Fix: Ensure main keyboard area is not generally hidden when search gets focus
+        val currentState = uixManager.clipboardSearchState.value
+
+        if (isFocused && !currentState.isActive) {
+            val originalCursor = try {
+                latinIME.currentInputConnection?.getTextBeforeCursor(1000, 0)?.length
+            } catch (e: Exception) {
+                Log.w("ClipboardSearch", "Failed to get cursor position", e)
+                null
+            }
+
+            uixManager.clipboardSearchState.value = ClipboardSearchState(
+                isActive = true,
+                query = "",
+                originalCursorPosition = originalCursor,
+                originalInputConnection = latinIME.currentInputConnection
+            )
+
             uixManager.mainKeyboardHidden.value = false
-            Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: Became focused. Setting requestSearchFocus = true")
-            uixManager.requestSearchFocus.value = true // Trigger the focus request
-        } else if (!isFocused && oldFocusedState) {
-            // Clear search query when focus is lost from search field
-            uixManager.clipboardSearchQuery.value = ""
-            Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: Lost focus.")
-            // Ensure request is reset if focus is lost externally
-            if(uixManager.requestSearchFocus.value) uixManager.requestSearchFocus.value = false
+
+        } else if (!isFocused && currentState.isActive) {
+            uixManager.clipboardSearchState.value = ClipboardSearchState()
+
+            currentState.originalCursorPosition?.let { position ->
+                currentState.originalInputConnection?.let { connection ->
+                    try {
+                        val currentText = connection.getTextBeforeCursor(1000, 0)
+                        if (currentText != null && position <= currentText.length) {
+                            connection.setSelection(position, position)
+                        }
+                    } catch (e: Exception) {
+                        Log.w("ClipboardSearch", "Failed to restore cursor position", e)
+                    }
+                }
+            }
         }
-        Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: new uixManager.isClipboardSearchFocused = ${uixManager.isClipboardSearchFocused.value}, requestSearchFocus = ${uixManager.requestSearchFocus.value}")
     }
 
     override fun getClipboardSearchQuery(): String {
-        return uixManager.clipboardSearchQuery.value
+        return uixManager.clipboardSearchState.value.query
     }
 
     override fun setClipboardSearchQuery(query: String) {
-        uixManager.clipboardSearchQuery.value = query
+        val currentState = uixManager.clipboardSearchState.value
+        if (currentState.isActive) {
+            uixManager.clipboardSearchState.value = currentState.copy(query = query)
+        }
     }
 
     override fun handleClipboardSearchKeyEvent(keyCode: Int, metaState: Int): Boolean {
-        if (keyCode == Constants.CODE_DELETE) {
-            val currentQuery = uixManager.clipboardSearchQuery.value
-            if (currentQuery.isNotEmpty()) {
-                uixManager.clipboardSearchQuery.value = currentQuery.substring(0, currentQuery.length - 1)
+        val currentState = uixManager.clipboardSearchState.value
+        if (!currentState.isActive) return false
+
+        when (keyCode) {
+            Constants.CODE_DELETE -> {
+                if (currentState.query.isNotEmpty()) {
+                    uixManager.clipboardSearchState.value = currentState.copy(
+                        query = currentState.query.dropLast(1)
+                    )
+                }
+                return true
             }
-            return true
+            Constants.CODE_ENTER -> {
+                setClipboardSearchFocus(false)
+                return true
+            }
         }
-        // Could handle other keys like arrows if needed, but text commit should handle characters.
         return false
     }
 
     override fun isClipboardSearchFocusedState(): androidx.compose.runtime.State<Boolean> {
-        return uixManager.isClipboardSearchFocused
+        return derivedStateOf { uixManager.clipboardSearchState.value.isActive }
     }
 
-    override fun getRequestSearchFocusState(): androidx.compose.runtime.State<Boolean> {
-        return uixManager.requestSearchFocus
+    override fun commitTextToSearch(text: String) {
+        val currentState = uixManager.clipboardSearchState.value
+        if (currentState.isActive) {
+            uixManager.clipboardSearchState.value = currentState.copy(
+                query = currentState.query + text
+            )
+        }
     }
 
-    override fun acknowledgeSearchFocusRequest() {
-        uixManager.requestSearchFocus.value = false
+    override fun getOriginalInputConnection(): InputConnection? {
+        return uixManager.clipboardSearchState.value.originalInputConnection
     }
 }
 
@@ -578,9 +616,9 @@ class UixManager(private val latinIME: LatinIME) {
     val foldingOptions = mutableStateOf(FoldingOptions(null))
 
     var isInputOverridden = mutableStateOf(false)
-    val isClipboardSearchFocused: MutableState<Boolean> = mutableStateOf(false)
-    val clipboardSearchQuery: MutableState<String> = mutableStateOf("")
-    val requestSearchFocus: MutableState<Boolean> = mutableStateOf(false) // New state
+    // Consolidated clipboard search related state
+    val clipboardSearchState: MutableState<ClipboardSearchState> =
+        mutableStateOf(ClipboardSearchState())
 
     var currWindowActionWindow: MutableState<ActionWindow?> = mutableStateOf(null)
 
@@ -715,10 +753,8 @@ class UixManager(private val latinIME: LatinIME) {
         keyboardManagerForAction.announce(latinIME.getString(R.string.action_menu_closed, name))
 
         // Ensure clipboard search mode is fully reset when leaving an action
-        if(isClipboardSearchFocused.value) {
-            isClipboardSearchFocused.value = false
-            clipboardSearchQuery.value = ""
-            requestSearchFocus.value = false
+        if(clipboardSearchState.value.isActive) {
+            clipboardSearchState.value = ClipboardSearchState()
         }
         return true
     }
@@ -1211,19 +1247,14 @@ class UixManager(private val latinIME: LatinIME) {
 
             KeyboardWindowSelector { gap ->
                 Column {
-                    val isClipboardSearchModeActive = isClipboardSearchFocused.value &&
-                            currWindowAction.value?.name == R.string.action_clipboard_manager_title // Check if it's clipboard history action
-                    Log.d("ClipboardSearch", "UixManager.Content: isClipboardSearchFocused=${isClipboardSearchFocused.value}, currAction=${currWindowAction.value?.name}, isClipboardSearchModeActive=$isClipboardSearchModeActive, mainKeyboardHidden=${mainKeyboardHidden.value}")
+                    val clipboardSearchActive = clipboardSearchState.value.isActive &&
+                            currWindowAction.value?.name == R.string.action_clipboard_manager_title
+                    Log.d("ClipboardSearch", "Content: clipboardSearchActive=$clipboardSearchActive")
 
-                    if (isClipboardSearchModeActive) {
+                    if (clipboardSearchActive) {
                         // Mode: Clipboard History with Search Focused
-                        // 1. Show Clipboard Action Window (includes search bar)
                         currWindowActionWindow.value?.let { ActionViewWithHeader(it) }
-
-                        // 2. NO standard action bar/suggestion strip for the main keyboard
-                        //    The LegacyKeyboardView will be shown below.
-                        //    The 'gap' might be irrelevant here or could be a specific small spacer.
-                        Spacer(modifier = Modifier.height(0.dp)) // Minimal or no gap
+                        Spacer(modifier = Modifier.height(2.dp))
 
                     } else if (currWindowActionWindow.value != null) {
                         // Mode: Other Action Window is active
@@ -1236,13 +1267,12 @@ class UixManager(private val latinIME: LatinIME) {
                     }
 
                     // Determine visibility of the LegacyKeyboardView (the actual keys)
-                    val legacyKeyboardActuallyHidden = if (isClipboardSearchModeActive) {
-                        false // Force keyboard to be shown for clipboard search
+                    val shouldHideKeyboard = if (clipboardSearchActive) {
+                        false
                     } else {
                         isMainKeyboardHidden.value // Standard visibility logic for other action windows
                     }
-                    Log.d("ClipboardSearch", "UixManager.Content: legacyKeyboardActuallyHidden=$legacyKeyboardActuallyHidden")
-                    latinIME.LegacyKeyboardView(hidden = legacyKeyboardActuallyHidden)
+                    latinIME.LegacyKeyboardView(hidden = shouldHideKeyboard)
 
                     if(latinIME.size.value !is FloatingKeyboardSize) {
                         Spacer(Modifier.height(navBarHeight()))
@@ -1340,6 +1370,11 @@ class UixManager(private val latinIME: LatinIME) {
 
     fun closeActionWindow(allowSkipClosing: Boolean = false) {
         if(returnBackToMainKeyboardViewFromAction(allowSkipClosing) == false) return
+
+        // Reset clipboard search state when closing action window
+        if (clipboardSearchState.value.isActive) {
+            keyboardManagerForAction.setClipboardSearchFocus(false)
+        }
 
         // Reset any typeface override as they're not supposed to persist outside of an active
         // action window
