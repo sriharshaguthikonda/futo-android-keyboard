@@ -38,6 +38,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 
 - T9 multi-tap now replaces the previous letter instead of inserting multiple characters and backspace obeys the "delete whole words" option.
 - Long‑press spacebar drag now moves the cursor vertically when sliding up or down.
+- Clipboard search mode now preserves the original cursor position and restores it after exiting.
 - Colored overlays appear above and below the keyboard when dragging on the spacebar to show vertical and horizontal cursor control.
 - Custom themes can set different background colors for each settings item icon.
 - Settings icons can also use custom background images loaded from files.
