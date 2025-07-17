@@ -23,6 +23,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - AI Reply prompt can be customized from the keyboard or settings and the clipboard text is sent to Groq for context.
 - AI Reply now always uses the most recent clipboard entry when generating a reply, even when launched directly from the actions row.
 - Clipboard history collapses with the Android back key so the keyboard stays open.
+- Clipboard search remembers cursor position and restores it when exiting search.
 - Voice recognition output is normalized so repeated words are removed.
 - Voice input respects the keyboard's caps lock state.
 - Long voice recordings are transcribed in 30 second chunks so earlier audio isn't overwritten.
