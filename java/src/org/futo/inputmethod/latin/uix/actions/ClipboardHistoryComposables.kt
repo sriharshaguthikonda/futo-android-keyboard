@@ -301,7 +301,7 @@ fun ClipboardHistoryWindowContent(
                     .fillMaxSize(),
                 contentAlignment = Alignment.CenterStart
             ) {
-                ActionTextEditor(text = searchText)
+                ActionTextEditor(text = searchText, autoFocus = false)
             }
         }
 
