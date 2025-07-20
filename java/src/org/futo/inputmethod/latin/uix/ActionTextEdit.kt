@@ -71,7 +71,10 @@ fun ActionTextEditor(
     multiline: Boolean = false,
     textSize: TextUnit = 16.sp,
     typeface: Typeface? = null,
-    autocorrect: Boolean = false
+    autocorrect: Boolean = false,
+    hint: String? = null,
+    modifier: Modifier = Modifier,
+    onFocusChanged: ((Boolean) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val manager = if(LocalInspectionMode.current) {
@@ -106,9 +109,14 @@ fun ActionTextEditor(
 
                 setText(text.value)
                 setTextColor(color.toArgb())
-
+                
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizeToUse)
                 typefaceToUse?.let { setTypeface(it) }
+
+                hint?.let { this.hint = it }
+                setOnFocusChangeListener { _, hasFocus ->
+                    onFocusChanged?.invoke(hasFocus)
+                }
 
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -148,7 +156,7 @@ fun ActionTextEditor(
 
         AndroidView(
             factory = { editText },
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .fillMaxHeight(),
             onRelease = {
