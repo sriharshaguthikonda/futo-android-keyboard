@@ -135,6 +135,16 @@ fun ActionTextEditor(
                 background = null
                 setPadding(0, 0, 0, 0)
 
+                setOnFocusChangeListener { _, hasFocus ->
+                    if(hasFocus) {
+                        manager?.overrideInputConnection(inputConnection!!, editorInfo)
+                        manager?.setClipboardSearchFocus(true)
+                    } else {
+                        manager?.unsetInputConnection()
+                        manager?.setClipboardSearchFocus(false)
+                    }
+                }
+
                 requestFocus()
             }
         }

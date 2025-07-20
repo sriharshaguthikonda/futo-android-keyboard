@@ -277,10 +277,7 @@ fun ClipboardHistoryWindowContent(
         manager.setClipboardSearchQuery(searchText.value)
     }
 
-    // Manage search focus when this composable enters and leaves the composition
-    LaunchedEffect(Unit) {
-        manager.setClipboardSearchFocus(true)
-    }
+    // Ensure focus state resets when closing the clipboard history
     DisposableEffect(Unit) {
         onDispose {
             manager.setClipboardSearchFocus(false)
