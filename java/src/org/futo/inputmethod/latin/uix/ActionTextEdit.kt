@@ -71,7 +71,8 @@ fun ActionTextEditor(
     multiline: Boolean = false,
     textSize: TextUnit = 16.sp,
     typeface: Typeface? = null,
-    autocorrect: Boolean = false
+    autocorrect: Boolean = false,
+    hint: String? = null
 ) {
     val context = LocalContext.current
     val manager = if(LocalInspectionMode.current) {
@@ -105,6 +106,7 @@ fun ActionTextEditor(
                 setTextChangeCallback { text.value = it }
 
                 setText(text.value)
+                hint?.let { setHint(it) }
                 setTextColor(color.toArgb())
 
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizeToUse)
