@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.focus.onFocusChanged
 
 
 class ActionEditText(
@@ -71,7 +72,10 @@ fun ActionTextEditor(
     multiline: Boolean = false,
     textSize: TextUnit = 16.sp,
     typeface: Typeface? = null,
-    autocorrect: Boolean = false
+    autocorrect: Boolean = false,
+    modifier: Modifier = Modifier,
+    onFocusChanged: ((Boolean) -> Unit)? = null,
+    hint: String? = null
 ) {
     val context = LocalContext.current
     val manager = if(LocalInspectionMode.current) {
@@ -105,6 +109,7 @@ fun ActionTextEditor(
                 setTextChangeCallback { text.value = it }
 
                 setText(text.value)
+                hint?.let { setHint(it) }
                 setTextColor(color.toArgb())
 
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizeToUse)
@@ -148,9 +153,10 @@ fun ActionTextEditor(
 
         AndroidView(
             factory = { editText },
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
-                .fillMaxHeight(),
+                .fillMaxHeight()
+                .onFocusChanged { onFocusChanged?.invoke(it.isFocused) },
             onRelease = {
                 manager?.unsetInputConnection()
             }

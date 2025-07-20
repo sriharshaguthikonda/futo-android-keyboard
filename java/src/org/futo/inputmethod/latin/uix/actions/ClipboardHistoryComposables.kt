@@ -24,7 +24,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,7 +35,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -48,6 +46,7 @@ import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.uix.DialogRequestItem
 // Replaced UixManager with KeyboardManagerForAction as per Action.kt definition
 import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
+import org.futo.inputmethod.latin.uix.ActionTextEditor
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.pages.ParagraphText
@@ -60,9 +59,6 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -263,29 +259,19 @@ fun ClipboardHistoryWindowContent(
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
     val focusRequester = remember { FocusRequester() }
-    // val localFocusManager = LocalFocusManager.current // Not strictly needed if we change focus logic
 
+    val searchTextState = remember { mutableStateOf(manager.getClipboardSearchQuery()) }
+    var searchText by searchTextState
 
-    // Use TextFieldValue to manage cursor position
-    var textFieldValue by remember {
-        mutableStateOf(TextFieldValue(manager.getClipboardSearchQuery()))
-    }
-    
     // Track if we're currently updating from the manager to prevent loops
     var isUpdatingFromManager by remember { mutableStateOf(false) }
-    
+
     // Sync with manager's state
     LaunchedEffect(manager.getClipboardSearchQuery()) {
         if (!isUpdatingFromManager) {
-            val currentText = textFieldValue.text
             val managerText = manager.getClipboardSearchQuery()
-            
-            if (currentText != managerText) {
-                // Update the text and move cursor to the end
-                textFieldValue = TextFieldValue(
-                    text = managerText,
-                    selection = androidx.compose.ui.text.TextRange(managerText.length)
-                )
+            if (searchText != managerText) {
+                searchText = managerText
             }
         }
     }
@@ -314,37 +300,22 @@ fun ClipboardHistoryWindowContent(
 
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Use TextField with TextFieldValue for better cursor control
-        TextField(
-            value = textFieldValue,
-            onValueChange = { newValue ->
-                textFieldValue = newValue
-                isUpdatingFromManager = true
-                try {
-                    manager.setClipboardSearchQuery(newValue.text)
-                } finally {
-                    isUpdatingFromManager = false
-                }
-            },
-            singleLine = true,
-            label = { Text(stringResource(R.string.search_clipboard_history_label)) },
+        ActionTextEditor(
+            text = searchTextState,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp)
                 .focusRequester(focusRequester)
                 .onFocusChanged { focusState ->
                     Log.d("ClipboardSearch", "SearchField onFocusChanged: focusState.isFocused=${focusState.isFocused}. Current manager.isClipboardSearchFocused: ${manager.isClipboardSearchFocusedState().value}")
-                    
-                    // Only update the manager's state if there's a real change
+
                     val currentManagerState = manager.isClipboardSearchFocusedState().value
                     if (focusState.isFocused && !currentManagerState) {
                         Log.d("ClipboardSearch", "SearchField GAINED FOCUS: Updating manager state")
                         manager.setClipboardSearchFocus(true)
                     } else if (!focusState.isFocused && currentManagerState) {
-                        // Before updating the manager, check if this is a temporary focus loss
                         Log.d("ClipboardSearch", "SearchField LOST FOCUS: Checking if we should update manager state")
-                        
-                        // Only update the manager if this isn't part of a focus change we're handling
+
                         view.postDelayed({
                             val focusedView = view.findFocus()
                             val hasFocus = focusedView?.hasFocus() ?: false
@@ -354,10 +325,23 @@ fun ClipboardHistoryWindowContent(
                             } else {
                                 Log.d("ClipboardSearch", "Focus was restored, not updating manager state")
                             }
-                        }, 100) // Small delay to allow focus to stabilize
+                        }, 100)
                     }
-                }
+                },
+            onFocusChanged = null,
+            hint = stringResource(R.string.search_clipboard_history_label)
         )
+
+        LaunchedEffect(searchText) {
+            if (!isUpdatingFromManager) {
+                isUpdatingFromManager = true
+                try {
+                    manager.setClipboardSearchQuery(searchText)
+                } finally {
+                    isUpdatingFromManager = false
+                }
+            }
+        }
 
         // Removed the LaunchedEffect keyed on requestSearchFocusState as it was ineffective.
         // The focus request is now more direct in onFocusChanged.
