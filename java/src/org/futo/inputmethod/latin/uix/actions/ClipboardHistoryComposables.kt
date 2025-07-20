@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
@@ -32,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -44,6 +47,7 @@ import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.uix.DialogRequestItem
 // Replaced UixManager with KeyboardManagerForAction as per Action.kt definition
 import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
+import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.pages.ParagraphText
@@ -285,9 +289,24 @@ fun ClipboardHistoryWindowContent(
 
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        ActionTextEditor(
-            text = searchText
-        )
+        Surface(
+            color = LocalKeyboardScheme.current.keyboardContainer,
+            contentColor = LocalKeyboardScheme.current.onKeyboardContainer,
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .padding(8.dp)
+                .height(48.dp)
+                .fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                ActionTextEditor(text = searchText)
+            }
+        }
 
         // Focus is handled internally by ActionTextEditor so we no longer
         // manage focus with a FocusRequester.
