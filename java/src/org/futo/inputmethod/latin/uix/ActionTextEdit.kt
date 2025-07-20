@@ -130,8 +130,6 @@ fun ActionTextEditor(
                 }
                 onCreateInputConnection(editorInfo)
 
-                manager?.overrideInputConnection(inputConnection!!, editorInfo)
-
                 // Remove underline and padding
                 background = null
                 setPadding(0, 0, 0, 0)

@@ -301,7 +301,8 @@ fun ClipboardHistoryWindowContent(
                     .fillMaxSize(),
                 contentAlignment = Alignment.CenterStart
             ) {
-                ActionTextEditor(text = searchText, autoFocus = false)
+                // Automatically focus the search field just like the emoji search bar
+                ActionTextEditor(text = searchText)
             }
         }
 
