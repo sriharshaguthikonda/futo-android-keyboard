@@ -143,9 +143,15 @@ fun ActionTextEditor(
                         manager?.setClipboardSearchFocus(false)
                     }
                 }
+            }
+        }
 
-                if(autoFocus) {
-                    requestFocus()
+        // Request focus after the view is attached and laid out using LaunchedEffect
+        // This is more reliable than calling requestFocus() in the remember block
+        LaunchedEffect(autoFocus) {
+            if (autoFocus) {
+                editText.post {
+                    editText.requestFocus()
                 }
             }
         }

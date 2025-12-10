@@ -1,0 +1,4 @@
+feature: sort clipboard search focus issue - need to track when search box gains/loses focus and update sorting accordingly
+
+
+feature : in voice mode , like google keyboard should be able to makeit as a bottom bar
