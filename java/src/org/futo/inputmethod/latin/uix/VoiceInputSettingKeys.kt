@@ -90,3 +90,8 @@ val START_VOICE_ON_OPEN = SettingsKey(
     key = booleanPreferencesKey("start_voice_on_open"),
     default = false
 )
+
+val VOICE_INPUT_BOTTOM_BAR_MODE = SettingsKey(
+    key = booleanPreferencesKey("voice_input_bottom_bar_mode"),
+    default = false
+)

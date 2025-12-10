@@ -15,6 +15,7 @@ import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.START_VOICE_ON_OPEN
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
@@ -87,6 +88,12 @@ val VoiceInputMenu = UserSettingsMenu(
             title = R.string.voice_input_settings_start_on_open,
             subtitle = R.string.voice_input_settings_start_on_open_subtitle,
             setting = START_VOICE_ON_OPEN
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingToggleDataStore(
+            title = R.string.voice_input_settings_bottom_bar_mode,
+            subtitle = R.string.voice_input_settings_bottom_bar_mode_subtitle,
+            setting = VOICE_INPUT_BOTTOM_BAR_MODE
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingToggleDataStore(

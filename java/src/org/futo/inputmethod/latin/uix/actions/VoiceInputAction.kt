@@ -1,22 +1,45 @@
 package org.futo.inputmethod.latin.uix.actions
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
@@ -40,6 +63,8 @@ import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
+import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.setSetting
 import org.futo.inputmethod.latin.uix.utils.ModelOutputSanitizer
@@ -291,6 +316,323 @@ private class VoiceInputNoModelWindow(val locale: Locale) : ActionWindow() {
     }
 }
 
+/**
+ * Bottom bar mode for voice input - shows a minimal floating pill at the bottom
+ * similar to Gboard's voice typing UI, giving more screen space while dictating.
+ */
+private class VoiceInputBottomBarWindow(
+    val manager: KeyboardManagerForAction, val state: VoiceInputPersistentState,
+    val model: ModelLoader, val locales: List<Locale>
+) : ActionWindow(), RecognizerViewListener {
+    val context = manager.getContext()
+
+    // Hide the keyboard and show only this minimal bar at the bottom
+    override val onlyShowAboveKeyboard: Boolean = false
+    override val showCloseButton: Boolean = false
+    override val fixedWindowHeight: Dp = 72.dp
+
+    private var shouldPlaySounds: Boolean = false
+    private val isListening = mutableStateOf(false)
+    private val statusText = mutableStateOf("Tap to start")
+
+    private fun loadSettings(): RecognizerViewSettings {
+        val enableSound = context.getSetting(ENABLE_SOUND)
+        val verboseFeedback = context.getSetting(VERBOSE_PROGRESS)
+        val disallowSymbols = context.getSetting(DISALLOW_SYMBOLS)
+        val useBluetoothAudio = context.getSetting(PREFER_BLUETOOTH)
+        val requestAudioFocus = context.getSetting(AUDIO_FOCUS)
+        val canExpandSpace = context.getSetting(CAN_EXPAND_SPACE)
+        val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
+        val useGroq = context.getSetting(USE_GROQ_WHISPER)
+        val groqKey = context.getSetting(GROQ_VOICE_API_KEY)
+        val groqModel = context.getSetting(GROQ_VOICE_MODEL)
+        val useGpu = context.getSetting(USE_GPU_OFFLOAD)
+
+        state.modelManager.useGpu = useGpu
+
+        val primaryModel = model
+        val languageSpecificModels = mutableMapOf<Language, ModelLoader>()
+        val allowedLanguages = locales.map { getLanguageFromWhisperString(it.language) }
+            .filterNotNull().toSet()
+
+        shouldPlaySounds = enableSound
+
+        return RecognizerViewSettings(
+            shouldShowInlinePartialResult = false,
+            shouldShowVerboseFeedback = verboseFeedback,
+            modelRunConfiguration = MultiModelRunConfiguration(
+                primaryModel = primaryModel,
+                languageSpecificModels = languageSpecificModels
+            ),
+            decodingConfiguration = DecodingConfiguration(
+                glossary = state.userDictionaryObserver.getWords().map { it.word },
+                languages = allowedLanguages,
+                suppressSymbols = disallowSymbols
+            ),
+            recordingConfiguration = RecordingSettings(
+                preferBluetoothMic = useBluetoothAudio,
+                requestAudioFocus = requestAudioFocus,
+                canExpandSpace = canExpandSpace,
+                useVADAutoStop = useVAD
+            ),
+            groqApiKey = if(useGroq) groqKey else "",
+            groqModel = groqModel,
+            useGpuOffload = useGpu
+        )
+    }
+
+    private var recognizerView: MutableState<RecognizerView?> = mutableStateOf(null)
+    private var modelException: MutableState<ModelDoesNotExistException?> = mutableStateOf(null)
+
+    private val initJob = manager.getLifecycleScope().launch {
+        yield()
+        val settings = loadSettings()
+
+        yield()
+        val recognizerView = try {
+            RecognizerView(
+                context = manager.getContext(),
+                listener = this@VoiceInputBottomBarWindow,
+                settings = settings,
+                lifecycleScope = manager.getLifecycleScope(),
+                modelManager = state.modelManager
+            )
+        } catch(e: ModelDoesNotExistException) {
+            modelException.value = e
+            return@launch
+        }
+
+        this@VoiceInputBottomBarWindow.recognizerView.value = recognizerView
+        recognizerView.reset()
+        recognizerView.start()
+    }
+
+    private var inputTransaction = manager.createInputTransaction()
+
+    @Composable
+    override fun windowName(): String {
+        return stringResource(R.string.action_voice_input_title)
+    }
+
+    @Composable
+    override fun WindowContents(keyboardShown: Boolean) {
+        val isListeningState by isListening
+        
+        // Infinite pulsing animation when listening
+        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+        val pulseScale by infiniteTransition.animateFloat(
+            initialValue = 1.0f,
+            targetValue = 1.15f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(600),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseScale"
+        )
+        
+        // Animated sound wave bars
+        val wave1 by infiniteTransition.animateFloat(
+            initialValue = 0.3f,
+            targetValue = 1.0f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(300),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "wave1"
+        )
+        val wave2 by infiniteTransition.animateFloat(
+            initialValue = 0.5f,
+            targetValue = 0.8f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(400),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "wave2"
+        )
+        val wave3 by infiniteTransition.animateFloat(
+            initialValue = 0.4f,
+            targetValue = 1.0f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(350),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "wave3"
+        )
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(32.dp),
+            color = LocalKeyboardScheme.current.keyboardContainer,
+            contentColor = LocalKeyboardScheme.current.onKeyboardContainer
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Close button
+                IconButton(
+                    onClick = { manager.closeActionWindow() },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.close),
+                        contentDescription = "Close",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Sound wave indicator + Status text
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    // Animated sound wave bars (only when listening)
+                    if (isListeningState) {
+                        Row(
+                            modifier = Modifier.padding(end = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SoundWaveBar(height = 16.dp * wave1)
+                            SoundWaveBar(height = 16.dp * wave2)
+                            SoundWaveBar(height = 16.dp * wave3)
+                        }
+                    }
+                    
+                    Text(
+                        text = statusText.value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    // Animated sound wave bars on the right side too
+                    if (isListeningState) {
+                        Row(
+                            modifier = Modifier.padding(start = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SoundWaveBar(height = 16.dp * wave3)
+                            SoundWaveBar(height = 16.dp * wave1)
+                            SoundWaveBar(height = 16.dp * wave2)
+                        }
+                    }
+                }
+
+                // Mic button with pulsing animation when listening
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .scale(if (isListeningState) pulseScale else 1.0f)
+                        .background(
+                            color = if (isListeningState) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.secondaryContainer
+                            },
+                            shape = CircleShape
+                        )
+                        .clickable {
+                            if (isListeningState) {
+                                recognizerView.value?.finish()
+                            } else {
+                                recognizerView.value?.reset()
+                                recognizerView.value?.start()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.mic_fill),
+                        contentDescription = if (isListeningState) "Stop" else "Start",
+                        tint = if (isListeningState) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        },
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+    }
+    
+    @Composable
+    private fun SoundWaveBar(height: Dp) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(height)
+                .background(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(2.dp)
+                )
+        )
+    }
+
+    override fun close(): CloseResult {
+        runBlocking { initJob.cancelAndJoin() }
+        recognizerView.value?.cancel()
+        return CloseResult.Default
+    }
+
+    private var wasFinished = false
+    private var cancelPlayed = false
+    override fun cancelled() {
+        if (!wasFinished) {
+            if (shouldPlaySounds && !cancelPlayed) {
+                state.soundPlayer.playCancelSound()
+                cancelPlayed = true
+            }
+            inputTransaction.cancel()
+        }
+        isListening.value = false
+        statusText.value = "Cancelled"
+    }
+
+    override fun recordingStarted(device: MicrophoneDeviceState) {
+        if (shouldPlaySounds) {
+            state.soundPlayer.playStartSound()
+        }
+        isListening.value = true
+        statusText.value = "Listening…"
+
+        if(device.bluetoothAvailable) {
+            manager.getLifecycleScope().launch {
+                context.setSetting(PREFER_BLUETOOTH, device.bluetoothActive)
+            }
+        }
+    }
+
+    override fun finished(result: String) {
+        wasFinished = true
+        isListening.value = false
+        statusText.value = "Done"
+
+        val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
+        inputTransaction.commit(sanitized)
+        manager.announce(result)
+        manager.closeActionWindow()
+    }
+
+    override fun partialResult(result: String) {
+        val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
+        inputTransaction.updatePartial(sanitized)
+        // Show abbreviated partial result in status
+        statusText.value = if (result.length > 30) "…${result.takeLast(30)}" else result.ifEmpty { "Listening…" }
+    }
+
+    override fun requestPermission(onGranted: () -> Unit, onRejected: () -> Unit): Boolean {
+        return false
+    }
+}
+
 val VoiceInputAction = Action(icon = R.drawable.mic_fill,
     name = R.string.action_voice_input_title,
     simplePressImpl = null,
@@ -298,12 +640,20 @@ val VoiceInputAction = Action(icon = R.drawable.mic_fill,
     persistentState = { VoiceInputPersistentState(it) },
     windowImpl = { manager, persistentState ->
         val locales = manager.getActiveLocales()
+        val useBottomBarMode = manager.getContext().getSetting(VOICE_INPUT_BOTTOM_BAR_MODE)
 
         val model = ResourceHelper.tryFindingVoiceInputModelForLocale(manager.getContext(), locales.firstOrNull() ?: Locale.ROOT)
 
         if(model == null) {
             VoiceInputNoModelWindow(locales.firstOrNull() ?: Locale.ROOT)
+        } else if(useBottomBarMode) {
+            // Use the compact floating bar mode
+            VoiceInputBottomBarWindow(
+                manager = manager, state = persistentState as VoiceInputPersistentState,
+                locales = locales, model = model
+            )
         } else {
+            // Use the standard full-screen voice input window
             VoiceInputActionWindow(
                 manager = manager, state = persistentState as VoiceInputPersistentState,
                 locales = locales, model = model

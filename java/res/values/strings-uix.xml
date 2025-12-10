@@ -518,6 +518,9 @@
     <string name="voice_input_settings_start_on_open">Auto-start on keyboard open</string>
     <string name="voice_input_settings_start_on_open_subtitle">Begin voice input automatically when the keyboard appears</string>
 
+    <string name="voice_input_settings_bottom_bar_mode">Floating bar mode</string>
+    <string name="voice_input_settings_bottom_bar_mode_subtitle">Show voice input as a minimal floating bar at the bottom, giving you more screen space</string>
+
     <string name="voice_input_settings_use_groq">Use Groq Whisper</string>
     <string name="voice_input_settings_groq_config">Groq Voice API Settings</string>
     <string name="voice_input_settings_groq_config_subtitle">Configure Groq voice API key and test</string>
