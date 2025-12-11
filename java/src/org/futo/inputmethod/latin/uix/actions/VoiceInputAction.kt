@@ -1,6 +1,8 @@
 package org.futo.inputmethod.latin.uix.actions
 
 import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -316,6 +318,9 @@ private class VoiceInputActionWindow(
     }
 
     override fun requestPermission(onGranted: () -> Unit, onRejected: () -> Unit): Boolean {
+        // For the full window we delegate to the global MicPermissionActivity flow
+        // The AudioRecognizer will call openPermissionSettings() when permission is missing,
+        // so we just signal that we did not show an inline dialog here.
         return false
     }
 
@@ -552,38 +557,56 @@ private class VoiceInputBottomBarWindow(
                 }
 
                 // Mic button with pulsing animation when listening
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .scale(if (isListeningState) pulseScale else 1.0f)
-                        .background(
-                            color = if (isListeningState) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.secondaryContainer
-                            },
-                            shape = CircleShape
-                        )
-                        .clickable {
-                            if (isListeningState) {
-                                recognizerView.value?.finish()
-                            } else {
-                                recognizerView.value?.reset()
-                                recognizerView.value?.start()
-                            }
-                        },
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.mic_fill),
-                        contentDescription = if (isListeningState) "Stop" else "Start",
-                        tint = if (isListeningState) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSecondaryContainer
-                        },
-                        modifier = Modifier.size(24.dp)
-                    )
+                    if (!keyboardShown) {
+                        IconButton(
+                            onClick = { manager.forceActionWindowAboveKeyboard(true) },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.keyboard_regular),
+                                contentDescription = "Show keyboard",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .scale(if (isListeningState) pulseScale else 1.0f)
+                            .background(
+                                color = if (isListeningState) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                },
+                                shape = CircleShape
+                            )
+                            .clickable {
+                                if (isListeningState) {
+                                    recognizerView.value?.finish()
+                                } else {
+                                    recognizerView.value?.reset()
+                                    recognizerView.value?.start()
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.mic_fill),
+                            contentDescription = if (isListeningState) "Stop" else "Start",
+                            tint = if (isListeningState) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            },
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }
@@ -644,7 +667,6 @@ private class VoiceInputBottomBarWindow(
         val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
         inputTransaction.commit(sanitized)
         manager.announce(result)
-        manager.closeActionWindow()
     }
 
     override fun partialResult(result: String) {
@@ -655,7 +677,23 @@ private class VoiceInputBottomBarWindow(
     }
 
     override fun requestPermission(onGranted: () -> Unit, onRejected: () -> Unit): Boolean {
-        return false
+        val ctx = manager.getContext()
+        val hasPermission = ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            onGranted()
+            return true
+        }
+
+        val intent = Intent()
+        intent.setClassName(ctx, "org.futo.inputmethod.latin.MicPermissionActivity")
+        intent.setFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        )
+        ctx.startActivity(intent)
+
+        onRejected()
+        return true
     }
 
     override fun openSettings() {

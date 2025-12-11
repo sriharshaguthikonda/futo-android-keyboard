@@ -2,7 +2,6 @@ package org.futo.inputmethod.latin.uix
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import org.futo.inputmethod.latin.uix.actions.DEFAULT_SYSTEM_PROMPT
 
 val ENABLE_AI_REPLY = SettingsKey(
     key = booleanPreferencesKey("enable_ai_reply"),
@@ -12,11 +11,6 @@ val ENABLE_AI_REPLY = SettingsKey(
 val AI_REPLY_PROMPT = SettingsKey(
     key = stringPreferencesKey("ai_reply_prompt"),
     default = "Write a short helpful reply"
-)
-
-val AI_REPLY_SYSTEM_PROMPT = SettingsKey(
-    key = stringPreferencesKey("ai_reply_system_prompt"),
-    default = DEFAULT_SYSTEM_PROMPT
 )
 
 val GROQ_REPLY_API_KEY = SettingsKey(
