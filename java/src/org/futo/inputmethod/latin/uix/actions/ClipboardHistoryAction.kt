@@ -28,10 +28,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 // Removed mutableStateListOf, mutableStateOf, remember as they were primarily for ClipboardHistoryManager state
 import androidx.compose.ui.Modifier
-// LocalContext might still be used by settings, keep for now
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -47,11 +48,16 @@ import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.SettingSlider
 import org.futo.inputmethod.latin.uix.settings.SettingToggleDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
+import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
+import org.futo.inputmethod.latin.uix.theme.Typography
 // Explicit imports for ClipboardHistoryData symbols
 import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryEnabled
 import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryItemsToKeep
 import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryTimeToKeep
 import org.futo.inputmethod.latin.uix.actions.ClipboardHistorySaveSensitive
+import org.futo.inputmethod.latin.uix.actions.ClipboardShowPinnedOnTop
+import org.futo.inputmethod.latin.uix.actions.ClipboardSingleColumn
+import org.futo.inputmethod.latin.uix.actions.ClipboardQuickClipsEnabled
 // Explicit import for ClipboardHistoryManager
 import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryManager
 // Explicit imports for ClipboardHistoryComposables symbols
@@ -59,11 +65,13 @@ import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryWindowContent
 import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryWindowTitleBar
 // Required for persistentState lambda
 import org.futo.inputmethod.latin.uix.UixManager
-
 import kotlin.math.roundToInt
 
-// String.toFNV1aHash() is still used by ClipboardHistoryComposables.kt indirectly through items keying
-// For now, keep it here. If it's generic enough, it could be moved to a common utils file.
+// Data classes, settings keys, and ClipboardHistoryManager are in separate files:
+// - ClipboardHistoryData.kt
+// - ClipboardHistoryManager.kt
+// - ClipboardHistoryComposables.kt
+
 fun String.toFNV1aHash(): Long {
     val fnvPrime: Long = 1099511628211L
     var hash: Long = -3750763034362895579L
@@ -84,6 +92,7 @@ val ClipboardHistoryAction = Action(
     persistentState = { manager ->
         ClipboardHistoryManager(manager.getContext(), manager.getLifecycleScope())
     },
+    altPressImpl = PasteAction.simplePressImpl,
     persistentStateInitialization = PersistentStateInitialization.OnKeyboardLoad,
     windowImpl = { manager, persistent ->
         val unlocked = !manager.isDeviceLocked()
@@ -105,10 +114,6 @@ val ClipboardHistoryAction = Action(
 
             @Composable
             override fun WindowContents(keyboardShown: Boolean) {
-                // Test LaunchedEffect stability one level up
-                androidx.compose.runtime.LaunchedEffect(Unit) {
-                    android.util.Log.d("ClipboardSearch", "[Test LaunchedEffect(Unit) in ClipboardHistoryAction.WindowContents] Composed.")
-                }
                 ClipboardHistoryWindowContent(manager, clipboardHistoryManager, unlocked, keyboardShown)
             }
         }
@@ -119,14 +124,14 @@ val ClipboardHistoryAction = Action(
         navPath = "actions/clipboard_history",
         registerNavPath = true,
         settings = listOf(
-            UserSetting(
-                name = R.string.typing_settings_enable_clipboard_history,
-                component = {
-                    SettingToggleDataStore(
-                        title = stringResource(R.string.typing_settings_enable_clipboard_history),
-                        setting = ClipboardHistoryEnabled // From ClipboardHistoryData.kt
-                    )
-                }
+            userSettingToggleDataStore(
+                title = R.string.action_clipboard_manager_settings_show_quick_clips,
+                setting = ClipboardQuickClipsEnabled
+            ),
+
+            userSettingToggleDataStore(
+                title = R.string.typing_settings_enable_clipboard_history,
+                setting = ClipboardHistoryEnabled
             ).copy(searchTags = R.string.typing_settings_enable_clipboard_history_tags),
 
             UserSetting(
@@ -169,6 +174,16 @@ val ClipboardHistoryAction = Action(
                 },
                 visibilityCheck = { useDataStoreValue(ClipboardHistoryEnabled) } // From ClipboardHistoryData.kt
             ),
+
+            userSettingToggleDataStore(
+                title = R.string.action_clipboard_manager_settings_show_pinned_above_others,
+                setting = ClipboardShowPinnedOnTop
+            ).copy(visibilityCheck = { useDataStoreValue(ClipboardHistoryEnabled) }),
+
+            userSettingToggleDataStore(
+                title = R.string.action_clipboard_manager_settings_list_layout,
+                setting = ClipboardSingleColumn
+            ).copy(visibilityCheck = { useDataStoreValue(ClipboardHistoryEnabled) }),
         )
     )
 )

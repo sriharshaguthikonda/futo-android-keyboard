@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 
 val lastUsedEmoji = stringPreferencesKey("last_used_emoji")
 val lastUsedColor = stringPreferencesKey("last_used_color")
+const val EmojiLimit = 24
 
 object EmojiTracker {
     suspend fun Context.setLastUsedColor(color: String) {
@@ -17,23 +18,17 @@ object EmojiTracker {
         }
     }
 
+    suspend fun Context.getLastUsedColor(): String {
+        return getSetting(lastUsedColor, "")
+    }
+
     suspend fun Context.useEmoji(emoji: String) {
         if(isDeviceLocked) return
 
         dataStore.edit {
             val combined = emoji + "<|>" + (it[lastUsedEmoji] ?: "")
-            it[lastUsedEmoji] = combined.split("<|>").take(128).joinToString("<|>")
+            it[lastUsedEmoji] = combined.split("<|>").distinct().take(EmojiLimit).joinToString("<|>")
         }
-    }
-
-    suspend fun Context.unuseEmoji(emoji: String) {
-        if(isDeviceLocked) return
-
-        /*dataStore.edit {
-            val split = (it[lastUsedEmoji] ?: "").split("<|>")
-            val idxToRemove = split.indexOfFirst { v -> v == emoji || v.trim() == emoji.trim() }
-            it[lastUsedEmoji] = split.filterIndexed { i, _ -> i != idxToRemove}.joinToString("<|>")
-        }*/
     }
 
     suspend fun Context.getRecentEmojis(): List<String> {

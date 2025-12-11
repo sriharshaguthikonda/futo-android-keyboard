@@ -8,6 +8,7 @@ import org.futo.inputmethod.latin.uix.CAN_EXPAND_SPACE
 import org.futo.inputmethod.latin.uix.DISALLOW_SYMBOLS
 import org.futo.inputmethod.latin.uix.ENABLE_SOUND
 import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
+import org.futo.inputmethod.latin.uix.USE_PERSONAL_DICT
 import org.futo.inputmethod.latin.uix.USE_SYSTEM_VOICE_INPUT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
@@ -15,6 +16,7 @@ import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.START_VOICE_ON_OPEN
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
@@ -42,10 +44,18 @@ val VoiceInputMenu = UserSettingsMenu(
             setting = ENABLE_SOUND
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
+        /*
         userSettingToggleDataStore(
             title = R.string.voice_input_settings_verbose_progress,
             subtitle = R.string.voice_input_settings_verbose_progress_subtitle,
             setting = VERBOSE_PROGRESS
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+         */
+
+        userSettingToggleDataStore(
+            title = R.string.voice_input_settings_use_personal_dict,
+            subtitle = R.string.voice_input_settings_use_personal_dict_subtitle,
+            setting = USE_PERSONAL_DICT
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingToggleDataStore(
@@ -87,6 +97,12 @@ val VoiceInputMenu = UserSettingsMenu(
             title = R.string.voice_input_settings_start_on_open,
             subtitle = R.string.voice_input_settings_start_on_open_subtitle,
             setting = START_VOICE_ON_OPEN
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingToggleDataStore(
+            title = R.string.voice_input_settings_bottom_bar_mode,
+            subtitle = R.string.voice_input_settings_bottom_bar_mode_subtitle,
+            setting = VOICE_INPUT_BOTTOM_BAR_MODE
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingToggleDataStore(

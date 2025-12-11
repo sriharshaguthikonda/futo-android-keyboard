@@ -1,8 +1,8 @@
 plugins {
-    id 'com.android.library' version '8.2.2'
-    id 'org.jetbrains.kotlin.android' version '2.0.0'
-    id 'org.jetbrains.kotlin.plugin.compose' version '2.0.0'
-    id 'org.jetbrains.kotlin.plugin.serialization' version '2.0.0'
+    id 'com.android.library' version '8.13.1'
+    id 'org.jetbrains.kotlin.android' version '2.1.0'
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.1.0'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '2.1.0'
 }
 
 final def translationsWithoutEngValues = { final String path ->
@@ -39,11 +39,11 @@ final def translationsWithoutEngValues = { final String path ->
 
 android {
     namespace 'org.futo.voiceinput.shared'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         minSdk 24
-        targetSdk 34
+        targetSdk 35
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -63,12 +63,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '11'
     }
     buildFeatures {
         compose true
@@ -96,9 +96,6 @@ dependencies {
     implementation 'androidx.datastore:datastore-preferences:1.1.1'
 
     implementation(name:'vad-release', ext:'aar')
-    implementation(name:'pocketfft-release', ext:'aar')
-
-    implementation(name:'tensorflow-lite-support-api', ext:'aar')
 
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1'
     implementation 'com.squareup.okhttp3:okhttp:4.11.0'

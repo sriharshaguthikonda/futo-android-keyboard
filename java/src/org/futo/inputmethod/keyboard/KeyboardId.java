@@ -69,13 +69,16 @@ public final class KeyboardId {
     public final boolean mHasShortcutKey;
     public final boolean mIsSplitLayout;
     public final boolean mNumberRow;
+    public final int mNumberRowMode;
+    public final boolean mUseLocalNumbers;
     public final boolean mArrowRow;
+    public final boolean mAlternativePeriodKey;
     public final LongPressKeySettings mLongPressKeySettings;
     public final KeyboardLayoutElement mElement;
 
     private final int mHashCode;
 
-    public KeyboardId(String mKeyboardLayoutSetName, Locale mLocale, int mWidth, int mHeight, int mMode, int mElementId, EditorInfo mEditorInfo, boolean mClobberSettingsKey, boolean mBottomEmojiKeyEnabled, int mBottomActionKeyId, String mCustomActionLabel, boolean mHasShortcutKey, boolean mIsSplitLayout, boolean mNumberRow, boolean mArrowRow, LongPressKeySettings mLongPressKeySettings, KeyboardLayoutElement mElement) {
+    public KeyboardId(String mKeyboardLayoutSetName, Locale mLocale, int mWidth, int mHeight, int mMode, int mElementId, EditorInfo mEditorInfo, boolean mClobberSettingsKey, boolean mBottomEmojiKeyEnabled, int mBottomActionKeyId, String mCustomActionLabel, boolean mHasShortcutKey, boolean mIsSplitLayout, boolean mNumberRow, int mNumberRowMode, boolean mUseLocalNumbers, boolean mArrowRow, boolean mAlternativePeriodKey, LongPressKeySettings mLongPressKeySettings, KeyboardLayoutElement mElement) {
         this.mKeyboardLayoutSetName = mKeyboardLayoutSetName;
         this.mLocale = mLocale;
         this.mWidth = mWidth;
@@ -90,7 +93,10 @@ public final class KeyboardId {
         this.mHasShortcutKey = mHasShortcutKey;
         this.mIsSplitLayout = mIsSplitLayout;
         this.mNumberRow = mNumberRow;
+        this.mNumberRowMode = mNumberRowMode;
+        this.mUseLocalNumbers = mUseLocalNumbers;
         this.mArrowRow = mArrowRow;
+        this.mAlternativePeriodKey = mAlternativePeriodKey;
         this.mLongPressKeySettings = mLongPressKeySettings;
         this.mElement = mElement;
 
@@ -117,6 +123,9 @@ public final class KeyboardId {
                 id.mLocale,
                 id.mIsSplitLayout,
                 id.mNumberRow,
+                id.mNumberRowMode,
+                id.mUseLocalNumbers,
+                id.mAlternativePeriodKey,
                 id.mLongPressKeySettings.hashCode(),
                 id.mElement.hashCode()
         });
@@ -143,6 +152,10 @@ public final class KeyboardId {
                 && other.mLocale.equals(mLocale)
                 && other.mIsSplitLayout == mIsSplitLayout
                 && other.mNumberRow == mNumberRow
+                && other.mNumberRowMode == mNumberRowMode
+                && other.mUseLocalNumbers == mUseLocalNumbers
+                && other.mAlternativePeriodKey == mAlternativePeriodKey
+                && other.mArrowRow == mArrowRow
                 && other.mLongPressKeySettings.equals(mLongPressKeySettings)
                 && other.mElement.equals(mElement);
     }

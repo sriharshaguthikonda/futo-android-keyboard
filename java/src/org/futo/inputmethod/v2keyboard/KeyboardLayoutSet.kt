@@ -54,7 +54,7 @@ fun Locale.getKeyboardScript(): Script =
 
 
 
-private fun EditorInfo.getPrivateImeOptions(): Map<String, String> {
+internal fun EditorInfo.getPrivateImeOptions(): Map<String, String> {
     val options = mutableMapOf<String, String>()
     val imeOptions = privateImeOptions ?: return options
 
@@ -83,7 +83,10 @@ data class KeyboardLayoutSetV2Params(
     val multilingualTypingLocales: List<Locale>? = null,
     val editorInfo: EditorInfo?,
     val numberRow: Boolean,
+    val numberRowMode: Int,
+    val useLocalNumbers: Boolean,
     val arrowRow: Boolean,
+    val alternativePeriodKey: Boolean,
     val gap: Float = 4.0f,
     val bottomActionKey: Int?,
     val longPressKeySettings: LongPressKeySettings? = null
@@ -198,14 +201,23 @@ Layout: $layoutName
     val phoneSymbolsLayout = safeGetLayout(mainLayout.layoutSetOverrides.phoneShifted, mainLayout.layoutSetOverrides.number)
     val numberBasicLayout = safeGetLayout("number_basic")
 
+    private fun getSubKeyboard(element: KeyboardLayoutElement): org.futo.inputmethod.v2keyboard.Keyboard? {
+        return mainLayout.subKeyboards[element.kind]?.let {
+            mainLayout.copy(
+                rows = it.rows,
+                attributes = it.attributes + mainLayout.attributes
+            )
+        }
+    }
+
     val elements = mapOf(
         KeyboardLayoutElement(
-            kind = KeyboardLayoutKind.Alphabet,
+            kind = KeyboardLayoutKind.Alphabet0,
             page = KeyboardLayoutPage.Base
         ) to mainLayout,
 
         KeyboardLayoutElement(
-            kind = KeyboardLayoutKind.Alphabet,
+            kind = KeyboardLayoutKind.Alphabet0,
             page = KeyboardLayoutPage.Shifted
         ) to mainLayout,
 
@@ -241,7 +253,7 @@ Layout: $layoutName
     )
 
     private fun getKeyboardLayoutForElement(element: KeyboardLayoutElement): org.futo.inputmethod.v2keyboard.Keyboard {
-        return elements[element.normalize()] ?: run {
+        return getSubKeyboard(element) ?: elements[element.normalize()] ?: run {
             // If this is an alt layout, try to get the matching alt
             element.page.altIdx?.let { altIdx ->
                 val baseElement = element.copy(page = KeyboardLayoutPage.Base)
@@ -294,7 +306,10 @@ Layout: $layoutName
             false,
             false,
             isNumberRowActive,
+            params.numberRowMode,
+            params.useLocalNumbers,
             params.arrowRow,
+            params.alternativePeriodKey,
             params.longPressKeySettings ?: LongPressKeySettings.load(context),
             element
         )

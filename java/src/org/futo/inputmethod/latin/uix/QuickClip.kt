@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,9 +22,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -32,8 +35,11 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import org.futo.inputmethod.accessibility.AccessibilityUtils
 import org.futo.inputmethod.latin.R
+import org.futo.inputmethod.latin.uix.actions.ClipboardQuickClipsEnabled
 import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.latin.uix.actions.AiReplyAction
 import org.futo.inputmethod.latin.uix.actions.AiReplyActionHolder
@@ -75,17 +81,22 @@ private val regexes = mapOf(
     QuickClipKind.FullString to """.+""".toRegex(setOf(RegexOption.DOT_MATCHES_ALL)),
 )
 
+private val sensitiveRegexes = mapOf(
+    QuickClipKind.FullString to """.+""".toRegex(setOf(RegexOption.DOT_MATCHES_ALL))
+)
+
 data class QuickClipItem(
     val kind: QuickClipKind,
     val text: String,
-    val occurrenceIndex: Int
+    val occurrenceIndex: Int,
 )
 
 data class QuickClipState(
     val texts: List<QuickClipItem>,
     val image: Uri?,
     val imageMimeTypes: List<String>,
-    val validUntil: Long
+    val validUntil: Long,
+    val isSensitive: Boolean
 )
 
 @Composable
@@ -125,6 +136,16 @@ fun RowScope.QuickClipView(state: QuickClipState, dismiss: () -> Unit) {
         null
     }
     val enableAi = useDataStoreValue(ENABLE_AI_REPLY)
+    val context = LocalContext.current
+
+    val shouldObscure = if(!LocalInspectionMode.current) remember(state.isSensitive) {
+        if(state.isSensitive) {
+            AccessibilityUtils.init(context)
+            AccessibilityUtils.getInstance().shouldObscureInput()
+        } else {
+            false
+        }
+    } else state.isSensitive
 
     LazyRow(Modifier.weight(1.0f)) {
         state.texts.firstOrNull()?.let { txt ->
@@ -165,7 +186,12 @@ fun RowScope.QuickClipView(state: QuickClipState, dismiss: () -> Unit) {
             item {
                 QuickClipPill(
                     icon = painterResource(it.kind.icon),
-                    contentDescription = stringResource(it.kind.accessibilityDescription, it.text),
+                    contentDescription = if(shouldObscure) {
+                        stringResource(it.kind.accessibilityDescription,
+                            stringResource(R.string.quick_clip_content_obscured))
+                    } else {
+                        stringResource(it.kind.accessibilityDescription, it.text)
+                    },
                     text = it.text.let { txt ->
                         when(it.kind) {
                             QuickClipKind.FullString -> if (txt.length > 12) txt.take(10) + "..." else txt
@@ -181,6 +207,12 @@ fun RowScope.QuickClipView(state: QuickClipState, dismiss: () -> Unit) {
                                     else
                                         it[0]
                                 }
+                        }
+                    }.let {
+                        if(state.isSensitive) {
+                            "•".repeat(it.length)
+                        } else {
+                            it
                         }
                     },
                     uri = null
@@ -203,12 +235,32 @@ object QuickClip {
         timeOfDismissal = System.currentTimeMillis()
     }
 
-    private fun getStateForItem(validUntil: Long, mimeTypes: List<String>, item: ClipData.Item): QuickClipState? {
+    private fun getStateForItem(validUntil: Long, mimeTypes: List<String>, item: ClipData.Item, isSensitive: Boolean): QuickClipState? {
         val texts = mutableListOf<QuickClipItem>()
         val currTexts = mutableSetOf<String>()
 
+        val regexesToUse = if(isSensitive) {
+            sensitiveRegexes
+        } else {
+            regexes
+        }
+
+        val text = item.text
+        if(text != null && text.length > 32_000) {
+            if(text.length > 500_000) return null
+
+            // Skip any processing for huge strings
+            return QuickClipState(
+                texts = listOf(QuickClipItem(QuickClipKind.FullString, text.toString(), 0)),
+                image = item.uri,
+                imageMimeTypes = mimeTypes,
+                validUntil = validUntil,
+                isSensitive = isSensitive
+            )
+        }
+
         item.text?.toString()?.let { text ->
-            regexes.forEach { entry ->
+            regexesToUse.forEach { entry ->
                 entry.value.findAll(text).forEach {
                     if(!currTexts.contains(it.value)) {
                         texts.add(
@@ -230,7 +282,8 @@ object QuickClip {
             },
             image = item.uri,
             imageMimeTypes = mimeTypes,
-            validUntil = validUntil
+            validUntil = validUntil,
+            isSensitive = isSensitive
         )
     }
 
@@ -241,15 +294,18 @@ object QuickClip {
     private var cachedPreviousState: QuickClipState? = null
     fun getCurrentState(context: Context): QuickClipState? {
         if(Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+        if(context.getSetting(ClipboardQuickClipsEnabled) == false) return null
+
         val clipboardManager =
             context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
         val clip = try {
             clipboardManager.primaryClip
-        } catch (e: SecurityException) {
+        } catch(_: Exception) {
             // Access to clipboard may be restricted in incognito contexts
-            return null
-        } ?: return null
+            null
+        }
+        if(clip == null) return null
 
         val firstItem = try {
             clip.getItemAt(0)
@@ -273,14 +329,37 @@ object QuickClip {
         val minimumTimeForQuickClip = System.currentTimeMillis() - (60L * 1000L)
         if(timestamp < minimumTimeForQuickClip || timestamp < timeOfDismissal) return null
 
+        val isSensitive = clip?.description?.extras?.getBoolean(
+            ClipDescription.EXTRA_IS_SENSITIVE, false
+        ) == true
+
         return getStateForItem(
             // Valid for one minute
             validUntil = System.currentTimeMillis() + (60L * 1000L),
             item = firstItem,
-            mimeTypes = description.mimeTypes
+            mimeTypes = description.mimeTypes,
+            isSensitive = isSensitive
         ).also {
             cachedPreviousItem = firstItem
             cachedPreviousState = it
         }
+    }
+}
+
+@Preview
+@Composable
+private fun PreviewQuickClips() {
+    Row(Modifier.height(ActionBarHeight)) {
+        QuickClipView(QuickClipState(
+            texts = listOf(QuickClipItem(
+                kind = QuickClipKind.FullString,
+                text = "Some text goes here!",
+                occurrenceIndex = 0
+            )),
+            image = null,
+            imageMimeTypes = emptyList(),
+            validUntil = 0L,
+            isSensitive = false
+        )) { }
     }
 }

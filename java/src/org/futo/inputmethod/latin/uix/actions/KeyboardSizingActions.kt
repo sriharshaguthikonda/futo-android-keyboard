@@ -104,6 +104,7 @@ val KeyboardModeAction = Action(
 
             @Composable
             override fun WindowContents(keyboardShown: Boolean) {
+                val currMode = sizeCalculator.getSavedSettings().currentMode
                 Column {
                     Row(Modifier.height(ActionBarHeight)) {
                         // Hide the back button in the resize tutorial

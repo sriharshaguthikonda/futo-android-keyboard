@@ -97,12 +97,15 @@ fun KeyboardLayoutPreview(id: String, width: Dp = 172.dp, locale: Locale? = null
                     editorInfo = editorInfo,
                     numberRow = false,
                     arrowRow = false,
-                    bottomActionKey = null
+                    alternativePeriodKey = false,
+                    bottomActionKey = null,
+                    useLocalNumbers = true,
+                    numberRowMode = 0
                 )
             )
 
             keyboard.value = layoutSet.getKeyboard(KeyboardLayoutElement(
-                kind = KeyboardLayoutKind.Alphabet,
+                kind = KeyboardLayoutKind.Alphabet0,
                 page = KeyboardLayoutPage.Base
             ))
         }

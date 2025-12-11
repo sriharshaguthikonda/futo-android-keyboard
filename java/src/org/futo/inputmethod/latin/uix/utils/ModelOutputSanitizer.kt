@@ -39,9 +39,7 @@ object ModelOutputSanitizer {
         }
 
         var trimmed = result.trim()
-        if (trimmed.isEmpty()) {
-            return ""
-        }
+        if (trimmed.isEmpty()) return ""
 
         val before = (textContext.beforeCursor?.toString() ?: "")
             .split("\n")
@@ -55,10 +53,14 @@ object ModelOutputSanitizer {
             trimmed = trimmed.dropLast(3)
         }
 
+        if (trimmed.isEmpty()) return ""
+
         // Punctuation
         if (trimmed.last().isPunctuation() && !after.isEmpty()) {
             trimmed = trimmed.dropLast(1)
         }
+
+        if (trimmed.isEmpty()) return ""
 
         // Capitalization - whisper always capitalizes first character
         val beforeTrimmed = before.trimEnd()
@@ -74,12 +76,16 @@ object ModelOutputSanitizer {
         // Leading and trailing spaces
         val needsLeadingSpace = before.isNotEmpty() && !before.endsWithWhitespaceOrNewline() &&
                 !before.last().isOpeningBracket() &&
-                before.last() != '—'
+                before.last() != '—' &&
+                before.last() != '"' &&
+                before.last() != '*'
         val needsTrailingSpace = after.isNotEmpty() &&
                 !after.startsWithWhitespaceOrNewline() &&
                 !after.first().isPunctuation() &&
                 !after.first().isClosingBracket() &&
-                after.first() != '—'
+                after.first() != '—' &&
+                after.first() != '"' &&
+                after.first() != '*'
 
         val prefix = if (needsLeadingSpace) " " else ""
         val suffix = if (needsTrailingSpace) " " else ""

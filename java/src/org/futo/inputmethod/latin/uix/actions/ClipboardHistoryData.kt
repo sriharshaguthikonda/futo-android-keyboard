@@ -34,6 +34,21 @@ val ClipboardHistorySaveSensitive = SettingsKey(
     false
 )
 
+val ClipboardShowPinnedOnTop = SettingsKey(
+    booleanPreferencesKey("clipboard_history_show_pinned_on_top"),
+    false
+)
+
+val ClipboardSingleColumn = SettingsKey(
+    booleanPreferencesKey("clipboard_history_single_column"),
+    false
+)
+
+val ClipboardQuickClipsEnabled = SettingsKey(
+    booleanPreferencesKey("clipboard_quick_clips_enabled"),
+    true
+)
+
 object UriSerializer : KSerializer<Uri> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Uri", PrimitiveKind.STRING)
 

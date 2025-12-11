@@ -40,6 +40,7 @@ import org.futo.inputmethod.latin.ActiveSubtype
 import org.futo.inputmethod.latin.Subtypes
 import org.futo.inputmethod.latin.SubtypesSetting
 import org.futo.inputmethod.latin.uix.theme.presets.ClassicMaterialDark
+import org.futo.inputmethod.v2keyboard.LayoutManager
 import java.io.File
 
 // Used before first unlock (direct boot)
@@ -104,6 +105,8 @@ fun Context.getBackupPreferencesDataStoreFileSwap(): File =
 
 fun writeDatastoreBackup(context: Context, unlockedStore: DataStore<Preferences>) {
     val outFile = context.getBackupPreferencesDataStoreFileSwap()
+
+    @OptIn(DelicateCoroutinesApi::class)
     GlobalScope.launch {
         val prefs = unlockedStore.data.take(1).first()
         outFile.parentFile?.mkdirs()
@@ -140,19 +143,37 @@ suspend fun retrieveDatastoreBackup(context: Context, file: File = context.getBa
     return prefs
 }
 
-@OptIn(DelicateCoroutinesApi::class)
+private fun<T> Mutex.withTryLock(block: () -> T): T? {
+    return if (tryLock()) {
+        try {
+            block()
+        } finally {
+            unlock()
+        }
+    } else {
+        null
+    }
+}
+
 fun forceUnlockDatastore(context: Context): DataStore<Preferences>? {
     val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
-    return if (userManager.isUserUnlocked && dataStoreCreationMutex.tryLock()) {
-        try {
-            // The device has been unlocked
+    if(!userManager.isUserUnlocked) return null // still in direct boot
+
+    return unlockedDataStore ?: dataStoreCreationMutex.withTryLock {
+        unlockedDataStore ?: run {
             val newDataStore = PreferenceDataStoreFactory.create(
                 corruptionHandler = ReplaceFileCorruptionHandler {
-                    Log.e("SettingsBackup", "The settings file is corrupted! Attempting to restore...")
+                    Log.e(
+                        "SettingsBackup",
+                        "The settings file is corrupted! Attempting to restore..."
+                    )
                     runBlocking {
                         retrieveDatastoreBackup(context)
                     } ?: run {
-                        Log.e("SettingsBackup", "File is corrupted, and could not restore backup. Resetting to default")
+                        Log.e(
+                            "SettingsBackup",
+                            "File is corrupted, and could not restore backup. Resetting to default"
+                        )
                         preferencesOf()
                     }
                 },
@@ -166,6 +187,7 @@ fun forceUnlockDatastore(context: Context): DataStore<Preferences>? {
             unlockedDataStore = newDataStore
 
             // Send new values to the DefaultDataStore for any listeners
+            @OptIn(DelicateCoroutinesApi::class)
             GlobalScope.launch {
                 newDataStore.data.collect { value ->
                     DefaultDataStore.sharedData.emit(value)
@@ -173,19 +195,17 @@ fun forceUnlockDatastore(context: Context): DataStore<Preferences>? {
             }
 
             newDataStore
-        } finally {
-            dataStoreCreationMutex.unlock()
         }
-    } else {
-        null
     }
 }
 
-@OptIn(DelicateCoroutinesApi::class)
 private fun lockedDatastoreWithSubtypes(context: Context): DataStore<Preferences> {
     if (!DefaultDataStore.subtypesInitialized) {
         DefaultDataStore.subtypesInitialized = true
 
+        LayoutManager.init(context)
+
+        @OptIn(DelicateCoroutinesApi::class)
         GlobalScope.launch {
             DefaultDataStore.updateSubtypes(Subtypes.getDirectBootInitialLayouts(context))
         }
@@ -326,7 +346,7 @@ data class SettingsKey<T>(
     val default: T
 )
 
- fun <T> Context.getSetting(key: SettingsKey<T>): T {
+fun <T> Context.getSetting(key: SettingsKey<T>): T {
     return getSetting(key.key, key.default)
 }
 
@@ -573,7 +593,7 @@ val USE_SYSTEM_VOICE_INPUT = SettingsKey(
 )
 
 val USE_TRANSFORMER_FINETUNING = SettingsKey(
-    key = booleanPreferencesKey("useTransformerFinetuning"),
+    key = booleanPreferencesKey("useTransformerFinetuning2"),
     default = false
 )
 

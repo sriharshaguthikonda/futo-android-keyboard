@@ -2,7 +2,9 @@ package org.futo.inputmethod.v2keyboard
 import android.content.Context
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import org.futo.inputmethod.keyboard.internal.KeyboardLayoutKind
 import org.futo.inputmethod.keyboard.internal.KeyboardParams
+import org.futo.inputmethod.latin.settings.Settings
 
 object RowKeyListSerializer : SpacedListSerializer<Key>(KeyPathSerializer)
 
@@ -114,6 +116,20 @@ val DefaultNumberRow = Row(
     }
 )
 
+val DefaultNumberRowClassic = Row(
+    numbers = "1234567890".mapIndexed { i, c ->
+        CaseSelector(
+            normal = BaseKey(c.toString()),
+            shiftedManually = BaseKey("!@#$%^&*()"[i].toString()),
+            shiftLocked = BaseKey(c.toString())
+        )
+    },
+    rowHeight = 1.0,
+    attributes = KeyAttributes(
+        width = KeyWidth.Grow
+    )
+)
+
 val DefaultBottomRow = Row(
     bottom = listOf(
         TemplateSymbolsKey,
@@ -121,7 +137,7 @@ val DefaultBottomRow = Row(
         TemplateActionKey,
         TemplateSpaceKey,
         TemplateOptionalZWNJKey,
-        BaseKey("."),
+        TemplatePeriodKey,
         TemplateEnterKey
     )
 )
@@ -168,6 +184,12 @@ data class LayoutSetOverrides(
     val number: String = "number",
     val phone: String = "phone",
     val phoneShifted: String = "phone_shift"
+)
+
+@Serializable
+data class SubKeyboard(
+    val rows: List<Row>,
+    val attributes: KeyAttributes = KeyAttributes()
 )
 
 /**
@@ -268,7 +290,10 @@ data class Keyboard(
      * Whether or not automatic shifting should apply for this keyboard, when input starts or a
      * sentence is finished.
      */
-    val autoShift: Boolean = true
+    val autoShift: Boolean = true,
+
+    val subKeyboards: Map<KeyboardLayoutKind, SubKeyboard> = emptyMap(),
+    val imeHint: String? = null
 
 
     //val element: KeyboardElement = KeyboardElement.Alphabet,
@@ -286,9 +311,12 @@ data class Keyboard(
         assert(rows.count { it.isLetterRow } in 1..8) { "Keyboard must contain between 1 and 8 letter rows" }
     }
 
-    val effectiveRows = rows.toMutableList().apply {
+    fun getEffectiveRows(numberRowMode: Int) = rows.toMutableList().apply {
         if(find { it.isNumberRow } == null) {
-            add(0, DefaultNumberRow)
+            add(0, when(numberRowMode) {
+                Settings.NUMBER_ROW_MODE_CLASSIC -> DefaultNumberRowClassic
+                else -> DefaultNumberRow
+            })
         }
 
         if(find { it.isBottomRow } == null) {

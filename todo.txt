@@ -1,0 +1,58 @@
+feature: sort clipboard search focus issue - need to track when search box gains/loses focus and update sorting accordingly
+[DONE] - Fixed in ActionTextEdit.kt using LaunchedEffect for reliable focus
+
+feature: Voice Input Bottom Bar Mode (like Gboard)
+[IN PROGRESS] - Implementation complete, needs testing
+- Added VOICE_INPUT_BOTTOM_BAR_MODE setting in VoiceInputSettingKeys.kt
+- Added UI toggle in VoiceInput.kt settings page
+- Added strings in strings-uix.xml
+- Created VoiceInputBottomBarWindow class in VoiceInputAction.kt
+- Features:
+  - Minimal floating pill bar at bottom (72dp height)
+  - Keyboard is HIDDEN, bar REPLACES keyboard (onlyShowAboveKeyboard = false)
+  - fixedWindowHeight = 72.dp to keep it compact
+  - Mic button with pulse animation when listening
+  - Status text showing "Listening…" or partial transcription
+  - Close button to exit voice mode
+
+
+
+First combine out branch with the actual futo keyboard by futo!!
+[DONE] - Fixed 
+
+
+
+
+feature: the keyboard app if it is not set default ask if we want to set it as default input everytime we open the app!
+then git add commit and push with appropriate message
+[DONE] - Fixed 
+
+
+
+bug: the voice recognition button in floating bar mode does not activate voice recognition
+then git add commit and push with appropriate message
+[DONE] - Fixed
+
+
+feature: the voice recognition button in floating bar mode also stops voice recognition
+then git add commit and push with appropriate message
+[DONE] - Fixed
+
+
+
+feature: should be able to add more system pormpts for ai reply settings. we should be able to select different system prompts for ai reply from inside the keyboard without  going to keyboard app
+then git add commit and push with appropriate message
+
+
+
+
+
+
+
+bug: select all copy paste from the keyboard long press of a, c and v etc are not working see if it might also happen to other secondary functions as well, see and fix.
+then git add commit and push with appropriate message
+
+
+
+feature: theme colour selection is still basic!
+then git add commit and push with appropriate message

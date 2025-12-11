@@ -79,9 +79,8 @@ val GROQ_VOICE_MODEL = SettingsKey(
     key = stringPreferencesKey("groq_voice_model"),
     default = "whisper-large-v3"
 )
+
 val USE_GPU_OFFLOAD = SettingsKey(
-
-
     key = booleanPreferencesKey("use_gpu_offload"),
     default = false
 )
@@ -89,4 +88,14 @@ val USE_GPU_OFFLOAD = SettingsKey(
 val START_VOICE_ON_OPEN = SettingsKey(
     key = booleanPreferencesKey("start_voice_on_open"),
     default = false
+)
+
+val VOICE_INPUT_BOTTOM_BAR_MODE = SettingsKey(
+    key = booleanPreferencesKey("voice_input_bottom_bar_mode"),
+    default = true
+)
+
+val USE_PERSONAL_DICT = SettingsKey(
+    key = booleanPreferencesKey("use_personal_dict_voice_input"),
+    default = true
 )

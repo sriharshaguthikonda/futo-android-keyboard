@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -16,13 +15,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.futo.inputmethod.engine.general.UseExpandableSuggestionsForGeneralIME
 import org.futo.inputmethod.latin.BuildConfig
+import org.futo.inputmethod.latin.CrashLoggingApplication
 import org.futo.inputmethod.latin.R
+import org.futo.inputmethod.latin.TextInputAlternativeIC
+import org.futo.inputmethod.latin.TextInputAlternativeICComposing
+import org.futo.inputmethod.latin.TextInputBufferedIC
+import org.futo.inputmethod.latin.VoiceInputAlternativeIC
+import org.futo.inputmethod.latin.VoiceInputAlternativeICComposing
 import org.futo.inputmethod.latin.uix.AndroidTextInput
 import org.futo.inputmethod.latin.uix.DebugOnly
 import org.futo.inputmethod.latin.uix.HiddenKeysSetting
 import org.futo.inputmethod.latin.uix.OldStyleActionsBar
-import org.futo.inputmethod.latin.uix.SettingsExporter
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.UixManagerInstanceForDebug
 import org.futo.inputmethod.latin.uix.actions.clipboardFile
@@ -35,15 +40,13 @@ import org.futo.inputmethod.latin.uix.settings.SettingTextField
 import org.futo.inputmethod.latin.uix.settings.SettingToggleDataStore
 import org.futo.inputmethod.latin.uix.settings.SettingToggleRaw
 import org.futo.inputmethod.latin.uix.settings.useDataStore
+import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.updates.DISABLE_UPDATE_REMINDER
 import org.futo.inputmethod.updates.dismissedMigrateUpdateNotice
-import java.io.File
 import kotlin.system.exitProcess
 
 
 val IS_DEVELOPER = SettingsKey(booleanPreferencesKey("isDeveloperMode"), false)
-
-val TMP_PAYMENT_URL = SettingsKey(stringPreferencesKey("temporaryPaymentUrl"), BuildConfig.PAYMENT_URL)
 
 @OptIn(DebugOnly::class)
 @Composable
@@ -69,8 +72,10 @@ fun DeveloperScreen(navController: NavHostController = rememberNavController()) 
 
         SettingToggleDataStore(title = "Developer mode", setting = IS_DEVELOPER)
 
-        SettingToggleDataStore(title = "Disable all update reminders", setting = DISABLE_UPDATE_REMINDER)
+        CrashLoggingApplication.CopyLogsOption()
 
+        SettingToggleDataStore(title = "Disable all update reminders", setting = DISABLE_UPDATE_REMINDER)
+        
         SettingToggleDataStore(
             title = "Touch typing mode",
             subtitle = "Hides all keys. Touch typists only! Recommended to disable emoji key and enable key borders",
@@ -95,6 +100,40 @@ fun DeveloperScreen(navController: NavHostController = rememberNavController()) 
             title = "Custom layouts",
             style = NavigationItemStyle.Misc,
             navigate = { navController.navigate("devlayouteditor") }
+        )
+
+        ScreenTitle("Text input debug")
+        SettingToggleDataStore(
+            title = "Text input alt. composition",
+            setting = TextInputAlternativeIC
+        )
+        SettingToggleDataStore(
+            title = "Use buffering",
+            setting = TextInputBufferedIC,
+            disabled = useDataStoreValue(TextInputAlternativeIC) == false
+        )
+        SettingToggleDataStore(
+            title = "Use setComposingRegion",
+            setting = TextInputAlternativeICComposing,
+            disabled = useDataStoreValue(TextInputAlternativeIC) == false
+        )
+
+        NavigationItem(
+            title = "Buggy text edit variations",
+            style = NavigationItemStyle.Misc,
+            navigate = { navController.navigate("devbuggytextedit") }
+        )
+
+        ScreenTitle("Voice input debug")
+        SettingToggleDataStore(
+            title = "Voice input alt. composition",
+            setting = VoiceInputAlternativeIC
+        )
+
+        SettingToggleDataStore(
+            title = "Use setComposingRegion",
+            setting = VoiceInputAlternativeICComposing,
+            disabled = useDataStoreValue(VoiceInputAlternativeIC) == false
         )
 
         ScreenTitle(title = "Payment stuff")
@@ -140,10 +179,12 @@ fun DeveloperScreen(navController: NavHostController = rememberNavController()) 
             { }
         )
 
-        SettingTextField("Payment URL", "https://example.com", TMP_PAYMENT_URL)
-
-
         ScreenTitle(title = "Here be dragons")
+        SettingToggleDataStore(
+            "Use expandable suggestions UI for all languages",
+            UseExpandableSuggestionsForGeneralIME,
+        )
+
         NavigationItem(
             title = "Crash the app",
             style = NavigationItemStyle.MiscNoArrow,

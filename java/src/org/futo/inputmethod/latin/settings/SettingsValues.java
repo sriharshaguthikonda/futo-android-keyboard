@@ -93,7 +93,9 @@ public class SettingsValues {
     public final boolean mShouldShowLxxSuggestionUi;
     public final boolean mIsNumberRowEnabled;
     public final boolean mIsNumberRowEnabledByUser;
+    public final boolean mUseLocalNumbers;
     public final boolean mIsArrowRowEnabled;
+    public final boolean mIsUsingAlternativePeriodKey;
     public final boolean mUseDictionaryKeyBoosting;
     public final int mScreenMetrics;
 
@@ -101,7 +103,7 @@ public class SettingsValues {
     public final boolean mBackspaceUndoesAutocorrect;
     public final int mSpacebarMode;
     public final int mBackspaceMode;
-
+    public final int mNumberRowMode;
     public final int mAltSpacesMode;
 
     // From the input box
@@ -116,6 +118,7 @@ public class SettingsValues {
     public final float mAutoCorrectionThreshold;
     public final float mPlausibilityThreshold;
     public final boolean mAutoCorrectionEnabledPerUserSettings;
+    public final boolean mAutoCorrectionEnabledPerTextFieldSettings;
     private final boolean mSuggestionsEnabledPerUserSettings;
     private final AsyncResultHolder<AppWorkaroundsUtils> mAppWorkarounds;
 
@@ -135,7 +138,11 @@ public class SettingsValues {
 
     public SettingsValues(final Context context, final SharedPreferences prefs, final Resources res,
             @Nonnull final InputAttributes inputAttributes) {
-        mLocale = res.getConfiguration().locale;
+        if(inputAttributes.mLocaleOverride != null) {
+            mLocale = inputAttributes.mLocaleOverride;
+        } else {
+            mLocale = res.getConfiguration().locale;
+        }
         mIsRTL = TextUtils.getLayoutDirectionFromLocale(mLocale) == View.LAYOUT_DIRECTION_RTL;
         // Get the resources
         mSpacingAndPunctuations = new SpacingAndPunctuations(res);
@@ -164,7 +171,9 @@ public class SettingsValues {
         mIsNumberRowEnabled = mIsNumberRowEnabledByUser
                 || (inputAttributes.mIsPasswordField && !inputAttributes.mIsNumericalPasswordField)
                 || inputAttributes.mIsEmailField;
+        mUseLocalNumbers = !prefs.getBoolean(Settings.PREF_USE_WESTERN_NUMERALS, false);
         mIsArrowRowEnabled = prefs.getBoolean(Settings.PREF_ENABLE_ARROW_ROW, false);
+        mIsUsingAlternativePeriodKey = prefs.getBoolean(Settings.PREF_ENABLE_ALT_PERIOD_KEY, false);
         mUseDictionaryKeyBoosting = prefs.getBoolean(Settings.PREF_USE_DICT_KEY_BOOSTING, true);
         mUseContactsDict = prefs.getBoolean(Settings.PREF_KEY_USE_CONTACTS_DICT, true);
         mUsePersonalizedDicts = prefs.getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true);
@@ -187,7 +196,9 @@ public class SettingsValues {
 
         mSpacebarMode = prefs.getInt(Settings.PREF_SPACEBAR_MODE, Settings.SPACEBAR_MODE_SWIPE_CURSOR);
         mBackspaceMode = prefs.getInt(Settings.PREF_BACKSPACE_MODE, Settings.BACKSPACE_MODE_CHARACTERS);
-
+        mNumberRowMode = mIsNumberRowEnabledByUser ?
+                prefs.getInt(Settings.PREF_NUMBER_ROW_MODE, Settings.NUMBER_ROW_MODE_DEFAULT)
+                : Settings.NUMBER_ROW_MODE_DEFAULT;
         mAltSpacesMode = prefs.getInt(Settings.PREF_ALT_SPACES_MODE, Settings.DEFAULT_ALT_SPACES_MODE);
 
         mShouldShowLxxSuggestionUi = Settings.SHOULD_SHOW_LXX_SUGGESTION_UI
@@ -213,6 +224,7 @@ public class SettingsValues {
                 && prefs.getBoolean(Settings.PREF_GESTURE_FLOATING_PREVIEW_TEXT, true);
         mAutoCorrectionEnabledPerUserSettings = mAutoCorrectEnabled
                 && !mInputAttributes.mInputTypeNoAutoCorrect;
+        mAutoCorrectionEnabledPerTextFieldSettings = !mInputAttributes.mInputTypeNoAutoCorrect;
         mSuggestionsEnabledPerUserSettings = readSuggestionsEnabled(prefs);
         mIsInternal = Settings.isInternal(prefs);
         mHasCustomKeyPreviewAnimationParams = prefs.getBoolean(
@@ -283,8 +295,11 @@ public class SettingsValues {
     }
 
     public boolean isWordCodePoint(final int code) {
+        int type = Character.getType(code);
         return Character.isLetter(code) || isWordConnector(code)
-                || Character.COMBINING_SPACING_MARK == Character.getType(code)
+                || Character.NON_SPACING_MARK == type
+                || Character.ENCLOSING_MARK == type
+                || Character.COMBINING_SPACING_MARK == type
                 // A digit can be a word codepoint because the user may have mistapped a number
                 // instead of a letter, in which case the digit should be considered part of a word.
                 || (Character.isDigit(code) && mIsNumberRowEnabled);
@@ -483,6 +498,61 @@ public class SettingsValues {
         sb.append("" + mKeyPreviewDismissEndXScale);
         sb.append("\n   mKeyPreviewDismissEndScaleY = ");
         sb.append("" + mKeyPreviewDismissEndYScale);
+
+        sb.append("\n   mDoubleSpacePeriodTimeout = ");
+        sb.append("" + mDoubleSpacePeriodTimeout);
+        sb.append("\n   mHasHardwareKeyboard = ");
+        sb.append("" + mHasHardwareKeyboard);
+        sb.append("\n   mIsRTL = ");
+        sb.append("" + mIsRTL);
+        sb.append("\n   mEnableEmojiAltPhysicalKey = ");
+        sb.append("" + mEnableEmojiAltPhysicalKey);
+        sb.append("\n   mShowAppIcon = ");
+        sb.append("" + mShowAppIcon);
+        sb.append("\n   mIsShowAppIconSettingInPreferences = ");
+        sb.append("" + mIsShowAppIconSettingInPreferences);
+        sb.append("\n   mCloudSyncEnabled = ");
+        sb.append("" + mCloudSyncEnabled);
+        sb.append("\n   mEnableMetricsLogging = ");
+        sb.append("" + mEnableMetricsLogging);
+        sb.append("\n   mShouldShowLxxSuggestionUi = ");
+        sb.append("" + mShouldShowLxxSuggestionUi);
+        sb.append("\n   mIsNumberRowEnabled = ");
+        sb.append("" + mIsNumberRowEnabled);
+        sb.append("\n   mIsNumberRowEnabledByUser = ");
+        sb.append("" + mIsNumberRowEnabledByUser);
+        sb.append("\n   mUseLocalNumbers = ");
+        sb.append("" + mUseLocalNumbers);
+        sb.append("\n   mIsArrowRowEnabled = ");
+        sb.append("" + mIsArrowRowEnabled);
+        sb.append("\n   mIsUsingAlternativePeriodKey = ");
+        sb.append("" + mIsUsingAlternativePeriodKey);
+        sb.append("\n   mUseDictionaryKeyBoosting = ");
+        sb.append("" + mUseDictionaryKeyBoosting);
+        sb.append("\n   mScreenMetrics = ");
+        sb.append("" + mScreenMetrics);
+        sb.append("\n   mBackspaceDeletesInsertedText = ");
+        sb.append("" + mBackspaceDeletesInsertedText);
+        sb.append("\n   mBackspaceUndoesAutocorrect = ");
+        sb.append("" + mBackspaceUndoesAutocorrect);
+        sb.append("\n   mSpacebarMode = ");
+        sb.append("" + mSpacebarMode);
+        sb.append("\n   mBackspaceMode = ");
+        sb.append("" + mBackspaceMode);
+        sb.append("\n   mNumberRowMode = ");
+        sb.append("" + mNumberRowMode);
+        sb.append("\n   mAltSpacesMode = ");
+        sb.append("" + mAltSpacesMode);
+        sb.append("\n   mPlausibilityThreshold = ");
+        sb.append("" + mPlausibilityThreshold);
+        sb.append("\n   mAutoCorrectionEnabledPerTextFieldSettings = ");
+        sb.append("" + mAutoCorrectionEnabledPerTextFieldSettings);
+        sb.append("\n   mHasCustomKeyPreviewAnimationParams = ");
+        sb.append("" + mHasCustomKeyPreviewAnimationParams);
+        sb.append("\n   mHasKeyboardResize = ");
+        sb.append("" + mHasKeyboardResize);
+        sb.append("\n   mKeyboardHeightScale = ");
+        sb.append("" + mKeyboardHeightScale);
         return sb.toString();
     }
 }

@@ -52,11 +52,15 @@
 -keep class org.futo.inputmethod.latin.makedict.ProbabilityInfo
 -keep class org.futo.inputmethod.keyboard.KeyboardLayout { *; }
 
--keep class org.tensorflow.lite.Interpreter** { *; }
--keep class org.futo.pocketfft.** { *; }
-
 -dontobfuscate
 -optimizations !code/allocation/variable
 
 # JSR 305 annotations are for embedding nullability information.
 -dontwarn javax.annotation.**
+
+# Keep mozc protobuf
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
+    <fields>;
+    <methods>;
+}
+-keep class org.mozc.android.inputmethod.japanese.protobuf.** { *; }

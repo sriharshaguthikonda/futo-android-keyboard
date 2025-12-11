@@ -58,6 +58,7 @@ interface KeyboardManagerForAction {
     fun createInputTransaction(): ActionInputTransaction
 
     fun typeText(v: String)
+    fun typeTextSurroundedByWhitespace(v: String)
     fun typeUri(uri: Uri, mimeTypes: List<String>, ignoreConnectionOverride: Boolean = false): Boolean
     fun appSupportsImageInsertion(schema: String, ignoreConnectionOverride: Boolean): Boolean
     fun backspace(amount: Int)
@@ -91,7 +92,6 @@ interface KeyboardManagerForAction {
     fun activateAction(action: Action)
     fun showActionEditor()
 
-    fun getSuggestionBlacklist(): SuggestionBlacklist
     fun getLatinIMEForDebug(): LatinIME
     fun isDeviceLocked(): Boolean
 
@@ -111,6 +111,9 @@ interface KeyboardManagerForAction {
     fun isClipboardSearchFocusedState(): androidx.compose.runtime.State<Boolean>
     fun getRequestSearchFocusState(): androidx.compose.runtime.State<Boolean>
     fun acknowledgeSearchFocusRequest()
+
+    fun copyToClipboard(cut: Boolean = false)
+    fun pasteFromClipboard()
 }
 
 enum class CloseResult {

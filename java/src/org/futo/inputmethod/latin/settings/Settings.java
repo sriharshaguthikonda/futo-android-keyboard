@@ -33,7 +33,6 @@ import org.futo.inputmethod.latin.uix.PreferenceUtils;
 import org.futo.inputmethod.latin.utils.AdditionalSubtypeUtils;
 import org.futo.inputmethod.latin.utils.ResourceUtils;
 import org.futo.inputmethod.latin.utils.RunInLocale;
-import org.futo.inputmethod.latin.utils.StatsUtils;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -108,6 +107,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
 
     public static final String PREF_ENABLE_NUMBER_ROW = "pref_enable_number_row";
     public static final String PREF_ENABLE_ARROW_ROW = "pref_enable_arrow_row";
+    public static final String PREF_ENABLE_ALT_PERIOD_KEY = "pref_enable_alt_period_key";
     public static final String PREF_USE_DICT_KEY_BOOSTING = "pref_use_dict_key_boosting";
 
     private static final String PREF_LAST_USED_PERSONALIZATION_TOKEN =
@@ -132,9 +132,16 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final int BACKSPACE_MODE_WORDS = 1; // Long-press backspace and swipe backspace removes entire words
 
     public static final String PREF_ALT_SPACES_MODE = "pref_alt_spaces";
+    public static final int SPACES_MODE_NONE = -1; // No phantom spaces, no antiphantom
     public static final int SPACES_MODE_LEGACY = 0; // Only use phantom spaces
     public static final int SPACES_MODE_SUGGESTIONS = 1; // Use antiphantom for suggestion, none for punctuation
     public static final int SPACES_MODE_ALL = 2; // Use antiphantom for all
+
+    public static final String PREF_NUMBER_ROW_MODE = "pref_number_row_mode";
+    public static final int NUMBER_ROW_MODE_DEFAULT = 0;
+    public static final int NUMBER_ROW_MODE_CLASSIC = 1;
+
+    public static final String PREF_USE_WESTERN_NUMERALS = "pref_use_western_numerals";
 
     public static final int DEFAULT_ALT_SPACES_MODE = SPACES_MODE_ALL;
 
@@ -199,7 +206,6 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
                 return;
             }
             loadSettings(mContext, mSettingsValues.mLocale, mSettingsValues.mInputAttributes);
-            StatsUtils.onLoadSettings(mSettingsValues);
         } finally {
             mSettingsValuesLock.unlock();
         }
