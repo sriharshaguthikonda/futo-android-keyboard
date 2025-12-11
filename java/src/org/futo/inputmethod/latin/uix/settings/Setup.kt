@@ -138,6 +138,46 @@ fun SetupEnableIME(onFinished: () -> Unit = { }) {
 }
 
 @Composable
+fun DefaultImeReminder(doublePackage: Boolean) {
+    val context = LocalContext.current
+
+    val launchImeOptions = {
+        val inputMethodManager =
+            context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+
+        inputMethodManager.showInputMethodPicker()
+
+        (context as SettingsActivity).updateSystemState()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (doublePackage) {
+            Tip(stringResource(R.string.setup_warning_multiple_versions))
+        }
+
+        Text(
+            stringResource(R.string.setup_active_input_method),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Button(
+            onClick = launchImeOptions,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 0.dp)
+        ) {
+            Text(stringResource(R.string.setup_switch_input_methods))
+        }
+    }
+}
+
+@Composable
 fun SetupNavigation(
     imeEnabled: Boolean,
     imeSelected: Boolean,
@@ -183,7 +223,14 @@ fun SetupNavigation(
             3 -> SetupRestoreBackup { currentStep = 4 }
             4 -> SetupRequestPermissions { currentStep = 5 }
             5 -> SetupFinish { currentStep = 6 }
-            else -> main()
+            else -> {
+                Column {
+                    if (!imeSelected) {
+                        DefaultImeReminder(doublePackage)
+                    }
+                    main()
+                }
+            }
         }
     }
 }
