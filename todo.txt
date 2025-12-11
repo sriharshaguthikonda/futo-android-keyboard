@@ -75,7 +75,7 @@ then git add commit and push with appropriate message
 
 bug: clipboard should show recent screenshot as well
 then git add commit and push with appropriate message
-
+[DONE] - Fixed partially
 
 
 

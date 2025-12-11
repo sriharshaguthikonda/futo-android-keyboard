@@ -132,6 +132,9 @@ class ActionEditText(
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
         if(inspection) return null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+            outAttrs.contentMimeTypes = arrayOf("image/*")
+        }
         inputConnection = super.onCreateInputConnection(outAttrs)?.let {
             ActionEditTextInputConnection(it, this)
         }
@@ -180,8 +183,8 @@ private fun GenericEditTextCompose(
 ) {
     val context = LocalContext.current
 
-    val height = with(LocalDensity.current) {
-        48.dp.toPx()
+    val heightPx = with(LocalDensity.current) {
+        48.dp.toPx().toInt()
     }
 
     val inputType = if(multiline) {
@@ -228,7 +231,11 @@ private fun GenericEditTextCompose(
                 if(forceQwerty) append("org.futo.inputmethod.latin.ForceLayout=qwerty,org.futo.inputmethod.latin.ForceLocale=zz,")
             }.toString()
 
-            setHeight(height.toInt())
+            if (multiline) {
+                minHeight = heightPx
+            } else {
+                setHeight(heightPx)
+            }
 
             onCreateInputConnection(editorInfo)
 

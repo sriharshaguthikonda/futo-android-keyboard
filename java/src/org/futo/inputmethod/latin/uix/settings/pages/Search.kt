@@ -123,12 +123,17 @@ fun SearchScreen(navController: NavHostController = rememberNavController()) {
     LazyColumn {
         item {
             Box(Modifier.padding(8.dp)) {
-                SettingsTextEdit(textFieldValue, icon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = stringResource(R.string.settings_search_menu_title)
-                    )
-                }, autofocus = true)
+                SettingsTextEdit(
+                    text = textFieldValue,
+                    multiline = true,
+                    icon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = stringResource(R.string.settings_search_menu_title)
+                        )
+                    },
+                    autofocus = true
+                )
             }
         }
 
