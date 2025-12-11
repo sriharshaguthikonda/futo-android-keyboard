@@ -1,5 +1,6 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
+import android.view.inputmethod.InputMethodSubtype
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -47,12 +48,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.runBlocking
-import org.futo.inputmethod.latin.BinaryDictionaryGetter
 import org.futo.inputmethod.latin.MultilingualBucketSetting
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.Subtypes
 import org.futo.inputmethod.latin.SubtypesSetting
-import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.uix.FileKind
 import org.futo.inputmethod.latin.uix.ResourceHelper
 import org.futo.inputmethod.latin.uix.getSetting
@@ -72,14 +71,18 @@ import org.futo.inputmethod.latin.uix.theme.UixThemeWrapper
 import org.futo.inputmethod.latin.uix.theme.presets.DynamicDarkTheme
 import org.futo.inputmethod.latin.uix.urlEncode
 import org.futo.inputmethod.latin.utils.Dictionaries
+import org.futo.inputmethod.latin.utils.SubtypeLocaleUtils
 import org.futo.inputmethod.latin.xlm.ModelPaths
 import org.futo.inputmethod.updates.openURI
 import java.util.Locale
 
+private val InputMethodSubtype.layoutSetName
+    get() = SubtypeLocaleUtils.getKeyboardLayoutSetName(this)
+
 data class LanguageItem(
     val languageName: String,
     val options: LanguageOptions,
-    val layouts: List<String>,
+    val layouts: List<Pair<InputMethodSubtype, String>>,
     val inMultilingualBucket: Boolean
 )
 
@@ -208,7 +211,7 @@ fun LanguageSurface(
     item: LanguageItem,
     modifier: Modifier = Modifier,
     onConfigurableSelected: (FileKind) -> Unit,
-    onLayoutRemoved: (String) -> Unit,
+    onLayoutRemoved: (InputMethodSubtype) -> Unit,
     onLayoutAdditionRequested: () -> Unit,
     onLanguageRemoved: () -> Unit,
     onToggleMultilingualBucket: (Boolean) -> Unit
@@ -272,10 +275,10 @@ fun LanguageSurface(
 
                 item.layouts.forEach {
                     LayoutConfigurable(
-                        name = it,
+                        name = it.second,
                         active = true,
-                        onDelete = { onLayoutRemoved(it) },
-                        canDelete = item.layouts.size > 1
+                        onDelete = { onLayoutRemoved(it.first) },
+                        canDelete = (item.layouts.size > 1)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                 }
@@ -298,7 +301,7 @@ fun LanguageSurface(
                         colors = CheckboxDefaults.colors(
                             checkedColor = MaterialTheme.colorScheme.onSecondaryContainer,
                             uncheckedColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            checkmarkColor = MaterialTheme.colorScheme.primary
+                            checkmarkColor = MaterialTheme.colorScheme.secondaryContainer
                         )
                     )
                 }
@@ -332,18 +335,18 @@ fun LanguageSurfacePreview() {
     UixThemeWrapper(colorScheme = DynamicDarkTheme.obtainColors(LocalContext.current)) {
         LanguageSurface(
             item = LanguageItem(
-            languageName = "Language Name",
-            options = LanguageOptions(
-                "Model Name",
-                "Model Name",
-                "Model Name"
+                languageName = "Language Name",
+                options = LanguageOptions(
+                    "Model Name",
+                    "Model Name",
+                    "Model Name"
+                ),
+                layouts = listOf(
+                    InputMethodSubtype.InputMethodSubtypeBuilder().build() to "QWERTY",
+                    InputMethodSubtype.InputMethodSubtypeBuilder().build() to "Dvorak"
+                ),
+                inMultilingualBucket = true
             ),
-            layouts = listOf(
-                "Keyboard Name",
-                "Keyboard Name"
-            ),
-            inMultilingualBucket = true
-        ),
             onLanguageRemoved = { }, onLayoutRemoved = { }, onConfigurableSelected = { },
             onLayoutAdditionRequested = { }, onToggleMultilingualBucket = { })
     }
@@ -370,7 +373,7 @@ fun ConfirmResourceActionDialog(
     val hasBuiltInFallback = if (resourceKind == FileKind.VoiceInput) {
         ResourceHelper.BuiltInVoiceInputFallbacks[locale.language] != null
     } else if (resourceKind == FileKind.Dictionary) {
-        Dictionaries.getDictionaryId(locale) != 0
+        Dictionaries.getDictionaryIfExists(LocalContext.current, locale, Dictionaries.DictionaryKind.Any) != null
     } else {
         true
     }
@@ -566,10 +569,7 @@ fun LanguagesScreen(navController: NavHostController = rememberNavController()) 
 
     val inputMethods = useDataStoreValue(SubtypesSetting)
     val inputMethodList = remember(inputMethods) {
-        // Filter out custom layouts because those are handled in custom layouts menu
-        Subtypes.layoutsMappedByLanguage(inputMethods.filter {
-            !it.contains("KeyboardLayoutSet=custom")
-        }.toSet())
+        Subtypes.layoutsMappedByLanguage(inputMethods)
     }
 
     val multilingualBucket = useDataStore(MultilingualBucketSetting)
@@ -617,6 +617,13 @@ fun LanguagesScreen(navController: NavHostController = rememberNavController()) 
                 if (key != null) {
                     val subtypes = inputMethodList[key]!!
                     subtypes.forEach { Subtypes.removeLanguage(context, it) }
+
+                    if(multilingualBucket.value.contains(key)) {
+                        multilingualBucket.value.toMutableSet().apply {
+                            remove(key)
+                            multilingualBucket.setValue(this)
+                        }
+                    }
                 }
             },
             onDismissRequest = {
@@ -663,9 +670,7 @@ fun LanguagesScreen(navController: NavHostController = rememberNavController()) 
                 } + " " + context.getString(
                     R.string.language_settings_resource_imported_indicator
                 )
-            } ?: if (BinaryDictionaryGetter.getDictionaryFiles(locale, context, false, false)
-                    .isNotEmpty()
-            ) {
+             } ?: if (Dictionaries.getDictionaryIfExists(context, locale, Dictionaries.DictionaryKind.Any) != null) {
                 context.getString(R.string.language_settings_resource_builtin_dictionary_name)
             } else {
                 null
@@ -692,11 +697,8 @@ fun LanguagesScreen(navController: NavHostController = rememberNavController()) 
                     languageName = name,
                     options = options,
                     layouts = subtypes.map {
-                        Subtypes.getLayoutName(
-                            context,
-                            it.getExtraValueOf(Constants.Subtype.ExtraValue.KEYBOARD_LAYOUT_SET)
-                                ?: "default"
-                        )
+                        val name = Subtypes.getLayoutName(context, it.layoutSetName)
+                        it to name
                     },
                     inMultilingualBucket = multilingualBucket.value.contains(
                         localeString
@@ -705,16 +707,14 @@ fun LanguagesScreen(navController: NavHostController = rememberNavController()) 
                 onLanguageRemoved = {
                     languageDeleteInfo.value = locale
                 },
-                onLayoutRemoved = { layout ->
-                    val subtype = subtypes.find {
-                        Subtypes.getLayoutName(
-                            context,
-                            it.getExtraValueOf(Constants.Subtype.ExtraValue.KEYBOARD_LAYOUT_SET)
-                                ?: "default"
-                        ) == layout
-                    }
-
-                    if (subtype != null) {
+                onLayoutRemoved = { subtype ->
+                    val layoutSetName = subtype.layoutSetName
+                    if(layoutSetName.startsWith("custom")) {
+                        val i = layoutSetName.substring("custom".length).toIntOrNull()
+                        if(i != null) {
+                            navController.navigate("devlayoutedit/$i")
+                        }
+                    } else {
                         Subtypes.removeLanguage(context, subtype)
                     }
                 },

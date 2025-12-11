@@ -38,21 +38,11 @@ val KeySpecShortcuts = listOf(
 
         "," to listOf("keyspec_comma"),
         "." to listOf("keyspec_period", "…"),
-
-        "1" to listOf("keyspec_symbols_1", "additional_morekeys_symbols_1", "morekeys_symbols_1"),
-        "2" to listOf("keyspec_symbols_2", "additional_morekeys_symbols_2", "morekeys_symbols_2"),
-        "3" to listOf("keyspec_symbols_3", "additional_morekeys_symbols_3", "morekeys_symbols_3"),
-        "4" to listOf("keyspec_symbols_4", "additional_morekeys_symbols_4", "morekeys_symbols_4"),
-        "5" to listOf("keyspec_symbols_5", "additional_morekeys_symbols_5", "morekeys_symbols_5"),
-        "6" to listOf("keyspec_symbols_6", "additional_morekeys_symbols_6", "morekeys_symbols_6"),
-        "7" to listOf("keyspec_symbols_7", "additional_morekeys_symbols_7", "morekeys_symbols_7"),
-        "8" to listOf("keyspec_symbols_8", "additional_morekeys_symbols_8", "morekeys_symbols_8"),
-        "9" to listOf("keyspec_symbols_9", "additional_morekeys_symbols_9", "morekeys_symbols_9"),
-        "0" to listOf("keyspec_symbols_0", "additional_morekeys_symbols_0", "morekeys_symbols_0"),
     ),
 
     // Alphabet-only shortcuts
-    listOf(KeyboardLayoutKind.Alphabet) to shortcutsOf(
+    listOf(KeyboardLayoutKind.Alphabet0, KeyboardLayoutKind.Alphabet1,
+           KeyboardLayoutKind.Alphabet2, KeyboardLayoutKind.Alphabet3) to shortcutsOf(
         "q" to listOf("keyspec_q"),
         "w" to listOf("keyspec_w"),
         "y" to listOf("keyspec_y"),
@@ -96,17 +86,18 @@ val KeySpecShortcuts = listOf(
         "," to listOf("keyspec_comma"),
         "." to listOf("keyspec_period"),
 
-        // Similar to the symbols shortcuts for 0-9, but without morekeys_symbols_n
-        "1" to listOf("keyspec_symbols_1", "additional_morekeys_symbols_1"),
-        "2" to listOf("keyspec_symbols_2", "additional_morekeys_symbols_2"),
-        "3" to listOf("keyspec_symbols_3", "additional_morekeys_symbols_3"),
-        "4" to listOf("keyspec_symbols_4", "additional_morekeys_symbols_4"),
-        "5" to listOf("keyspec_symbols_5", "additional_morekeys_symbols_5"),
-        "6" to listOf("keyspec_symbols_6", "additional_morekeys_symbols_6"),
-        "7" to listOf("keyspec_symbols_7", "additional_morekeys_symbols_7"),
-        "8" to listOf("keyspec_symbols_8", "additional_morekeys_symbols_8"),
-        "9" to listOf("keyspec_symbols_9", "additional_morekeys_symbols_9"),
-        "0" to listOf("keyspec_symbols_0", "additional_morekeys_symbols_0"),
+        // Keyspec is repeated twice, it gets removed if it's redundant, but stays as a more keys symbol
+        // if force western numerals option is on
+        "1" to listOf("keyspec_symbols_1", "keyspec_symbols_1", "additional_morekeys_symbols_1", "morekeys_symbols_1"),
+        "2" to listOf("keyspec_symbols_2", "keyspec_symbols_2", "additional_morekeys_symbols_2", "morekeys_symbols_2"),
+        "3" to listOf("keyspec_symbols_3", "keyspec_symbols_3", "additional_morekeys_symbols_3", "morekeys_symbols_3"),
+        "4" to listOf("keyspec_symbols_4", "keyspec_symbols_4", "additional_morekeys_symbols_4", "morekeys_symbols_4"),
+        "5" to listOf("keyspec_symbols_5", "keyspec_symbols_5", "additional_morekeys_symbols_5", "morekeys_symbols_5"),
+        "6" to listOf("keyspec_symbols_6", "keyspec_symbols_6", "additional_morekeys_symbols_6", "morekeys_symbols_6"),
+        "7" to listOf("keyspec_symbols_7", "keyspec_symbols_7", "additional_morekeys_symbols_7", "morekeys_symbols_7"),
+        "8" to listOf("keyspec_symbols_8", "keyspec_symbols_8", "additional_morekeys_symbols_8", "morekeys_symbols_8"),
+        "9" to listOf("keyspec_symbols_9", "keyspec_symbols_9", "additional_morekeys_symbols_9", "morekeys_symbols_9"),
+        "0" to listOf("keyspec_symbols_0", "keyspec_symbols_0", "additional_morekeys_symbols_0", "morekeys_symbols_0"),
     )
 )
 

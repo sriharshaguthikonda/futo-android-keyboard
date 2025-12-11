@@ -58,6 +58,7 @@ import org.futo.inputmethod.latin.common.CoordinateUtils;
 import org.futo.inputmethod.latin.utils.LanguageOnSpacebarUtils;
 import org.futo.inputmethod.latin.utils.SubtypeLocaleUtils;
 import org.futo.inputmethod.latin.utils.TypefaceUtils;
+import org.futo.inputmethod.v2keyboard.LayoutManager;
 
 import java.util.List;
 import java.util.Locale;
@@ -564,8 +565,8 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
 
     // Note that this method is called from a non-UI thread.
     @SuppressWarnings("static-method")
-    public void setMainDictionaryAvailability(final boolean mainDictionaryAvailable) {
-        PointerTracker.setMainDictionaryAvailability(mainDictionaryAvailable);
+    public void setImeAllowsGestureInput(final boolean value) {
+        PointerTracker.setImeAllowsGestureInput(value);
     }
 
     public void setGestureHandlingEnabledByUser(final boolean isGestureHandlingEnabledByUser,
@@ -629,7 +630,7 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         final int pointX = key.getDrawX() + key.getDrawWidth() / 2;
         final int pointY = key.getY() + key.getHeight() - bottomPadding;
 
-        moreKeysKeyboardView.showMoreKeysPanel(this, this, pointX, pointY, mKeyboardActionListener, lastCoords);
+        moreKeysKeyboardView.showMoreKeysPanel(this, this, pointX, pointY, mKeyboardActionListener, lastCoords, key.isFastLongPress());
         return moreKeysKeyboardView;
     }
 
@@ -841,6 +842,16 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
             if (fitsTextIntoWidth(width, fullText, paint)) {
                 return fullText;
             }
+        }
+
+        // TODO: We have two different exceptional locale systems now, should probably just stick
+        //  with the LayoutManager one.
+
+        final String definedName = LayoutManager.INSTANCE.getExceptionalNameForLocale(
+                locale, locale
+        );
+        if(definedName != null) {
+            return definedName;
         }
 
         if(SubtypeLocaleUtils.isExceptionalLocale(locale.toString())

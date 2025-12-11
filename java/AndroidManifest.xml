@@ -29,6 +29,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions"/>
 
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove"/>
+
     <application android:label="@string/english_ime_name"
          android:icon="@mipmap/ic_launcher"
          android:roundIcon="@mipmap/ic_launcher_round"
@@ -131,6 +133,7 @@
             </intent-filter>
         </receiver>
 
+        <!--
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="specialUse"
@@ -140,7 +143,7 @@
                 android:value="Neural network model training"/>
 
         </service>
-
+        -->
         <activity
             android:name=".payment.PaymentCompleteActivity"
             android:exported="true"
@@ -158,14 +161,6 @@
                 <data android:scheme="futo-keyboard" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".payment.PaymentActivity"
-            android:exported="false"
-            android:label="@string/payment_screen_short_title"
-            android:clearTaskOnLaunch="false"
-            android:launchMode="singleInstance"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
         <activity
             android:name=".MicPermissionActivity"

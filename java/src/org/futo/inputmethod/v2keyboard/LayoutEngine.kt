@@ -6,6 +6,7 @@ import androidx.compose.ui.unit.Dp
 import org.futo.inputmethod.keyboard.KeyConsts
 import org.futo.inputmethod.keyboard.internal.KeyboardLayoutElement
 import org.futo.inputmethod.keyboard.internal.KeyboardParams
+import org.futo.inputmethod.keyboard.internal.isAlphabet
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.uix.DynamicThemeProvider
@@ -113,8 +114,10 @@ data class LayoutEngine(
     val horizontalGap = layoutParams.gap
     val verticalGap = layoutParams.gap * 2
 
+    val effectiveRows = keyboard.getEffectiveRows(params.mId.mNumberRowMode)
+
     private val rows = run {
-        val filteredRows = keyboard.effectiveRows.filter {
+        val filteredRows = effectiveRows.filter {
             // Filter the Number row, when it's not active
             when(keyboard.numberRowMode) {
                 NumberRowMode.UserConfigurable -> !it.isNumberRow || params.mId.mNumberRow
@@ -189,7 +192,7 @@ data class LayoutEngine(
 
     private fun computeRegularKeyWidth(layoutWidth: Int = this.layoutWidth): Float {
         return keyboard.overrideWidths[KeyWidth.Regular]?.let { it * layoutWidth.toFloat() } ?: run {
-            (layoutWidth.toFloat() / keyboard.effectiveRows.filter { it.isLetterRow }.maxOf { it.keys.size }.toFloat()) - EPS
+            (layoutWidth.toFloat() / effectiveRows.filter { it.isLetterRow }.maxOf { it.keys.size }.toFloat()) - EPS
         }
     }
 
@@ -497,14 +500,28 @@ data class LayoutEngine(
         }
     }
 
-    private val validNumbersForHint = "1234567890".map { params.mTextsSet.resolveTextReference("!text/keyspec_symbols_$it") ?: it }.toSet()
+    private val validNumbersForHint = "1234567890".map { it.toString() }.map { params.mTextsSet.resolveTextReference("!text/keyspec_symbols_$it") ?: it }.toSet()
+    private val englishNumbers = "1234567890".map { it.toString() }.toSet()
+    private val blacklistedHintsForNumbers = buildList {
+        // Subscripts/superscripts, fractions
+        addAll((0x2070 .. 0x208E).map { it.toChar() })
+        addAll((0x2150 .. 0x215F).map { it.toChar() })
+        add('\u00B0')
+        add('\u00B2')
+        add('\u00B3')
+        add('\u00B9')
+        add('\u00BC')
+        add('\u00BD')
+        add('\u00BE')
+    }.map { it.toString() }.toSet()
     private val showAllHintsSetting = params.mId.mLongPressKeySettings.showHints
-    private fun addKey(data: ComputedKeyData, x: Int, y: Int, width: Int, height: Int, leftGap: LayoutEntry.Gap?, rightGap: LayoutEntry.Gap?) {
+
+    private fun computedKeyToKey(data: ComputedKeyData, x: Int, y: Int, width: Int, height: Int, leftGap: LayoutEntry.Gap?, rightGap: LayoutEntry.Gap?): org.futo.inputmethod.keyboard.Key? {
         // These keys are empty keys and do not get added, leaving an empty gap in place of the key
         // The hitbox of other keys does not get expanded to include this gap though, unlike
         // gaps added for centering rows
         if(data.label.isEmpty() && data.icon.isEmpty() && data.code == Constants.CODE_UNSPECIFIED)
-            return
+            return null
 
 
         val actionsFlags = if(!data.showPopup) { KeyConsts.ACTION_FLAGS_NO_KEY_PREVIEW } else { 0 } or
@@ -527,10 +544,20 @@ data class LayoutEngine(
 
             // If we have no explicit hint, and show hints setting is disabled,
             // then either show a number or nothing
-            !showAllHintsSetting ->
-                data.moreKeys.mapNotNull { it.mLabel }.firstOrNull { validNumbersForHint.contains(it) } ?: ""
+            !showAllHintsSetting -> //&& params.mId.mElement.kind.isAlphabet ->
+                data.moreKeys.mapNotNull { it.mLabel }.firstOrNull { validNumbersForHint.contains(it) && it != data.label } ?: ""
 
-            // If we have no explicit hint and show hints setting is enabled,
+            // In the situation that this is a number, only show a hint if it's not a tiny little
+            // superscript or subscript
+            englishNumbers.contains(data.label) && validNumbersForHint.contains(data.label)
+                ->
+                data.moreKeys.firstOrNull {
+                    it.mLabel != null
+                            && !blacklistedHintsForNumbers.contains(it.mLabel)
+                            && it.mLabel != data.label
+                }?.mLabel ?: ""
+
+            // If we have no explicit hint and show hints setting is enabled (or we are in symbols menu),
             // set this to null which will later automatically select a hint based on
             // the first element of moreKeys
             else -> null
@@ -544,7 +571,7 @@ data class LayoutEngine(
             0
         }
 
-        val key = org.futo.inputmethod.keyboard.Key(
+        return org.futo.inputmethod.keyboard.Key(
             code = data.code,
             label = data.label,
             width = width - horizontalGapPx.roundToInt(),
@@ -561,6 +588,7 @@ data class LayoutEngine(
             visualStyle = data.style,
             outputText = data.outputText,
             hintLabel = hint,
+            isFastLongPress = data.fastLongPress,
 
             // Add leftGap and rightGap to the hitbox
             // This makes the following area tappable,
@@ -576,8 +604,22 @@ data class LayoutEngine(
                 x + width + (rightGap?.widthPx?.roundToInt() ?: 0),
                 y + height + extendedBottomPadding
             ),
-        )
 
+            // Add flick keys
+            flickKeys = data.flick?.let {
+                it.directions
+                    .mapValues { computedKeyToKey(it.value, x, y, width, height, null, null) }
+                    .filterValues { it != null }
+                    .mapValues { it.value!! }
+            },
+
+            labelOverride = data.flick?.label,
+            iconOverride = data.flick?.icon,
+        )
+    }
+
+    private fun addKey(data: ComputedKeyData, x: Int, y: Int, width: Int, height: Int, leftGap: LayoutEntry.Gap?, rightGap: LayoutEntry.Gap?) {
+        val key = computedKeyToKey(data, x, y, width, height, leftGap, rightGap) ?: return
         params.onAddKey(key)
     }
 

@@ -3,6 +3,7 @@ package org.futo.inputmethod.latin.uix
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.inputmethod.InputMethodSubtype
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,7 +30,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -36,12 +40,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.futo.inputmethod.engine.GlobalIMEMessage
+import org.futo.inputmethod.engine.IMEMessage
 import org.futo.inputmethod.latin.Dictionary
-import org.futo.inputmethod.latin.LatinIMELegacy
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.ReadOnlyBinaryDictionary
 import org.futo.inputmethod.latin.Subtypes
 import org.futo.inputmethod.latin.SubtypesSetting
+import org.futo.inputmethod.latin.localeFromString
 import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
@@ -54,14 +60,20 @@ import org.futo.inputmethod.latin.uix.theme.ThemeOption
 import org.futo.inputmethod.latin.uix.theme.ThemeOptions
 import org.futo.inputmethod.latin.uix.theme.UixThemeWrapper
 import org.futo.inputmethod.latin.uix.theme.orDefault
+import org.futo.inputmethod.latin.utils.Dictionaries
 import org.futo.inputmethod.latin.utils.SubtypeLocaleUtils
 import org.futo.inputmethod.latin.xlm.ModelPaths
+import org.futo.inputmethod.updates.openURI
 import org.futo.voiceinput.shared.BUILTIN_ENGLISH_MODEL
 import org.futo.voiceinput.shared.types.ModelFileFile
 import org.futo.voiceinput.shared.types.ModelLoader
+import java.io.BufferedReader
 import java.io.File
 import java.io.InputStream
+import java.io.InputStreamReader
 import java.nio.ByteBuffer
+import java.nio.charset.Charset
+import java.security.MessageDigest
 import java.util.Locale
 
 
@@ -341,38 +353,174 @@ private fun parseDictionaryMetadataKV(inputStream: InputStream): Map<String, Str
     return keyValueList
 }
 
-fun determineFileKind(context: Context, file: Uri): FileKindAndInfo {
-    val contentResolver = context.contentResolver
+data class DetectedUserDictFile(
+    val kind: String,
+    val name: String,
+    val locale: Locale,
+    val encoding: Charset?,
+    val offset: Int = 0
+)
 
-    return contentResolver.openInputStream(file)?.use { inputStream ->
-        val array = ByteArray(4)
-        inputStream.read(array)
+private fun detectJapaneseUserDictInner(
+    firstLine: String,
+    inputStream: InputStream, // this is already positioned at the start of next line
+    charset: Charset? // if null, it's either UTF-8 or SHIFT_JIS. otherwise it may be set to UTF-16LE, UTF-16BE, UTF-8
+): DetectedUserDictFile? {
+    val l = firstLine.lowercase()
 
-        val voiceInputMagic = 0x6c6d6767.toUInt()
-        val transformerMagic = 0x47475546.toUInt()
-        val dictionaryMagic = 0x9bc13afe.toUInt()
+    val msIme = l.startsWith("!microsoft ime")
+    val tango = l.startsWith("!!atok_tango_text_header")
+    val gboard = l.startsWith("#gboard dictionary version:1")
+    if(!msIme && !tango && !gboard) return null
 
-        val magic = ByteBuffer.wrap(array).getInt().toUInt()
+    val lines = mutableListOf<String>()
+    val charset = charset ?: run {
+        // Guess charset if we don't already know from BOM. Defaults to UTF-8 unless an encoding error is encountered.
+        val bytes = inputStream.readBytes()
 
-        when {
-            magic == voiceInputMagic -> FileKindAndInfo(FileKind.VoiceInput, null, null)
-            magic == transformerMagic -> FileKindAndInfo(FileKind.Transformer, null, null)
-            magic == dictionaryMagic -> {
-                val metadata = parseDictionaryMetadataKV(inputStream)
+        val utf8 = Charset.forName("UTF-8")
+        val shift = Charset.forName("Shift_JIS")
 
-                FileKindAndInfo(
-                    FileKind.Dictionary,
-                    name = metadata?.get("description"),
-                    locale = metadata?.get("locale")
-                )
-            }
+        var guess = utf8
 
-            (magic == 0x1f8b0808.toUInt()) || (magic == 0x1f8b0800.toUInt()) || (magic == 0x64696374.toUInt()) ->
-                FileKindAndInfo(FileKind.Invalid, null, null, InvalidFileHint.ImportedWordListInsteadOfDict)
-
-            else -> FileKindAndInfo(FileKind.Invalid, null, null)
+        try {
+            guess.newDecoder().decode(ByteBuffer.wrap(bytes))
+        }catch(e: Exception) {
+            guess = shift
         }
-    } ?: FileKindAndInfo(FileKind.Invalid, null, null)
+
+        try {
+            val decoded = guess.newDecoder().decode(ByteBuffer.wrap(bytes))
+            lines.addAll(decoded.toString().split('\n'))
+        } catch(e: Exception) {
+            Log.e("JapaneseDictionaryImport", "Failed to decode file with neither UTF-8 nor SHIFT_JIS, rejecting file as illegal!")
+            return null
+        }
+
+        guess
+    }
+
+    // read 10 lines if not filled in already during guess
+    if(lines.isEmpty()) {
+        val reader = BufferedReader(InputStreamReader(inputStream, charset!!))
+        for (i in 0..10) {
+            lines += reader.readLine() ?: break
+        }
+    }
+
+    val kind = when {
+        msIme -> "msime"
+        tango -> "tango"
+        else -> "gboard"
+    }
+
+    val name = when {
+        msIme -> {
+            lines.firstOrNull { it.startsWith("!user dictionary name:", ignoreCase = true) }
+                ?.substringAfter(':')
+                ?.trim()
+                    ?: lines.firstOrNull { it.startsWith("!output file name:", ignoreCase = true) }
+                        ?.substringAfter(':')
+                        ?.trim()
+                    ?: "msime"
+        }
+        tango -> {
+            lines.firstOrNull { it.startsWith("!!対象辞書;", ignoreCase = true) }
+                ?.substringAfter(';')
+                ?.trim()
+                ?: "tango"
+        }
+        else -> "Gboard"
+    }
+
+    return DetectedUserDictFile(kind, name, Locale.JAPANESE, charset)
+}
+
+internal fun detectJapaneseUserDict(inputStream: InputStream): DetectedUserDictFile? {
+    val header = ByteArray(4)
+    inputStream.read(header)
+
+    // charset to offset
+    val encodingAndOffset = when {
+        (header[0] == 0xFF.toByte() && header[1] == 0xFE.toByte()) -> Charset.forName("UTF-16LE") to 2
+        (header[0] == 0xFE.toByte() && header[1] == 0xFF.toByte()) -> Charset.forName("UTF-16BE") to 2
+        (header[0] == 0xEF.toByte() && header[1] == 0xBB.toByte() && header[2] == 0xBF.toByte())
+                -> Charset.forName("UTF-8") to 3
+
+        else -> {
+            // will detect either UTF-8 or SHIFT_JIS later
+            null to 0
+        }
+    }
+
+    // read only the first line to confirm it's a dictionary file
+    // We want to avoid reading the full thing into memory until we're sure it's a dictionary,
+    // in case user supplied garbage
+    val firstLine = mutableListOf(header)
+    while(true) {
+        val nextByte = inputStream.read().toByte()
+        firstLine.add(byteArrayOf(nextByte))
+        if(nextByte == 0x0A.toByte()) break
+
+        // First line should never exceed 500 bytes
+        if(firstLine.size > 500) return null
+    }
+
+    // tail byte
+    if(encodingAndOffset.first?.name() == "UTF-16LE") firstLine.add(byteArrayOf(inputStream.read().toByte()))
+
+    val firstLineData = firstLine.reduce { s, t -> s + t }.let {
+        it.copyOfRange(encodingAndOffset.second, it.size)
+    }
+
+    if(encodingAndOffset.first == null && !firstLineData.all { it > 0x00 && it <= 0x7F }) return null
+    val firstLineBb = ByteBuffer.wrap(firstLineData)
+
+    val firstLineStr = try {
+        (encodingAndOffset.first ?: Charset.forName("ASCII")).newDecoder().decode(firstLineBb).toString()
+    } catch(e: Exception) {
+        return null
+    }
+    return detectJapaneseUserDictInner(firstLineStr, inputStream, encodingAndOffset.first)?.copy(offset = encodingAndOffset.second)
+}
+
+fun determineFileKind(inputStream: InputStream): FileKindAndInfo {
+    val array = ByteArray(4)
+    inputStream.read(array)
+
+    val voiceInputMagic = 0x6c6d6767.toUInt()
+    val transformerMagic = 0x47475546.toUInt()
+    val dictionaryMagic = 0x9bc13afe.toUInt()
+    val mozcMagic = 0xef4d4f5a.toUInt()
+
+    val magic = ByteBuffer.wrap(array).getInt().toUInt()
+
+    return when {
+        magic == voiceInputMagic -> FileKindAndInfo(FileKind.VoiceInput, null, null)
+        magic == transformerMagic -> FileKindAndInfo(FileKind.Transformer, null, null)
+        magic == mozcMagic -> {
+            FileKindAndInfo(
+                FileKind.Dictionary,
+                // TODO: Dont hardcode name? No metadata in file to tell name, but we could try hashing etc
+                name = "日本語辞書",
+                locale = "ja"
+            )
+        }
+        magic == dictionaryMagic -> {
+            val metadata = parseDictionaryMetadataKV(inputStream)
+
+            FileKindAndInfo(
+                FileKind.Dictionary,
+                name = metadata?.get("description"),
+                locale = metadata?.get("locale")
+            )
+        }
+
+        (magic == 0x1f8b0808.toUInt()) || (magic == 0x1f8b0800.toUInt()) || (magic == 0x64696374.toUInt()) ->
+            FileKindAndInfo(FileKind.Invalid, null, null, InvalidFileHint.ImportedWordListInsteadOfDict)
+
+        else -> FileKindAndInfo(FileKind.Invalid, null, null)
+    }
 }
 
 object ResourceHelper {
@@ -380,7 +528,7 @@ object ResourceHelper {
         "en" to BUILTIN_ENGLISH_MODEL
     )
 
-    suspend fun findKeyForLocaleAndKind(context: Context, locale: Locale, kind: FileKind): String? {
+    fun findKeyForLocaleAndKind(context: Context, locale: Locale, kind: FileKind): String? {
         val keysToTry = listOf(
             locale.toString(),
             locale.language,
@@ -395,7 +543,7 @@ object ResourceHelper {
         return key
     }
 
-    suspend fun findFileForKind(context: Context, locale: Locale, kind: FileKind): File? {
+    fun findFileForKind(context: Context, locale: Locale, kind: FileKind): File? {
         val key = findKeyForLocaleAndKind(context, locale, kind) ?: return null
 
         val settingValue: String = context.getSetting(kind.preferenceKeyFor(key), "")
@@ -440,8 +588,37 @@ object ResourceHelper {
         runBlocking { context.setSetting(kind.preferenceKeyFor(locale.toString()), "") }
         runBlocking { context.setSetting(kind.namePreferenceKeyFor(locale.toString()), "") }
 
-        LatinIMELegacy.mPendingDictionaryUpdate = true
+        GlobalIMEMessage.tryEmit(IMEMessage.ReloadResources)
     }
+}
+
+// format: relativepath:locale
+//  jawords1.txt:ja
+//  ja_JPwords1.txt:ja_JP
+val ImportedUserDictFilesSetting = SettingsKey(
+    stringSetPreferencesKey("imported_user_dict_files"),
+    setOf()
+)
+
+fun getImportedUserDictFilesForLocale(context: Context, locale: Locale?): List<Pair<File, String>> {
+    val setting = context.getSetting(ImportedUserDictFilesSetting)
+    return setting.filter {
+        locale == null || (localeFromString(it.split(':', limit = 2)[1]).language == locale.language)
+    }.map {
+        val file = it.split(':', limit = 2)[0]
+        val name = file.split(' ', limit = 2)[0]
+
+        File(context.getExternalFilesDir(null), file) to name
+    }
+}
+
+suspend fun removeImportedUserDictFile(context: Context, value: Pair<File, String>) {
+    val setting = context.getSetting(ImportedUserDictFilesSetting).filter {
+        !it.startsWith(value.first.name)
+    }.toSet()
+    value.first.delete()
+    context.setSetting(ImportedUserDictFilesSetting.key, setting)
+    GlobalIMEMessage.tryEmit(IMEMessage.ReloadResources)
 }
 
 class ImportResourceActivity : ComponentActivity() {
@@ -449,9 +626,73 @@ class ImportResourceActivity : ComponentActivity() {
     private val fileBeingImported: MutableState<String?> = mutableStateOf(null)
     private val fileKind: MutableState<FileKindAndInfo> = mutableStateOf(FileKindAndInfo(FileKind.Invalid, null, null))
     private val settingsCfgImportMetadata: MutableState<SettingsExporter.CfgFileMetadata?> = mutableStateOf(null)
+    private val userDictFileMetadata: MutableState<DetectedUserDictFile?> = mutableStateOf(null)
     private var uri: Uri? = null
 
+    private fun normalizeFilename(name: String) = name.replace("/", "_").replace(":", "_").replace(" ", "_")
+
+    private fun applyUserDictSetting(inputMethodSubtype: InputMethodSubtype) {
+        if(fileKind.value.kind != FileKind.Dictionary) throw IllegalStateException("Should only be called on dictionary")
+        val data = userDictFileMetadata.value!!
+        val locale = inputMethodSubtype.locale
+
+        val contentResolver = applicationContext.contentResolver
+        val openReader = {
+            contentResolver.openInputStream(uri!!)!!.apply {
+                read(ByteArray(data.offset))
+            }.bufferedReader(data.encoding!!)
+        }
+
+        // 1. Compute filename
+        val md = MessageDigest.getInstance("SHA-1")
+        val utfCharSet = Charset.forName("UTF-8")
+        openReader().use { inputStream ->
+            val buffer = CharArray(8192)
+            var read = inputStream.read(buffer)
+            while(read > 0) {
+                val str = String(buffer, 0, read)
+                md.update(utfCharSet.encode(str))
+                read = inputStream.read(buffer)
+            }
+        }
+
+        @OptIn(ExperimentalStdlibApi::class)
+        val digest = md.digest().toHexString()
+        val fileName = "${normalizeFilename(data.name)} $locale $digest.txt"
+
+        // 2. Copy file
+        val outputFile = File(applicationContext.getExternalFilesDir(null), fileName)
+        if(outputFile.exists()) { outputFile.delete() }
+
+        openReader().use { inputStream ->
+            outputFile.outputStream().bufferedWriter().use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+        }
+
+        // 3. Update reference
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                val currSetting = applicationContext.getSetting(ImportedUserDictFilesSetting)
+                val updatedSetting = currSetting + setOf(
+                    "$fileName:$locale"
+                )
+                applicationContext.setSetting(
+                    ImportedUserDictFilesSetting.key,
+                    updatedSetting
+                )
+            }
+
+            GlobalIMEMessage.tryEmit(IMEMessage.ReloadResources)
+            finish()
+        }
+    }
+
     private fun applySetting(fileKind: FileKindAndInfo, inputMethodSubtype: InputMethodSubtype) {
+        if(userDictFileMetadata.value != null) {
+            return applyUserDictSetting(inputMethodSubtype)
+        }
+
         val sanitizedLocaleForFilename = inputMethodSubtype.locale.replace("#", "H")
         val outputFileName = "${fileKind.kind.name.lowercase()}_$sanitizedLocaleForFilename${fileKind.kind.extension()}"
 
@@ -502,7 +743,7 @@ class ImportResourceActivity : ComponentActivity() {
                     }
                 }
             }
-            LatinIMELegacy.mPendingDictionaryUpdate = true
+            GlobalIMEMessage.tryEmit(IMEMessage.ReloadResources)
             finish()
         }
     }
@@ -518,47 +759,55 @@ class ImportResourceActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        settingsCfgImportMetadata.value?.let {
-                            SettingsImportScreen(
-                                metadata = it,
-                                onApply = {
-                                    lifecycleScope.launch {
-                                        withContext(Dispatchers.IO) {
-                                            contentResolver.openInputStream(uri!!)!!.use {
-                                                SettingsExporter.loadSettings(
-                                                    this@ImportResourceActivity,
-                                                    it,
-                                                    true
-                                                )
+                        Box(Modifier.safeDrawingPadding()) {
+                            settingsCfgImportMetadata.value?.let {
+                                SettingsImportScreen(
+                                    metadata = it,
+                                    onApply = {
+                                        lifecycleScope.launch {
+                                            withContext(Dispatchers.IO) {
+                                                contentResolver.openInputStream(uri!!)!!.use {
+                                                    SettingsExporter.loadSettings(
+                                                        this@ImportResourceActivity,
+                                                        it,
+                                                        true
+                                                    )
+                                                }
+                                            }
+                                            withContext(Dispatchers.Main) {
+                                                finish()
                                             }
                                         }
-                                        withContext(Dispatchers.Main) {
-                                            finish()
-                                        }
+                                    },
+                                    onCancel = {
+                                        finish()
                                     }
-                                },
-                                onCancel = {
-                                    finish()
-                                }
-                            )
-                            it
-                        } ?: run {
-                            ImportScreen(
-                                fileKind = fileKind.value,
-                                file = fileBeingImported.value,
-                                onApply = { fileKind, inputMethodSubtype ->
-                                    applySetting(
-                                        fileKind,
-                                        inputMethodSubtype
-                                    )
-                                },
-                                onCancel = { finish() }
-                            )
+                                )
+                                it
+                            } ?: run {
+                                ImportScreen(
+                                    fileKind = fileKind.value,
+                                    file = fileBeingImported.value,
+                                    onApply = { fileKind, inputMethodSubtype ->
+                                        applySetting(
+                                            fileKind,
+                                            inputMethodSubtype
+                                        )
+                                    },
+                                    onCancel = { finish() }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    private fun getInputStream(): InputStream? = try {
+        uri?.let { contentResolver.openInputStream(it) }
+    } catch(e: Exception) {
+        null
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -568,9 +817,24 @@ class ImportResourceActivity : ComponentActivity() {
 
         val filePath = intent?.data?.path
         fileBeingImported.value = filePath
-        fileKind.value = determineFileKind(applicationContext, uri!!)
+        fileKind.value = getInputStream()?.use { determineFileKind(it) } ?: FileKindAndInfo(FileKind.Invalid, null, null)
         settingsCfgImportMetadata.value = if(fileKind.value.kind == FileKind.Invalid) {
-            SettingsExporter.getCfgFileMetadata(contentResolver.openInputStream(uri!!)!!)
+            getInputStream()?.use {
+                SettingsExporter.getCfgFileMetadata(it)
+            }
+        } else {
+            null
+        }
+        userDictFileMetadata.value = if(fileKind.value.kind == FileKind.Invalid && settingsCfgImportMetadata.value == null) {
+            val x = getInputStream()?.use { detectJapaneseUserDict(it) }
+            if(x != null) {
+                fileKind.value = FileKindAndInfo(
+                    FileKind.Dictionary,
+                    name = x.name,
+                    locale = x.locale.toString()
+                )
+            }
+            x
         } else {
             null
         }
@@ -583,5 +847,76 @@ class ImportResourceActivity : ComponentActivity() {
 
         val key = getSetting(THEME_KEY)
         this.themeOption.value = ThemeOptions[key].orDefault(this)
+    }
+}
+
+object MissingDictionaryHelper {
+    sealed class DictCheckResult {
+        object CheckFailed : DictCheckResult()
+        object DontShowDictNotice : DictCheckResult()
+        data class ShowDictNotice(val locale: Locale, val dismissalSetting: SettingsKey<Int>) : DictCheckResult()
+    }
+    fun checkIfDictInstalled(context: Context): DictCheckResult {
+        if(context.isDeviceLocked) return DictCheckResult.CheckFailed
+
+        val locale = Subtypes.getLocale(Subtypes.getActiveSubtype(context))
+        val hasImportedDict = ResourceHelper.findKeyForLocaleAndKind(
+            context,
+            locale,
+            FileKind.Dictionary
+        ) != null
+        val hasBuiltInDict = Dictionaries.getDictionaryIfExists(context, locale, Dictionaries.DictionaryKind.Any) != null
+
+        // These languages have an automatic prompt to download the right file on keyboard.futo.org
+        val langsWithDownloadableDictionaries = setOf(
+            "ar", "hy", "as", "bn", "eu", "be", "bg", "ca", "hr", "cs", "da", "nl", "en", "eo", "fi",
+            "fr", "gl", "ka", "de", "gom", "el", "gu", "he", "iw", "hi", "hu", "it", "kn", "ks", "lv",
+            "lt", "lb", "mai", "ml", "mr", "nb", "or", "pl", "pt", "pa", "ro", "ru", "sa", "sat", "sr",
+            "sd", "sl", "es", "sv", "ta", "te", "tok", "tcy", "tr", "uk", "ur", "af", "ar", "bn", "bg",
+            "cs", "fr", "de", "he", "id", "it", "kab", "kk", "pms", "ru", "sk", "es", "uk", "vi",
+            "ja"
+        )
+
+        // Typing is severely broken in Japanese without the dictionary, it is vital that this message
+        // is shown every time until the user downloads the dictionary
+        val undismissableLanguages = setOf("ja")
+
+        val dismissalSetting = SettingsKey(
+            intPreferencesKey("dictionary_notice_dismiss_${locale.language}"),
+            0
+        )
+
+        if(
+            !hasImportedDict &&
+            !hasBuiltInDict &&
+            langsWithDownloadableDictionaries.contains(locale.language) &&
+            (context.getSetting(dismissalSetting) < 15 || undismissableLanguages.contains(locale.language))
+        ) {
+            return DictCheckResult.ShowDictNotice(locale, dismissalSetting)
+        }
+
+        return DictCheckResult.DontShowDictNotice
+    }
+
+    class NoDictionaryNotice(
+        val dismissalSetting: SettingsKey<Int>,
+        val locale: Locale,
+        val string: String,
+        val resetNotice: () -> Unit) : ImportantNotice {
+        @Composable
+        override fun getText(): String {
+            return string
+        }
+
+        override fun onDismiss(context: Context, auto: Boolean) {
+            resetNotice()
+            context.setSettingBlocking(dismissalSetting.key,
+                context.getSetting(dismissalSetting) + if(auto) 1 else 5)
+        }
+
+        override fun onOpen(context: Context) {
+            resetNotice()
+            context.openURI(FileKind.Dictionary.getAddonUrlForLocale(locale), true)
+        }
     }
 }

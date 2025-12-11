@@ -211,7 +211,7 @@ fun AddCustomThemeButton(onClick: () -> Unit = { }) {
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Icon(
-                Icons.Default.Add, contentDescription = "", modifier = Modifier
+                Icons.Default.Add, contentDescription = null, modifier = Modifier
                     .size(48.dp)
                     .align(
                         Alignment.Center
@@ -266,7 +266,7 @@ fun ThemePicker(onSelected: (ThemeOption) -> Unit) {
                 item {
                     val nav = LocalNavController.current
                     AddCustomThemeButton {
-                        nav.navigate("themeGenerator")
+                        nav?.navigate("themeGenerator")
                     }
                 }
 

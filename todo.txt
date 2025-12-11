@@ -20,6 +20,9 @@ feature: Voice Input Bottom Bar Mode (like Gboard)
 First combine out branch with the actual futo keyboard by futo!!
 
 
+
+
+
 feature: the keyboard app if it is not set default ask if we want to set it as default input everytime we open the app!
 
 

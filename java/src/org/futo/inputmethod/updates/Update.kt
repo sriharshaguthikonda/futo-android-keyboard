@@ -96,7 +96,13 @@ fun Context.openURI(uri: String, newTask: Boolean = false) {
 }
 
 fun Context.openManualUpdateCheck() {
-    openURI("https://keyboard.futo.org/manual_update?version=${BuildConfig.VERSION_CODE}&build=${BuildConfig.FLAVOR}", newTask = true)
+    openURI("https://keyboard.futo.org/manual_update?version=${BuildConfig.VERSION_CODE}&build=${BuildConfig.FLAVOR}".let {
+        if(BuildConfig.BRANCH != "master") {
+            it + "&branch=${BuildConfig.BRANCH}&name=${BuildConfig.VERSION_NAME}"
+        } else {
+            it
+        }
+    }, newTask = true)
 }
 
 @Composable
@@ -123,7 +129,7 @@ fun ConditionalUpdate(navController: NavHostController = rememberNavController()
                 //context.openURI(lastUpdateResult.apkUrl)
             }
         ) {
-            Icon(Icons.Default.ArrowForward, contentDescription = "Go")
+            Icon(Icons.Default.ArrowForward, contentDescription = null)
         }
     } else if(lastFailed) {
         SettingItem(
@@ -132,7 +138,7 @@ fun ConditionalUpdate(navController: NavHostController = rememberNavController()
                 context.openManualUpdateCheck()
             }
         ) {
-            Icon(Icons.Default.ArrowForward, contentDescription = "Go")
+            Icon(Icons.Default.ArrowForward, contentDescription = null)
         }
     }
 }

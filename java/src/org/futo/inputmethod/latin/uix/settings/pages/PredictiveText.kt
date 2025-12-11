@@ -1,8 +1,11 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
 import android.content.Intent
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.booleanResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.settings.Settings
@@ -31,12 +34,11 @@ val PredictiveTextMenu = UserSettingsMenu(
         ),
 
         // if(transformerLmEnabled) {
-        userSettingToggleDataStore(
-            title = R.string.prediction_settings_transformer_finetuning,
-            subtitle = R.string.prediction_settings_transformer_finetuning_subtitle,
-            setting = USE_TRANSFORMER_FINETUNING
-        ).copy(visibilityCheck = visibilityCheckLMEnabled),
-
+        //userSettingToggleDataStore(
+        //    title = R.string.prediction_settings_transformer_finetuning,
+        //    subtitle = R.string.prediction_settings_transformer_finetuning_subtitle,
+        //    setting = USE_TRANSFORMER_FINETUNING
+        //).copy(visibilityCheck = visibilityCheckLMEnabled),
 
         userSettingNavigationItem(
             title = R.string.prediction_settings_transformer_models,
@@ -61,9 +63,7 @@ val PredictiveTextMenu = UserSettingsMenu(
             style = NavigationItemStyle.HomePrimary,
             icon = R.drawable.book,
             navigate = { nav ->
-                val intent = Intent("android.settings.USER_DICTIONARY_SETTINGS")
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                nav.context.startActivity(intent)
+                nav.navigate("pdict")
             }
         ),
 
@@ -79,8 +79,12 @@ val PredictiveTextMenu = UserSettingsMenu(
             title = R.string.auto_correction,
             subtitle = R.string.auto_correction_summary,
             key = Settings.PREF_AUTO_CORRECTION,
-            default = {true}
-        ),
+            default = {true},
+            icon = {
+                Icon(painterResource(id = R.drawable.icon_spellcheck), contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f))
+            }
+        ).copy(searchTags = R.string.auto_correction_tags),
 
         userSettingToggleSharedPrefs(
             title = R.string.prediction_settings_smart_keyhit_detection,

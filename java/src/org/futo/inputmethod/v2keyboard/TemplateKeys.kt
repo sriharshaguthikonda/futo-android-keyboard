@@ -6,7 +6,6 @@ import kotlinx.serialization.Serializable
 import org.futo.inputmethod.keyboard.KeyboardId
 import org.futo.inputmethod.keyboard.internal.KeyboardIconsSet
 import org.futo.inputmethod.keyboard.internal.KeyboardLayoutKind
-import org.futo.inputmethod.keyboard.internal.KeyboardLayoutPage
 import org.futo.inputmethod.keyboard.internal.KeyboardParams
 import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.uix.actions.AllActionKeys
@@ -308,6 +307,61 @@ val TemplateZWNJKey = BaseKey(
 )
 val TemplateOptionalZWNJKey = OptionalZWNJKey()
 
+data class TemplateCurrencyKey(val currency: String) : AbstractKey {
+    override fun countsToKeyCoordinate(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard
+    ): Boolean = true
+
+    override fun computeData(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard,
+        coordinate: KeyCoordinate
+    ): ComputedKeyData? {
+        val localeSymbol = params.mTextsSet.getText("keyspec_currency")
+        val symbol = when {
+            localeSymbol != currency -> currency
+            else -> "$"
+        }
+
+        return BaseKey(
+            spec = symbol,
+            attributes = KeyAttributes(useKeySpecShortcut = false)
+        ).computeData(params, row, keyboard, coordinate)
+    }
+}
+
+data class PeriodKey(
+    val default: AbstractKey = BaseKey("."),
+    val alternative: AbstractKey = BaseKey(".",
+        moreKeys = listOf(
+            "!text/keyspec_symbols_question",
+            "!text/keyspec_comma",
+            "!"),
+        attributes = KeyAttributes(moreKeyMode = MoreKeyMode.OnlyExplicit, fastMoreKeys = true)
+    )
+) : AbstractKey {
+    override fun countsToKeyCoordinate(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard
+    ): Boolean = default.countsToKeyCoordinate(params, row, keyboard)
+
+    override fun computeData(
+        params: KeyboardParams,
+        row: Row,
+        keyboard: Keyboard,
+        coordinate: KeyCoordinate
+    ): ComputedKeyData? = when(params.mId.mAlternativePeriodKey) {
+        false -> default
+        true -> alternative
+    }.computeData(params, row, keyboard, coordinate)
+}
+
+val TemplatePeriodKey = PeriodKey()
+
 val TemplateKeys = mapOf(
     "shift" to TemplateShiftKey,
     "delete" to TemplateDeleteKey,
@@ -325,4 +379,10 @@ val TemplateKeys = mapOf(
     "alt0" to TemplateAlt0Key,
     "alt1" to TemplateAlt1Key,
     "alt2" to TemplateAlt2Key,
+    "period" to TemplatePeriodKey,
+
+    "currency1" to TemplateCurrencyKey("£"),
+    "currency2" to TemplateCurrencyKey("¢"),
+    "currency3" to TemplateCurrencyKey("€"),
+    "currency4" to TemplateCurrencyKey("¥"),
 )

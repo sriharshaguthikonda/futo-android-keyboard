@@ -1,5 +1,6 @@
 package org.futo.inputmethod.latin.uix.actions
 
+import android.content.Intent
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -41,6 +42,7 @@ import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -57,6 +59,7 @@ import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.PersistentActionState
 import org.futo.inputmethod.latin.uix.ResourceHelper
+import org.futo.inputmethod.latin.uix.USE_PERSONAL_DICT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
 import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
@@ -67,6 +70,7 @@ import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
 import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.setSetting
+import org.futo.inputmethod.latin.uix.settings.SettingsActivity
 import org.futo.inputmethod.latin.uix.utils.ModelOutputSanitizer
 import org.futo.inputmethod.latin.xlm.UserDictionaryObserver
 import org.futo.inputmethod.updates.openURI
@@ -132,6 +136,7 @@ class VoiceInputPersistentState(val manager: KeyboardManagerForAction) : Persist
 
     override fun close() {
         runBlocking { modelManager.cleanUp() }
+        userDictionaryObserver.unregister()
     }
 }
 
@@ -144,12 +149,13 @@ private class VoiceInputActionWindow(
     private var shouldPlaySounds: Boolean = false
     private fun loadSettings(): RecognizerViewSettings {
         val enableSound = context.getSetting(ENABLE_SOUND)
-        val verboseFeedback = context.getSetting(VERBOSE_PROGRESS)
+        val verboseFeedback = false//context.getSetting(VERBOSE_PROGRESS)
         val disallowSymbols = context.getSetting(DISALLOW_SYMBOLS)
         val useBluetoothAudio = context.getSetting(PREFER_BLUETOOTH)
         val requestAudioFocus = context.getSetting(AUDIO_FOCUS)
         val canExpandSpace = context.getSetting(CAN_EXPAND_SPACE)
         val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
+        val usePersonalDict = context.getSetting(USE_PERSONAL_DICT)
         val useGroq = context.getSetting(USE_GROQ_WHISPER)
         val groqKey = context.getSetting(GROQ_VOICE_API_KEY)
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
@@ -159,8 +165,12 @@ private class VoiceInputActionWindow(
 
         val primaryModel = model
         val languageSpecificModels = mutableMapOf<Language, ModelLoader>()
-        val allowedLanguages = locales.map { getLanguageFromWhisperString(it.language) }
-            .filterNotNull().toSet()
+        val allowedLanguages = locales.mapNotNull { getLanguageFromWhisperString(it.language) }.toSet()
+        val glossary = if(usePersonalDict) {
+            state.userDictionaryObserver.getWords(locales).filter { it.shortcut.isNullOrEmpty() }.map { it.word }
+        } else {
+            emptyList()
+        }
 
         shouldPlaySounds = enableSound
 
@@ -172,7 +182,7 @@ private class VoiceInputActionWindow(
                 languageSpecificModels = languageSpecificModels
             ),
             decodingConfiguration = DecodingConfiguration(
-                glossary = state.userDictionaryObserver.getWords().map { it.word },
+                glossary = glossary,
                 languages = allowedLanguages,
                 suppressSymbols = disallowSymbols
             ),
@@ -254,8 +264,10 @@ private class VoiceInputActionWindow(
     }
 
     override fun close(): CloseResult {
+        inputTransaction.cancel()
         runBlocking { initJob.cancelAndJoin() }
         recognizerView.value?.cancel()
+        state.modelManager.cancelAll()
         return CloseResult.Default
     }
 
@@ -288,19 +300,33 @@ private class VoiceInputActionWindow(
     override fun finished(result: String) {
         wasFinished = true
 
-        val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
-        inputTransaction.commit(sanitized)
-        manager.announce(result)
-        manager.closeActionWindow()
+        manager.getLifecycleScope().launch(Dispatchers.Main) {
+            val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
+            inputTransaction.commit(sanitized)
+            manager.announce(result)
+            manager.closeActionWindow()
+        }
     }
 
     override fun partialResult(result: String) {
-        val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
-        inputTransaction.updatePartial(sanitized)
+        manager.getLifecycleScope().launch(Dispatchers.Main) {
+            val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
+            inputTransaction.updatePartial(sanitized)
+        }
     }
 
     override fun requestPermission(onGranted: () -> Unit, onRejected: () -> Unit): Boolean {
         return false
+    }
+
+    override fun openSettings() {
+        val intent = Intent()
+        intent.setClass(context, SettingsActivity::class.java)
+        intent.setFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        )
+        intent.putExtra("navDest", "languages")
+        context.startActivity(intent)
     }
 }
 
@@ -365,7 +391,7 @@ private class VoiceInputBottomBarWindow(
                 languageSpecificModels = languageSpecificModels
             ),
             decodingConfiguration = DecodingConfiguration(
-                glossary = state.userDictionaryObserver.getWords().map { it.word },
+                glossary = state.userDictionaryObserver.getWords(locales).map { it.word },
                 languages = allowedLanguages,
                 suppressSymbols = disallowSymbols
             ),
@@ -630,6 +656,16 @@ private class VoiceInputBottomBarWindow(
 
     override fun requestPermission(onGranted: () -> Unit, onRejected: () -> Unit): Boolean {
         return false
+    }
+
+    override fun openSettings() {
+        val intent = Intent()
+        intent.setClass(context, SettingsActivity::class.java)
+        intent.setFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        )
+        intent.putExtra("navDest", "languages")
+        context.startActivity(intent)
     }
 }
 

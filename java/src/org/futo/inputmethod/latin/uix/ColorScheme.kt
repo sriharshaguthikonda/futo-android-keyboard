@@ -36,6 +36,7 @@ data class ExtraColors(
     val hintHiVis: Boolean,
 
     val navigationBarColor: Color? = null,
+    val navigationBarColorForTransparency: Color? = null,
     val keyboardBackgroundShader: String? = null,
 )
 
@@ -140,6 +141,8 @@ data class KeyboardColorScheme(
 
     val navigationBarColor: Color?
         get() = extended.navigationBarColor
+    val navigationBarColorForTransparency: Color?
+        get() = extended.navigationBarColorForTransparency
 
     val keyboardContainerPressed: Color
         get() = extended.keyboardContainerPressed
@@ -193,6 +196,7 @@ fun extendedDarkColorScheme(
     primaryTransparent: Color,
     onSurfaceTransparent: Color,
     navigationBarColor: Color? = null,
+    navigationBarColorForTransparency: Color? = null,
     keyboardContainerPressed: Color = outline.copy(alpha = 0.33f),
     onKeyboardContainerPressed: Color = Color.Transparent,
     settingsIconColor: Color = primary,
@@ -247,6 +251,7 @@ fun extendedDarkColorScheme(
             hintColor = hintColor,
             hintHiVis = hintHiVis,
             keyboardBackgroundShader = keyboardBackgroundShader,
+            navigationBarColorForTransparency = navigationBarColorForTransparency,
         )
     )
 
@@ -287,6 +292,7 @@ fun extendedLightColorScheme(
     primaryTransparent: Color,
     onSurfaceTransparent: Color,
     navigationBarColor: Color? = null,
+    navigationBarColorForTransparency: Color? = null,
     keyboardContainerPressed: Color = outline.copy(alpha = 0.33f),
     onKeyboardContainerPressed: Color = Color.Transparent,
     settingsIconColor: Color = primary,
@@ -340,7 +346,8 @@ fun extendedLightColorScheme(
             settingsIconBackground    = settingsIconBackground,
             hintColor = hintColor,
             hintHiVis = hintHiVis,
-            keyboardBackgroundShader = keyboardBackgroundShader
+            keyboardBackgroundShader = keyboardBackgroundShader,
+            navigationBarColorForTransparency = navigationBarColorForTransparency,
         )
     )
 

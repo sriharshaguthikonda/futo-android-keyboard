@@ -1,6 +1,5 @@
 package org.futo.inputmethod.latin.uix
 
-import android.app.Activity
 import android.content.ClipDescription
 import android.content.Context
 import android.content.Intent
@@ -12,6 +11,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
+import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
@@ -59,11 +59,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -98,6 +100,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.futo.inputmethod.accessibility.AccessibilityUtils
+import org.futo.inputmethod.event.Event
 import org.futo.inputmethod.latin.AudioAndHapticFeedbackManager
 import org.futo.inputmethod.latin.BuildConfig
 import org.futo.inputmethod.latin.FoldingOptions
@@ -107,19 +110,19 @@ import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.RichInputMethodManager
 import org.futo.inputmethod.latin.SuggestedWords
 import org.futo.inputmethod.latin.SuggestedWords.SuggestedWordInfo
-import org.futo.inputmethod.latin.SuggestionBlacklist
 import org.futo.inputmethod.latin.SupportsNavbarExtension
 import org.futo.inputmethod.latin.common.Constants
-import org.futo.inputmethod.latin.inputlogic.InputLogic
+import org.futo.inputmethod.latin.settings.Settings
 import org.futo.inputmethod.latin.suggestions.SuggestionStripViewListener
 import org.futo.inputmethod.latin.uix.actions.ActionEditor
 import org.futo.inputmethod.latin.uix.actions.ActionRegistry
 import org.futo.inputmethod.latin.uix.actions.AllActions
 import org.futo.inputmethod.latin.uix.actions.KeyboardModeAction
 import org.futo.inputmethod.latin.uix.actions.PersistentEmojiState
+import org.futo.inputmethod.latin.uix.actions.keyCode
+import org.futo.inputmethod.latin.uix.actions.keyCodeAlt
 import org.futo.inputmethod.latin.uix.resizing.KeyboardResizers
 import org.futo.inputmethod.latin.uix.settings.DataStoreCacheProvider
-import org.futo.inputmethod.latin.uix.settings.SettingsActivity
 import org.futo.inputmethod.latin.uix.settings.pages.ActionBarDisplayedSetting
 import org.futo.inputmethod.latin.uix.settings.pages.InlineAutofillSetting
 import org.futo.inputmethod.latin.uix.settings.useDataStore
@@ -128,8 +131,6 @@ import org.futo.inputmethod.latin.uix.theme.ThemeOption
 import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.latin.uix.theme.UixThemeAuto
 import org.futo.inputmethod.latin.uix.theme.UixThemeWrapper
-import org.futo.inputmethod.latin.uix.utils.TextContext
-import org.futo.inputmethod.updates.DISABLE_UPDATE_REMINDER
 import org.futo.inputmethod.updates.autoDeferManualUpdateIfNeeded
 import org.futo.inputmethod.updates.deferManualUpdate
 import org.futo.inputmethod.updates.isManualUpdateTimeExpired
@@ -158,8 +159,8 @@ val LocalFoldingState = compositionLocalOf<FoldingOptions> {
     FoldingOptions(null)
 }
 
-val LocalNavController = compositionLocalOf<NavHostController> {
-    error("No nav controller provided")
+val LocalNavController = compositionLocalOf<NavHostController?> {
+    null
 }
 
 private val UixLocaleFollowsSubtypeLocale = true
@@ -195,46 +196,6 @@ fun Modifier.keyboardBottomPadding(size: ComputedKeyboardSize): Modifier = with(
     this@keyboardBottomPadding.absolutePadding(bottom = size.padding.bottom.toDp())
 }
 
-
-private class LatinIMEActionInputTransaction(
-    private val inputLogic: InputLogic
-): ActionInputTransaction {
-    private var isFinished = false
-    override val textContext: TextContext
-
-    init {
-        inputLogic.startSuppressingLogic()
-        textContext = TextContext(
-            beforeCursor = inputLogic.mConnection.getTextBeforeCursor(Constants.VOICE_INPUT_CONTEXT_SIZE, 0),
-            afterCursor = inputLogic.mConnection.getTextAfterCursor(Constants.VOICE_INPUT_CONTEXT_SIZE, 0)
-        )
-    }
-
-    private var partialText = ""
-    override fun updatePartial(text: String) {
-        if(isFinished) return
-        partialText = text
-        inputLogic.mConnection.setComposingText(
-            partialText,
-            1
-        )
-    }
-
-    override fun commit(text: String) {
-        if(isFinished) return
-        isFinished = true
-        inputLogic.mConnection.commitText(
-            text,
-            1
-        )
-        inputLogic.endSuppressingLogic()
-    }
-
-    override fun cancel() {
-        commit(partialText)
-    }
-}
-
 class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIME) : KeyboardManagerForAction {
     override fun getContext(): Context {
         return latinIME
@@ -245,7 +206,7 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     }
 
     override fun createInputTransaction(): ActionInputTransaction {
-        return LatinIMEActionInputTransaction(latinIME.inputLogic)
+        return latinIME.imeManager.createInputTransaction()
     }
 
     override fun typeText(v: String) {
@@ -253,6 +214,14 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
             latinIME.getBaseInputConnection()?.commitText(v, 1)
         } else {
             latinIME.latinIMELegacy.onTextInput(v)
+        }
+    }
+
+    override fun typeTextSurroundedByWhitespace(v: String) {
+        if(latinIME.isInputConnectionOverridden) {
+            latinIME.getBaseInputConnection()?.commitText(v, 1)
+        } else {
+            latinIME.latinIMELegacy.onTextInputWithSpace(v)
         }
     }
 
@@ -335,10 +304,13 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     }
 
     override fun backspace(amount: Int) {
-        latinIME.latinIMELegacy.onCodeInput(
-            Constants.CODE_DELETE,
-            Constants.NOT_A_COORDINATE,
-            Constants.NOT_A_COORDINATE, false)
+        for(i in 0 until amount) {
+            latinIME.latinIMELegacy.onCodeInput(
+                Constants.CODE_DELETE,
+                Constants.NOT_A_COORDINATE,
+                Constants.NOT_A_COORDINATE, false
+            )
+        }
     }
 
     override fun closeActionWindow() {
@@ -373,7 +345,11 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     }
 
     override fun sendKeyEvent(keyCode: Int, metaState: Int) {
-        latinIME.inputLogic.sendDownUpKeyEvent(keyCode, metaState)
+        val event = Event.createDownUpKeyEvent(keyCode, metaState)
+        latinIME.imeManager.getActiveIME(
+            Settings.getInstance().current
+        ).onEvent(event)
+        //latinIME.inputLogic.sendDownUpKeyEvent(keyCode, metaState)
     }
 
     override fun isShifted(): Boolean = latinIME.latinIMELegacy.mKeyboardSwitcher.mState.shifted
@@ -381,11 +357,17 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
         latinIME.latinIMELegacy.mKeyboardSwitcher.mState.capsLocked
 
     override fun cursorLeft(steps: Int, stepOverWords: Boolean, select: Boolean) {
-        latinIME.inputLogic.cursorLeft(steps, stepOverWords, select)
+        latinIME.imeManager.getActiveIME(
+            Settings.getInstance().current
+        ).onMovePointer(-1, stepOverWords, select)
+        //latinIME.inputLogic.cursorLeft(steps, stepOverWords, select)
     }
 
     override fun cursorRight(steps: Int, stepOverWords: Boolean, select: Boolean) {
-        latinIME.inputLogic.cursorRight(steps, stepOverWords, select)
+        latinIME.imeManager.getActiveIME(
+            Settings.getInstance().current
+        ).onMovePointer( 1, stepOverWords, select)
+        //latinIME.inputLogic.cursorRight(steps, stepOverWords, select)
     }
 
     override fun performHapticAndAudioFeedback(code: Int, view: View) {
@@ -456,6 +438,7 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     }
 
     override fun overrideKeyboardTypeface(typeface: Typeface?) {
+        if(latinIME.getDrawableProvider().typefaceOverride == typeface) return
         latinIME.getDrawableProvider().typefaceOverride = typeface
         latinIME.invalidateKeyboard()
     }
@@ -464,8 +447,6 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
         latinIME.sizingCalculator
 
     override fun getLatinIMEForDebug(): LatinIME = latinIME
-
-    override fun getSuggestionBlacklist(): SuggestionBlacklist = latinIME.suggestionBlacklist
 
     override fun setClipboardSearchFocus(isFocused: Boolean) {
         Log.d("ClipboardSearch", "UixActionKeyboardManager.setClipboardSearchFocus: new isFocused = $isFocused, current uixManager.isClipboardSearchFocused = ${uixManager.isClipboardSearchFocused.value}")
@@ -518,6 +499,17 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     override fun acknowledgeSearchFocusRequest() {
         uixManager.requestSearchFocus.value = false
     }
+
+    override fun copyToClipboard(cut: Boolean) {
+        if(cut) {
+            sendKeyEvent(KeyEvent.KEYCODE_X, KeyEvent.META_CTRL_ON)
+        } else {
+            sendKeyEvent(KeyEvent.KEYCODE_C, KeyEvent.META_CTRL_ON)
+        }
+    }
+    override fun pasteFromClipboard() {
+        sendKeyEvent(KeyEvent.KEYCODE_V, KeyEvent.META_CTRL_ON)
+    }
 }
 
 data class ActiveDialogRequest(
@@ -542,8 +534,9 @@ class UixManager(private val latinIME: LatinIME) {
     internal val composeView: ComposeView?
         get() = latinIME.composeView
 
-    private var shouldShowSuggestionStrip = mutableStateOf(true)
-    private var suggestedWords: MutableState<SuggestedWords?> = mutableStateOf(null)
+    private val shouldShowSuggestionStrip = mutableStateOf(true)
+    private val suggestedWords: MutableState<SuggestedWords?> = mutableStateOf(null)
+    private val useExpandableSuggestionsUi: MutableState<Boolean> = mutableStateOf(false)
 
     var currWindowAction: MutableState<Action?> = mutableStateOf(null)
     private var persistentStates: HashMap<Action, PersistentActionState?> = hashMapOf()
@@ -588,11 +581,10 @@ class UixManager(private val latinIME: LatinIME) {
     val touchableHeight: Int
         get() = measuredTouchableHeight
 
-    val isMainKeyboardHidden get() = mainKeyboardHidden
+    val isMainKeyboardHidden get() = mainKeyboardHidden.value
 
-    fun onActionActivated(rawAction: Action) {
+    private fun onActionActivatedInternal(rawAction: Action) {
         resizers.hideResizer()
-        latinIME.inputLogic.finishInput()
 
         val action = runBlocking {
             ActionRegistry.getActionOverride(latinIME, rawAction)
@@ -607,9 +599,7 @@ class UixManager(private val latinIME: LatinIME) {
         }
     }
 
-    fun onActionAltActivated(rawAction: Action) {
-        latinIME.inputLogic.finishInput()
-
+    private fun onActionAltActivatedInternal(rawAction: Action) {
         val action = runBlocking {
             ActionRegistry.getActionOverride(latinIME, rawAction)
         }
@@ -617,12 +607,29 @@ class UixManager(private val latinIME: LatinIME) {
         action.altPressImpl?.invoke(keyboardManagerForAction, persistentStates[action])
     }
 
+    fun onActionActivated(rawAction: Action) {
+        val event = Event.createSoftwareKeypressEvent(Constants.NOT_A_CODE, rawAction.keyCode, 0, 0, false)
+        latinIME.imeManager.getActiveIME(
+            Settings.getInstance().current
+        ).onEvent(event)
+    }
+
+    fun onActionAltActivated(rawAction: Action) {
+        val event = Event.createSoftwareKeypressEvent(Constants.NOT_A_CODE, rawAction.keyCodeAlt, 0, 0, false)
+        latinIME.imeManager.getActiveIME(
+            Settings.getInstance().current
+        ).onEvent(event)
+    }
+
     @Composable
-    private fun MainKeyboardViewWithActionBar(showActionBarOverride: Boolean? = null) {
+    private fun MainKeyboardViewWithActionBar(
+        needToUseExpandableSuggestionUi: Boolean = false,
+        showActionBarOverride: Boolean? = null
+    ) {
         val view = LocalView.current
 
-        val systemActionBarSetting = useDataStore(ActionBarDisplayedSetting)
-        val actuallyShowActionBar = showActionBarOverride ?: systemActionBarSetting.value
+        val actionBarShown = useDataStore(ActionBarDisplayedSetting)
+        val actuallyShowActionBar = showActionBarOverride ?: actionBarShown.value
 
         Column {
             // Don't show suggested words when it's not meant to be shown
@@ -632,13 +639,15 @@ class UixManager(private val latinIME: LatinIME) {
                 null
             }
 
-            if(actuallyShowActionBar) {
+            val inlineSuggestions = run {
+                if(!inlineStuffHiddenByTyping.value) inlineSuggestions.value else emptyList()
+            }
+
+            if(actuallyShowActionBar || inlineSuggestions.isNotEmpty()) {
                 ActionBar(
                     suggestedWordsOrNull,
                     latinIME.latinIMELegacy as SuggestionStripViewListener,
-                    inlineSuggestions = run {
-                        if(!inlineStuffHiddenByTyping.value) inlineSuggestions.value else emptyList()
-                    },
+                    inlineSuggestions = inlineSuggestions,
                     onActionActivated = {
                         keyboardManagerForAction.performHapticAndAudioFeedback(
                             Constants.CODE_TAB,
@@ -662,7 +671,8 @@ class UixManager(private val latinIME: LatinIME) {
                     quickClipState = run {
                         if(!inlineStuffHiddenByTyping.value) quickClipState.value else null
                     },
-                    onQuickClipDismiss = { quickClipState.value = null }
+                    onQuickClipDismiss = { quickClipState.value = null },
+                    needToUseExpandableSuggestionUi = needToUseExpandableSuggestionUi
                 )
             }
         }
@@ -731,7 +741,8 @@ class UixManager(private val latinIME: LatinIME) {
     }
 
     @Composable
-    private fun ActionViewWithHeader(windowImpl: ActionWindow) {
+    private fun ActionViewWithHeader(windowImpl: ActionWindow,
+                                     needToUseExpandableSuggestionUi: Boolean) {
         val heightDiv = if(mainKeyboardHidden.value) {
             1
         } else {
@@ -749,7 +760,7 @@ class UixManager(private val latinIME: LatinIME) {
                     }
                 )
             ) {
-                if (mainKeyboardHidden.value || latinIME.isInputConnectionOverridden) {
+                if (mainKeyboardHidden.value || isInputOverridden.value) {
                     ActionWindowBar(
                         onBack = { closeActionWindow(true) },
                         canExpand = currWindowAction.value!!.canShowKeyboard,
@@ -769,9 +780,8 @@ class UixManager(private val latinIME: LatinIME) {
                         })
                         .safeKeyboardPadding()
                 ) {
-                    windowImpl.WindowContents(keyboardShown = !isMainKeyboardHidden.value)
+                    windowImpl.WindowContents(keyboardShown = !mainKeyboardHidden.value)
                 }
-                Spacer(Modifier.height(5.dp))
             }
 
             if((!mainKeyboardHidden.value && !latinIME.isInputConnectionOverridden)
@@ -782,15 +792,17 @@ class UixManager(private val latinIME: LatinIME) {
                     null
                 }
 
-                CollapsibleSuggestionsBar(
-                    onCollapse = { toggleExpandAction() },
-                    onClose = { closeActionWindow() },
-                    words = suggestedWordsOrNull,
-                    showClose = currWindowActionWindow.value?.showCloseButton == true,
-                    showCollapse = currWindowActionWindow.value?.positionIsUserManagable == true,
-                    suggestionStripListener = latinIME.latinIMELegacy as SuggestionStripViewListener
-                )
-            } else if(showingAboveKeyboard) {
+                if(!needToUseExpandableSuggestionUi) {
+                    CollapsibleSuggestionsBar(
+                        onCollapse = { toggleExpandAction() },
+                        onClose = { closeActionWindow() },
+                        words = suggestedWordsOrNull,
+                        showClose = currWindowActionWindow.value?.showCloseButton == true,
+                        showCollapse = currWindowActionWindow.value?.positionIsUserManagable == true,
+                        suggestionStripListener = latinIME.latinIMELegacy as SuggestionStripViewListener
+                    )
+                }
+            } else if(showingAboveKeyboard && !needToUseExpandableSuggestionUi) {
                 ActionSep()
                 Spacer(Modifier.height(1.dp))
             }
@@ -862,11 +874,17 @@ class UixManager(private val latinIME: LatinIME) {
         languageSwitcherDialog?.dismiss()
 
         // Create new dialog
-        languageSwitcherDialog = createDialogComposeView(latinIME) {
+        languageSwitcherDialog = createDialogComposeView(latinIME) { dialog ->
             DataStoreCacheProvider {
                 UixThemeAuto {
                     LanguageSwitcherDialog(
-                        onDismiss = { it.dismiss() }
+                        onDismiss = { dialog.dismiss() },
+                        switchToIme = {
+                            latinIME.lifecycleScope.launch(Dispatchers.Main) {
+                                latinIME.switchInputMethod(it.id)
+                                dialog.dismiss()
+                            }
+                        }
                     )
                 }
             }
@@ -956,6 +974,7 @@ class UixManager(private val latinIME: LatinIME) {
                 //top = padding.top.toDp().coerceAtLeast(0.dp),
                 //bottom = padding.bottom.toDp().coerceAtLeast(0.dp),
             )
+            .clip(shape)
             .clipToBounds()
             // Blocks any input to inputDarkener within the keyboard
             .pointerInput(Unit) {}
@@ -988,10 +1007,9 @@ class UixManager(private val latinIME: LatinIME) {
         }
 
         // Bottom drag bar
-        Spacer(modifier = Modifier.height(20.dp))
         Box(modifier = Modifier
             .fillMaxWidth()
-            .height(20.dp)
+            .height(32.dp)
             .pointerInput(pointerInputKey) {
                 detectDragGestures(
                     onDrag = { _, dragAmount -> onDragged(dragAmount) },
@@ -1003,7 +1021,7 @@ class UixManager(private val latinIME: LatinIME) {
             }, Modifier.align(Alignment.CenterEnd)) {
                 Icon(
                     painterResource(R.drawable.keyboard_gear),
-                    contentDescription = "Keyboard modes",
+                    contentDescription = stringResource(R.string.action_keyboard_modes_title),
                     tint = LocalKeyboardScheme.current.onSurfaceVariant
                 )
             }
@@ -1029,12 +1047,13 @@ class UixManager(private val latinIME: LatinIME) {
         content: @Composable BoxScope.(actionBarGap: Dp) -> Unit
     ) = with(LocalDensity.current) {
         val offset = remember(size) { mutableStateOf(Offset(size.bottomOrigin.first.toFloat(), size.bottomOrigin.second.toFloat())) }
+        val shape = RoundedCornerShape(16.dp)
 
         OffsetPositioner(offset.value + Offset(0.0f, navBarHeight().toPx())) {
             KeyboardSurface(
                 requiredWidthPx = size.width,
                 backgroundColor = latinIME.keyboardColor,
-                shape = RoundedCornerShape(16.dp),
+                shape = shape,
                 padding = size.padding,
                 modifier = Modifier.onGloballyPositioned {
                     floatingPosition = it.positionInWindow()
@@ -1079,7 +1098,7 @@ class UixManager(private val latinIME: LatinIME) {
                     )
                 }
 
-                resizers.Resizer(this, size)
+                resizers.Resizer(this, size, shape)
             }
         }
     }
@@ -1105,7 +1124,8 @@ class UixManager(private val latinIME: LatinIME) {
                         // Show opposite icon
                         OneHandedDirection.Left -> R.drawable.chevron_right
                         OneHandedDirection.Right -> R.drawable.chevron_left
-                    }), contentDescription = "Switch handedness")
+                    }), contentDescription = stringResource(R.string.one_handed_mode_switch_hand)
+                    )
                 }
 
                 Spacer(Modifier.weight(1.0f))
@@ -1113,7 +1133,7 @@ class UixManager(private val latinIME: LatinIME) {
                 IconButton(onClick = {
                     latinIME.sizingCalculator.exitOneHandedMode()
                 }) {
-                    Icon(painterResource(R.drawable.maximize), contentDescription = "Exit one-handed mode")
+                    Icon(painterResource(R.drawable.maximize), contentDescription = stringResource(R.string.one_handed_mode_exit))
                 }
 
                 Spacer(Modifier.height(navBarHeight()))
@@ -1211,38 +1231,83 @@ class UixManager(private val latinIME: LatinIME) {
 
             KeyboardWindowSelector { gap ->
                 Column {
+                    // Clipboard search mode detection
                     val isClipboardSearchModeActive = isClipboardSearchFocused.value &&
-                            currWindowAction.value?.name == R.string.action_clipboard_manager_title // Check if it's clipboard history action
+                            currWindowAction.value?.name == R.string.action_clipboard_manager_title
                     Log.d("ClipboardSearch", "UixManager.Content: isClipboardSearchFocused=${isClipboardSearchFocused.value}, currAction=${currWindowAction.value?.name}, isClipboardSearchModeActive=$isClipboardSearchModeActive, mainKeyboardHidden=${mainKeyboardHidden.value}")
+
+                    // TODO: Refactor how we handle expandable suggestions here to not be a mess
+                    val needToUseExpandableSuggestionUi =
+                        useExpandableSuggestionsUi.value && suggestedWords.value?.size()?.equals(0) != true
+                                && mainKeyboardHidden.value == false
+                                && (quickClipState.value == null || inlineStuffHiddenByTyping.value)
+                                && currentNotice.value == null
+                                && (inlineSuggestions.value.isEmpty() || inlineStuffHiddenByTyping.value)
+                                && !isClipboardSearchModeActive // Don't use expandable UI in clipboard search mode
 
                     if (isClipboardSearchModeActive) {
                         // Mode: Clipboard History with Search Focused
-                        // 1. Show Clipboard Action Window (includes search bar)
-                        currWindowActionWindow.value?.let { ActionViewWithHeader(it) }
-
-                        // 2. NO standard action bar/suggestion strip for the main keyboard
-                        //    The LegacyKeyboardView will be shown below.
-                        //    The 'gap' might be irrelevant here or could be a specific small spacer.
-                        Spacer(modifier = Modifier.height(0.dp)) // Minimal or no gap
-
-                    } else if (currWindowActionWindow.value != null) {
-                        // Mode: Other Action Window is active
-                        ActionViewWithHeader(currWindowActionWindow.value!!)
-                        Spacer(modifier = Modifier.height(gap)) // Standard gap calculation applies
+                        currWindowActionWindow.value?.let { ActionViewWithHeader(it, needToUseExpandableSuggestionUi) }
+                        Spacer(modifier = Modifier.height(0.dp))
                     } else {
-                        // Mode: No Action Window, just main keyboard
-                        MainKeyboardViewWithActionBar() // Shows suggestions/actions as per its internal logic
-                        Spacer(modifier = Modifier.height(gap))
+                        when {
+                            currWindowActionWindow.value != null -> ActionViewWithHeader(
+                                currWindowActionWindow.value!!,
+                                needToUseExpandableSuggestionUi
+                            )
+                            else -> MainKeyboardViewWithActionBar(
+                                needToUseExpandableSuggestionUi
+                            )
+                        }
+
+                        if(!needToUseExpandableSuggestionUi) {
+                            Spacer(modifier = Modifier.height(gap))
+                        }
                     }
 
-                    // Determine visibility of the LegacyKeyboardView (the actual keys)
+                    // Determine visibility of the LegacyKeyboardView
                     val legacyKeyboardActuallyHidden = if (isClipboardSearchModeActive) {
                         false // Force keyboard to be shown for clipboard search
                     } else {
-                        isMainKeyboardHidden.value // Standard visibility logic for other action windows
+                        mainKeyboardHidden.value
                     }
                     Log.d("ClipboardSearch", "UixManager.Content: legacyKeyboardActuallyHidden=$legacyKeyboardActuallyHidden")
-                    latinIME.LegacyKeyboardView(hidden = legacyKeyboardActuallyHidden)
+
+                    val kbHeight = remember { mutableIntStateOf(latinIME.size.value!!.height) }
+                    val keyboardViewOffset = remember(needToUseExpandableSuggestionUi) { mutableIntStateOf(0) }
+                    Box(Modifier.let {
+                        if(needToUseExpandableSuggestionUi) {
+                            it.height(
+                                with(LocalDensity.current) { kbHeight.intValue.toDp() }
+                                        + latinIME.sizingCalculator.calculateSuggestionBarHeightDp().dp
+                                        + gap
+                            )
+                        } else {
+                            it
+                        }
+                    }) {
+                        if(needToUseExpandableSuggestionUi) {
+                            ActionBarWithExpandableCandidates(
+                                suggestedWords.value,
+                                latinIME.latinIMELegacy as SuggestionStripViewListener,
+                                isActionsExpanded = isActionsExpanded.value,
+                                toggleActionsExpanded = { toggleActionsExpanded() },
+                                closeActionWindow = currWindowActionWindow.value?.let {{ closeActionWindow() }},
+                                keyboardOffset = keyboardViewOffset,
+                                keyboardHeight = (latinIME.size.value?.height ?: kbHeight.intValue) + with(LocalDensity.current) { navBarHeight().toPx().toInt() }
+                            )
+                        }
+                        latinIME.LegacyKeyboardView(modifier = Modifier.align(Alignment.BottomCenter).onSizeChanged {
+                                kbHeight.intValue = it.height.let {
+                                    if(it > 0) {
+                                        it
+                                    } else {
+                                        latinIME.size.value!!.height
+                                    }
+                                }
+                            }.absoluteOffset { IntOffset(0, keyboardViewOffset.intValue) },
+                            hidden = legacyKeyboardActuallyHidden)
+                    }
 
                     if(latinIME.size.value !is FloatingKeyboardSize) {
                         Spacer(Modifier.height(navBarHeight()))
@@ -1269,7 +1334,7 @@ class UixManager(private val latinIME: LatinIME) {
 
         val updateInfo = retrieveSavedLastUpdateCheckResult(latinIME)
         if(updateInfo != null && updateInfo.isNewer()) {
-            if(!latinIME.getSetting(DISABLE_UPDATE_REMINDER)) {
+            /*if(!latinIME.getSetting(DISABLE_UPDATE_REMINDER)) {
                 numSuggestionsSinceNotice = 0
                 currentNotice.value = object : ImportantNotice {
                     @Composable
@@ -1294,7 +1359,7 @@ class UixManager(private val latinIME: LatinIME) {
                         context.startActivity(intent)
                     }
                 }
-            }
+            }*/
         } else {
             if(isManualUpdateTimeExpired(latinIME)) {
                 numSuggestionsSinceNotice = 0
@@ -1304,7 +1369,7 @@ class UixManager(private val latinIME: LatinIME) {
                         return stringResource(R.string.keyboard_actionbar_manual_update_check_notice)
                     }
 
-                    override fun onDismiss(context: Context) {
+                    override fun onDismiss(context: Context, auto: Boolean) {
                         currentNotice.value = null
 
                         runBlocking {
@@ -1351,12 +1416,13 @@ class UixManager(private val latinIME: LatinIME) {
         this.shouldShowSuggestionStrip.value = shouldShowSuggestionsStrip
     }
 
-    fun setSuggestions(suggestedWords: SuggestedWords?, rtlSubtype: Boolean) {
+    fun setSuggestions(suggestedWords: SuggestedWords?, rtlSubtype: Boolean, useExpandableUi: Boolean) {
         this.suggestedWords.value = suggestedWords
+        this.useExpandableSuggestionsUi.value = useExpandableUi
 
-        if(currentNotice.value != null) {
-            if(numSuggestionsSinceNotice > 1) {
-                currentNotice.value?.onDismiss(latinIME)
+        if(currentNotice.value != null && suggestedWords?.isEmpty != true) {
+            if(numSuggestionsSinceNotice > 0) {
+                currentNotice.value?.onDismiss(latinIME, true)
             }
             numSuggestionsSinceNotice += 1
         }
@@ -1367,7 +1433,9 @@ class UixManager(private val latinIME: LatinIME) {
         if(latinIME.getSetting(ActionBarDisplayedSetting) == false) return false
         if(latinIME.getSetting(InlineAutofillSetting) == false) return false
 
-        currentNotice.value?.onDismiss(latinIME)
+        if(response.inlineSuggestions.isNotEmpty() == true){
+            currentNotice.value?.onDismiss(latinIME, true)
+        }
 
         inlineSuggestions.value = response.inlineSuggestions.map {
             latinIME.inflateInlineSuggestion(it)
@@ -1376,17 +1444,17 @@ class UixManager(private val latinIME: LatinIME) {
         return true
     }
 
-    fun triggerAction(id: Int, alt: Boolean) {
+    fun triggerActionInternalFromIme(id: Int, alt: Boolean) {
         val action = AllActions.getOrNull(id) ?: throw IllegalArgumentException("No such action with ID $id")
 
         if(alt) {
-            onActionAltActivated(action)
+            onActionAltActivatedInternal(action)
         } else {
             if (currWindowAction.value != null && action.windowImpl != null) {
                 closeActionWindow()
             }
 
-            onActionActivated(action)
+            onActionActivatedInternal(action)
         }
     }
 
@@ -1396,13 +1464,13 @@ class UixManager(private val latinIME: LatinIME) {
             listOf(
                 DialogRequestItem(latinIME.getString(R.string.cancel)) { },
                 DialogRequestItem(latinIME.getString(R.string.keyboard_suggest_add_word_to_blacklist)) {
-                    latinIME.forceForgetWord(suggestedWordInfo)
+                    latinIME.blacklistWord(suggestedWordInfo)
                 },
             ) + if(suggestedWordInfo.mKindAndFlags == SuggestedWordInfo.KIND_EMOJI_SUGGESTION) {
                 listOf(
                     DialogRequestItem(latinIME.getString(R.string.keyboard_suggest_disable_emojis)) {
                         runBlocking { latinIME.setSetting(SHOW_EMOJI_SUGGESTIONS, false) }
-                        latinIME.refreshSuggestions()
+                        latinIME.blacklistWord(null)
                     }
                 )
             } else {
@@ -1418,12 +1486,18 @@ class UixManager(private val latinIME: LatinIME) {
         }
     }
 
-    fun onCreate() {
+    private fun initKeyboardLoadActions() {
+        if(!latinIME.isDirectBootUnlocked) return
         AllActions.forEach { action ->
-            if(action.persistentStateInitialization == PersistentStateInitialization.OnKeyboardLoad) {
-                persistentStates[action] = action.persistentState?.let { it(keyboardManagerForAction) }
+            if (action.persistentStateInitialization == PersistentStateInitialization.OnKeyboardLoad) {
+                persistentStates[action] = persistentStates[action] ?:
+                    action.persistentState?.let { it(keyboardManagerForAction) }
             }
         }
+    }
+
+    fun onCreate() {
+        initKeyboardLoadActions()
 
         isActionsExpanded.value = latinIME.getSettingBlocking(ActionBarExpanded)
 
@@ -1438,6 +1512,8 @@ class UixManager(private val latinIME: LatinIME) {
     }
 
     fun onPersistentStatesUnlocked() {
+        initKeyboardLoadActions()
+
         persistentStates.forEach {
             latinIME.lifecycleScope.launch {
                 it.value?.onDeviceUnlocked()
@@ -1486,7 +1562,13 @@ class UixManager(private val latinIME: LatinIME) {
     }
 
     private val quickClipState: MutableState<QuickClipState?> = mutableStateOf(null)
+    fun dismissQuickClips() { quickClipState.value = null }
     fun inputStarted(editorInfo: EditorInfo?) {
+        try {
+            checkIfDictInstalled()
+        } catch(e: Exception) {
+            e.printStackTrace()
+        }
         inlineStuffHiddenByTyping.value = false
         this.editorInfo = editorInfo
 
@@ -1514,17 +1596,27 @@ class UixManager(private val latinIME: LatinIME) {
         inlineStuffHiddenByTyping.value = textBlank == false
     }
 
-    fun updateLocale(locale: Locale) {
+    private var prevLocale: Locale? = null
+    fun updateLocale(locale: Locale): Configuration? {
+        var result: Configuration? = null
+        prevLocale = locale
         if(UixLocaleFollowsSubtypeLocale) {
             latinIME.resources.apply {
                 val config = Configuration(configuration)
                 config.setLocale(locale)
+                result = config
                 updateConfiguration(config, displayMetrics)
             }
             setContent()
         }
 
         PersistentEmojiState.loadTranslationsForLanguage(latinIME, locale)
+        checkIfDictInstalled()
+        return result
+    }
+
+    fun updateLocaleOnCfgChanged(): Configuration? {
+        return prevLocale?.let { updateLocale(it) }
     }
 
     fun onDestroy() {
@@ -1533,5 +1625,27 @@ class UixManager(private val latinIME: LatinIME) {
             it.close()
         }
         persistentStates.clear()
+    }
+
+    private fun checkIfDictInstalled() {
+        val check = MissingDictionaryHelper.checkIfDictInstalled(latinIME)
+        when(check) {
+            MissingDictionaryHelper.DictCheckResult.CheckFailed -> { }
+            MissingDictionaryHelper.DictCheckResult.DontShowDictNotice -> {
+                // Hide any existing one, e.g. if user just installed a dict or switched to a language
+                // with a dict.
+                if(currentNotice.value is MissingDictionaryHelper.NoDictionaryNotice) {
+                    currentNotice.value = null
+                }
+            }
+            is MissingDictionaryHelper.DictCheckResult.ShowDictNotice -> {
+                numSuggestionsSinceNotice = 0
+                currentNotice.value = MissingDictionaryHelper.NoDictionaryNotice(
+                    check.dismissalSetting,
+                    check.locale,
+                    latinIME.getString(R.string.keyboard_actionbar_no_dictionary_installed_notice)
+                ) { currentNotice.value = null }
+            }
+        }
     }
 }

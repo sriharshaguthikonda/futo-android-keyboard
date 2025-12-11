@@ -18,6 +18,7 @@ package org.futo.inputmethod.keyboard
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.text.TextUtils
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -31,7 +32,9 @@ import org.futo.inputmethod.keyboard.internal.MoreKeySpec.LettersOnBaseLayout
 import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.common.StringUtils
 import org.futo.inputmethod.latin.uix.DynamicThemeProvider
+import org.futo.inputmethod.v2keyboard.Direction
 import org.futo.inputmethod.v2keyboard.KeyVisualStyle
+import org.futo.inputmethod.v2keyboard.computeDirectionsFromDeltaPos
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -192,6 +195,18 @@ data class Key(
 
     /** Key is enabled and responds on press  */
     val isEnabled: Boolean = code != Constants.CODE_UNSPECIFIED,
+
+    /** Flick keys */
+    val flickKeys: Map<Direction, Key>? = null,
+
+    /** Whether long-press should be fast */
+    val isFastLongPress: Boolean,
+
+    /** Affects the key itself but not the popup */
+    val labelOverride: String? = null,
+
+    /** Affects the key itself but not the popup */
+    val iconOverride: String? = null,
 ) {
     /** Validation */
     init {
@@ -336,6 +351,10 @@ data class Key(
     fun selectBackground(provider: DynamicThemeProvider): Drawable? {
         return provider.getKeyStyleDescriptor(visualStyle).let { style ->
             when {
+                mPressed && hasFlick -> run {
+                    style.backgroundDrawableFlicking?.get(mFlickDirection)
+                }
+
                 mPressed -> style.backgroundDrawablePressed
                 else -> style.backgroundDrawable
             }
@@ -360,8 +379,17 @@ data class Key(
 
     fun selectHintTypeface(provider: DynamicThemeProvider, params: KeyDrawParams): Typeface {
         return when {
-            hasHintLabel || provider.hintHiVis -> Typeface.DEFAULT_BOLD
-            else -> Typeface.DEFAULT
+            hasHintLabel || provider.hintHiVis -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                Typeface.create(Typeface.DEFAULT, 700, false)
+            } else {
+                Typeface.DEFAULT_BOLD
+            }
+
+            else -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                Typeface.create(Typeface.DEFAULT, 500, false)
+            } else {
+                Typeface.DEFAULT
+            }
         }
     }
 
@@ -372,7 +400,7 @@ data class Key(
                 else -> style.foregroundColor
             }
         }.let {
-            Color(it).copy(alpha = 0.5f).toArgb()
+            Color(it).copy(alpha = 0.8f).toArgb()
         }
     }
 
@@ -381,7 +409,11 @@ data class Key(
     }
 
     val previewLabel: String?
-        get() = if (isShiftedLetterActivated) hintLabel else label
+        get() = when {
+            isShiftedLetterActivated -> hintLabel
+            mPressed && hasFlick && (mFlickDirection != null) -> flickKeys!![mFlickDirection]!!.previewLabel
+            else -> label
+        }
 
     private fun previewHasLetterSize(): Boolean {
         return ((labelFlags and KeyConsts.LABEL_FLAGS_FOLLOW_KEY_LETTER_RATIO) != 0
@@ -409,6 +441,15 @@ data class Key(
 
     fun getIcon(iconSet: KeyboardIconsSet, alpha: Int): Drawable? {
         val iconId = iconId
+        val icon = iconSet.getIconDrawable(iconId)
+        if (icon != null) {
+            icon.alpha = alpha
+        }
+        return icon
+    }
+
+    fun getIconOverride(iconSet: KeyboardIconsSet, alpha: Int): Drawable? {
+        val iconId = iconOverride ?: iconId
         val icon = iconSet.getIconDrawable(iconId)
         if (icon != null) {
             icon.alpha = alpha
@@ -490,6 +531,29 @@ data class Key(
         return sqrt((dx * dx + dy * dy).toFloat())
     }
 
+    val hasFlick: Boolean = flickKeys != null && flickKeys.isNotEmpty()
+    private var mFlickDirection: Direction? = null
+    fun flickDirection(dx: Int, dy: Int): Direction? = run {
+        if(flickKeys == null) {
+            null
+        } else {
+            val dirs = computeDirectionsFromDeltaPos(
+                dx = dx.toDouble(),
+                dy = dy.toDouble(),
+                threshold = (width / 3).toDouble()
+            )
+            dirs.firstOrNull { flickKeys.contains(it) }
+        }
+    }.also {
+        mFlickDirection = it
+    }
+
+    fun flick(dx: Int, dy: Int): Key =
+        flickDirection(dx, dy)?.let { (flickKeys ?: return@let null)[it] } ?: this
+
+    val flickDirection: Direction?
+        get() = mFlickDirection
+
     companion object {
         @JvmStatic
         fun removeRedundantMoreKeys(
@@ -559,7 +623,8 @@ data class Key(
                 actionFlags = KeyConsts.ACTION_FLAGS_NO_KEY_PREVIEW,
 
                 moreKeys = listOf(),
-                moreKeysColumnAndFlags = 0
+                moreKeysColumnAndFlags = 0,
+                isFastLongPress = false
             )
         }
     }

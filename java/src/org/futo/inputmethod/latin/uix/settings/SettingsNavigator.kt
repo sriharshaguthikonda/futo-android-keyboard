@@ -1,5 +1,6 @@
 package org.futo.inputmethod.latin.uix.settings
 
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -9,6 +10,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
+import org.futo.inputmethod.engine.IMESettingsMenu
+import org.futo.inputmethod.engine.SettingsByLanguage
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.ErrorDialog
 import org.futo.inputmethod.latin.uix.InfoDialog
@@ -38,6 +41,7 @@ import org.futo.inputmethod.latin.uix.settings.pages.LanguageSettingsLite
 import org.futo.inputmethod.latin.uix.settings.pages.LanguagesScreen
 import org.futo.inputmethod.latin.uix.settings.pages.LongPressMenu
 import org.futo.inputmethod.latin.uix.settings.pages.MiscMenu
+import org.futo.inputmethod.latin.uix.settings.pages.NumberRowSettingMenu
 import org.futo.inputmethod.latin.uix.settings.pages.PaymentScreen
 import org.futo.inputmethod.latin.uix.settings.pages.PaymentThankYouScreen
 import org.futo.inputmethod.latin.uix.settings.pages.PredictiveTextMenu
@@ -55,6 +59,11 @@ import org.futo.inputmethod.latin.uix.settings.pages.GroqChatConfigScreen
 import org.futo.inputmethod.latin.uix.settings.pages.GroqWhisperConfigScreen
 import org.futo.inputmethod.latin.uix.settings.pages.AiReplyMenu
 import org.futo.inputmethod.latin.uix.settings.pages.addModelManagerNavigation
+import org.futo.inputmethod.latin.uix.settings.pages.buggyeditors.BuggyTextEditVariations
+import org.futo.inputmethod.latin.uix.settings.pages.pdict.ConfirmDeleteExtraDictFileDialog
+import org.futo.inputmethod.latin.uix.settings.pages.pdict.PersonalDictionaryLanguageList
+import org.futo.inputmethod.latin.uix.settings.pages.pdict.PersonalDictionaryLanguageListForLocale
+import org.futo.inputmethod.latin.uix.settings.pages.pdict.WordPopupDialogF
 import org.futo.inputmethod.latin.uix.urlDecode
 import org.futo.inputmethod.latin.uix.urlEncode
 
@@ -71,6 +80,7 @@ val SettingsMenus = listOf(
     HomeScreenLite,
     LanguageSettingsLite,
     KeyboardSettingsMenu,
+    NumberRowSettingMenu,
     TypingSettingsMenu,
     ResizeMenuLite,
     LongPressMenu,
@@ -81,8 +91,9 @@ val SettingsMenus = listOf(
     ActionsScreen,
     HelpMenu,
     MiscMenu,
-    CreditsScreenLite
-) + AllActions.mapNotNull { it.settingsMenu }
+    CreditsScreenLite,
+    IMESettingsMenu
+) + AllActions.mapNotNull { it.settingsMenu } + SettingsByLanguage.values
 
 @Composable
 fun SettingsNavigator(
@@ -92,7 +103,9 @@ fun SettingsNavigator(
         NavHost(
             navController = navController,
             startDestination = "home",
+            enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
             popExitTransition = { ExitTransition.None }
         ) {
             composable("home") { HomeScreen(navController) }
@@ -111,6 +124,25 @@ fun SettingsNavigator(
                     it.arguments?.getString("lang")?.urlDecode() ?: ""
                 )
             }
+            composable("pdict") {
+                PersonalDictionaryLanguageList()
+            }
+            composable("pdict/{lang}") {
+                PersonalDictionaryLanguageListForLocale(
+                    navController,
+                    it,
+                    it.arguments?.getString("lang")?.urlDecode() ?: "all"
+                )
+            }
+            dialog("pdictword/{lang}/{word}") {
+                WordPopupDialogF(
+                    locale = it.arguments?.getString("lang")?.urlDecode(),
+                    selectedWord = it.arguments?.getString("word")?.urlDecode(),
+                )
+            }
+            dialog("pdictdelete/{dict}") {
+                ConfirmDeleteExtraDictFileDialog(it.arguments?.getString("dict")?.urlDecode()!!)
+            }
             composable("advancedparams") { AdvancedParametersScreen(navController) }
             composable("actionEdit") { ActionEditorScreen(navController) }
             SettingsMenus.forEach { menu ->
@@ -122,6 +154,7 @@ fun SettingsNavigator(
             composable("themeGenerator") { ThemeGeneratorScreen(navController) }
             composable("developer") { DeveloperScreen(navController) }
             composable("devtextedit") { DevEditTextVariationsScreen(navController) }
+            composable("devbuggytextedit") { BuggyTextEditVariations(navController) }
             composable("devlayouts") { DevLayoutList(navController) }
             composable("devlayouteditor") { DevLayoutEditor(navController) }
             composable("devkeyboard") { DevKeyboardScreen(navController) }

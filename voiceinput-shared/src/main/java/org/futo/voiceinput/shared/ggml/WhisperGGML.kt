@@ -17,6 +17,7 @@ enum class DecodingMode(val value: Int) {
 
 class BailLanguageException(val language: String): Exception()
 class InferenceCancelledException : Exception()
+class InvalidModelException : Exception("The Whisper model could not be loaded from the given buffer")
 
 @Keep
 class WhisperGGML(
@@ -28,7 +29,7 @@ class WhisperGGML(
         handle = openFromBufferNative(modelBuffer, useGpu)
 
         if(handle == 0L) {
-            throw IllegalArgumentException("The Whisper model could not be loaded from the given buffer")
+            throw InvalidModelException()
         }
     }
 

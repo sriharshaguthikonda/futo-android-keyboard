@@ -66,7 +66,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.futo.inputmethod.latin.BuildConfig
 import org.futo.inputmethod.latin.R
-import org.futo.inputmethod.latin.payment.PaymentActivity
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.setSetting
@@ -134,7 +133,7 @@ fun useNumberOfDaysInstalled(): MutableIntState {
 }
 
 @Composable
-fun ParagraphText(it: String, modifier: Modifier = Modifier, color: Color = LocalContentColor.current) {
+fun ParagraphText(it: String, modifier: Modifier = Modifier, color: Color = LocalContentColor.current.copy(alpha=0.9f)) {
     Text(it, modifier = modifier, style = Typography.SmallMl, color = color)
 }
 
@@ -146,9 +145,9 @@ fun IconText(icon: Painter, title: String, body: String) {
             .padding(8.dp, 10.dp)
             .size(with(LocalDensity.current) { Typography.Heading.Medium.fontSize.toDp() }))
         Column(modifier = Modifier.padding(6.dp)) {
-            Text(title, style = Typography.Body.Regular, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text(title, style = Typography.Body.Regular, color = LocalContentColor.current)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(body, style = Typography.SmallMl, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Text(body, style = Typography.SmallMl, color = LocalContentColor.current.copy(alpha = 0.9f))
         }
     }
 }
@@ -161,20 +160,17 @@ fun PaymentBody(verbose: Boolean) {
         // Doesn't make sense to say "You've been using for ... days" if it's less than seven days
         if (numDaysInstalled.intValue >= 7) {
             ParagraphText(
-                stringResource(R.string.payment_screen_sales_paragraph_1, numDaysInstalled.value),
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                stringResource(R.string.payment_screen_sales_paragraph_1, numDaysInstalled.value)
             )
         } else {
             ParagraphText(
-                stringResource(R.string.payment_screen_sales_paragraph_1_alt),
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                stringResource(R.string.payment_screen_sales_paragraph_1_alt)
             )
         }
 
         if (!verbose) {
             ParagraphText(
-                stringResource(R.string.payment_screen_sales_paragraph_2),
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                stringResource(R.string.payment_screen_sales_paragraph_2)
             )
         }
     }
@@ -221,9 +217,6 @@ fun UnpaidNoticeCondition(
     force: Boolean = LocalInspectionMode.current,
     inner: @Composable () -> Unit
 ) {
-    val paymentUrl = useDataStoreValue(TMP_PAYMENT_URL)
-    if(paymentUrl.isBlank()) return
-
     val numDaysInstalled = useNumberOfDaysInstalled()
     val forceShowNotice = useDataStoreValue(FORCE_SHOW_NOTICE)
     val isAlreadyPaid = useDataStoreValue(IS_ALREADY_PAID)
@@ -243,26 +236,9 @@ fun UnpaidNoticeCondition(
                 && (!isAlreadyPaid)
                 // and not overridden by migration notice
                 && !isDisplayingMigrationNotice
-                // and you can pay to begin with
-                && BuildConfig.PAYMENT_URL.isNotBlank()
 
     if (force || displayCondition) {
         inner()
-    }
-}
-
-@Composable
-@Preview
-fun ConditionalUnpaidNoticeInVoiceInputWindow(onClose: (() -> Unit)? = null) {
-    val context = LocalContext.current
-
-    UnpaidNoticeCondition {
-        TextButton(onClick = {
-            context.startAppActivity(PaymentActivity::class.java)
-            if (onClose != null) onClose()
-        }) {
-            Text(stringResource(R.string.payment_unpaid_version_indicator), color = MaterialTheme.colorScheme.onSurface)
-        }
     }
 }
 
@@ -396,7 +372,7 @@ fun PaymentSurfaceHeading(title: String) {
     Text(
         title,
         style = Typography.Body.MediumMl,
-        color = MaterialTheme.colorScheme.onPrimaryContainer
+        color = LocalContentColor.current
     )
 }
 
@@ -498,28 +474,51 @@ fun PaymentScreen(
                     PaymentBulletPointList()
                 }
 
-                Button(
-                    onClick = {
-                        val url = runBlocking { context.getSetting(TMP_PAYMENT_URL) }
-                        if (url.isNotBlank()) {
-                            context.openURI(url)
-                        } else {
-                            val toast = Toast.makeText(
-                                context,
-                                context.getString(R.string.payment_screen_error_build_unsupported_payment),
-                                Toast.LENGTH_SHORT
-                            )
-                            toast.show()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 44.dp),
-                ) {
-                    if (BuildConfig.IS_PLAYSTORE_BUILD) {
-                        Text(stringResource(R.string.payment_screen_pay_via_google, BuildConfig.PAYMENT_PRICE), style = Typography.Body.Medium)
-                    } else {
-                        Text(stringResource(R.string.payment_screen_pay_via_futopay, BuildConfig.PAYMENT_PRICE), style = Typography.Body.Medium)
+
+                if(BuildConfig.IS_PLAYSTORE_BUILD) {
+                    Button(
+                        onClick = { context.openURI(BuildConfig.GOOGLEPAY_URL) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 44.dp)
+                    ) {
+
+                        Text(
+                            stringResource(
+                                R.string.payment_screen_pay_via_google,
+                                BuildConfig.GOOGLEPAY_PRICE
+                            ), style = Typography.Body.Medium
+                        )
+                    }
+
+                    Button(
+                        onClick = { context.openURI(BuildConfig.FUTOPAY_URL) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 44.dp)
+                    ) {
+
+                        Text(
+                            stringResource(
+                                R.string.payment_screen_pay_via_futopay2,
+                                BuildConfig.FUTOPAY_PRICE
+                            ), style = Typography.Body.Medium
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = { context.openURI(BuildConfig.FUTOPAY_URL) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 44.dp)
+                    ) {
+
+                        Text(
+                            stringResource(
+                                R.string.payment_screen_pay_via_futopay,
+                                BuildConfig.FUTOPAY_PRICE
+                            ), style = Typography.Body.Medium
+                        )
                     }
                 }
             }
