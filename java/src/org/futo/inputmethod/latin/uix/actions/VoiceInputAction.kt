@@ -588,6 +588,9 @@ private class VoiceInputBottomBarWindow(
                             )
                             .clickable {
                                 if (isListeningState) {
+                                    // Treat mic as stop button when already listening
+                                    isListening.value = false
+                                    statusText.value = "Stopping…"
                                     recognizerView.value?.finish()
                                 } else {
                                     recognizerView.value?.reset()

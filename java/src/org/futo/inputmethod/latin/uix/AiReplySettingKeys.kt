@@ -12,10 +12,12 @@ data class SystemPrompt(
 
 object SystemPromptManager {
     private val defaultPrompts = listOf(
-        SystemPrompt("Short Reply", "Write a short helpful reply"),
-        SystemPrompt("Formal", "Write a formal and professional reply"),
-        SystemPrompt("Friendly", "Write a friendly and casual reply"),
-        SystemPrompt("Detailed", "Write a detailed and comprehensive reply")
+        SystemPrompt("Reply", "Carefully write a reply for : "),
+        SystemPrompt("Grammar", "Carefully check the grammar of the following text and give corrected version: "),
+        SystemPrompt("Summarize", "Carefully summarize the following text with out losing meaning: "),
+        SystemPrompt("Detailed", "Carefully write a detailed and comprehensive reply for : "),
+        SystemPrompt("Formal", "Carefully write a formal and professional reply for : "),
+        SystemPrompt("test", "give me first 10 numbers : ")
     )
 
     fun parsePrompts(json: String): List<SystemPrompt> {
@@ -55,7 +57,7 @@ val ENABLE_AI_REPLY = SettingsKey(
 
 val AI_REPLY_PROMPT = SettingsKey(
     key = stringPreferencesKey("ai_reply_prompt"),
-    default = "Write a short helpful reply"
+    default = "Carefully write a reply for : "
 )
 
 val AI_REPLY_SYSTEM_PROMPTS = SettingsKey(
@@ -65,7 +67,7 @@ val AI_REPLY_SYSTEM_PROMPTS = SettingsKey(
 
 val AI_REPLY_ACTIVE_PROMPT_NAME = SettingsKey(
     key = stringPreferencesKey("ai_reply_active_prompt_name"),
-    default = "Short Reply"
+    default = "Reply"
 )
 
 val GROQ_REPLY_API_KEY = SettingsKey(
