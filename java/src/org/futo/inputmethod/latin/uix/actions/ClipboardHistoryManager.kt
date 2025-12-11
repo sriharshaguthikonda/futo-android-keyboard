@@ -77,7 +77,7 @@ class ClipboardHistoryManager(val context: Context, val coroutineScope: Lifecycl
             ) == true
 
             // TODO: Support images and other non-text media
-            if (text != null && uri == null && (!isSensitive || canSaveSensitive)) {
+            if ((!isSensitive || canSaveSensitive) && (text != null || uri != null)) {
                 val isAlreadyPinned = clipboardHistory.firstOrNull {
                     ((it.text != null && it.text == text) || (it.uri != null && it.uri == uri)) && it.pinned
                 }?.pinned ?: false
@@ -343,7 +343,17 @@ ${if(clipboardFileSwap.exists()) { clipboardFileSwap.readText() } else { "File d
         // Clear the clipboard if the item being removed is the current one
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             // TODO: URI
-            if((item.text != null) && item.text == clipboardManager.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()) {
+            val primaryClip = clipboardManager.primaryClip
+            val primaryItem = try {
+                primaryClip?.getItemAt(0)
+            } catch (_: Exception) {
+                null
+            }
+
+            val primaryText = primaryItem?.coerceToText(context)?.toString()
+            val primaryUri = primaryItem?.uri
+
+            if((item.text != null && item.text == primaryText) || (item.uri != null && item.uri == primaryUri)) {
                 clipboardManager.clearPrimaryClip()
             }
         }
