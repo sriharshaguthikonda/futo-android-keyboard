@@ -334,13 +334,6 @@ android {
         }
     }
 
-    lintOptions {
-        checkReleaseBuilds false
-    }
-
-    aaptOptions {
-        noCompress 'dict'
-    }
 
     ndkVersion '27.0.12077973'
     externalNativeBuild {
@@ -357,6 +350,12 @@ android {
         viewBinding true
         mlModelBinding true
         buildConfig true
+    }
+    androidResources {
+        noCompress 'dict'
+    }
+    lint {
+        checkReleaseBuilds false
     }
 }
 

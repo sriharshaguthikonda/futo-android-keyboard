@@ -42,9 +42,12 @@ then git add commit and push with appropriate message
 
 feature: should be able to add more system pormpts for ai reply settings. we should be able to select different system prompts for ai reply from inside the keyboard without  going to keyboard app
 then git add commit and push with appropriate message
+[DONE] - Fixed
 
 
-
+TODO: 
+bug: t9 layout deletes the alphabets. 
+then git add commit and push with appropriate message
 
 
 

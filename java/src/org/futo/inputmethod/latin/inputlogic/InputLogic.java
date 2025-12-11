@@ -636,7 +636,7 @@ public final class InputLogic {
                 handleConsumedEvent(currentEvent, inputTransaction);
             } else if (currentEvent.isFunctionalKeyEvent()) {
                 handleFunctionalEvent(currentEvent, inputTransaction, currentKeyboardScriptId);
-            } else if (!handlePhoneMultiTap(currentEvent, inputTransaction)) {
+            } else {
                 handleNonFunctionalEvent(currentEvent, inputTransaction);
             }
             currentEvent = currentEvent.mNextEvent;

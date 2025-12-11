@@ -64,9 +64,6 @@ private fun RowScope.KeyboardMode(
                     }
                 }
             }
-            if(mode == KeyboardMode.Phone) {
-                manager.sendCodePointEvent(Constants.CODE_TO_PHONE_LAYOUT)
-            }
         },
         contentColor = if(isChecked) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onBackground
     ) {
@@ -157,13 +154,6 @@ val KeyboardModeAction = Action(
                             R.drawable.keyboard_float_fill_check,
                             stringResource(R.string.action_keyboard_modes_floating),
                             sizeCalculator, KeyboardMode.Floating, manager
-                        )
-
-                        KeyboardMode(
-                            R.drawable.numpad,
-                            R.drawable.numpad,
-                            stringResource(R.string.action_keyboard_modes_phone),
-                            sizeCalculator, KeyboardMode.Phone, manager
                         )
                 }
             }

@@ -383,7 +383,7 @@ public fun getKeyboardMode(editorInfo: EditorInfo): Int {
             else -> KeyboardId.MODE_DATETIME
         }
 
-        InputType.TYPE_CLASS_PHONE -> KeyboardId.MODE_PHONE
+        InputType.TYPE_CLASS_PHONE -> KeyboardId.MODE_NUMBER
         InputType.TYPE_CLASS_TEXT -> if (InputTypeUtils.isEmailVariation(variation)) {
             KeyboardId.MODE_EMAIL
         } else if (variation == InputType.TYPE_TEXT_VARIATION_URI) {

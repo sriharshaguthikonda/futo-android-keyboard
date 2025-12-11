@@ -281,11 +281,8 @@ class KeyboardState(private val switchActions: SwitchActions) {
         symbolKeyState.onRelease()
 
         when(getKeyboardMode(editorInfo ?: EditorInfo())) {
-            KeyboardId.MODE_NUMBER, KeyboardId.MODE_DATE, KeyboardId.MODE_TIME, KeyboardId.MODE_DATETIME ->
+            KeyboardId.MODE_NUMBER, KeyboardId.MODE_DATE, KeyboardId.MODE_TIME, KeyboardId.MODE_DATETIME, KeyboardId.MODE_PHONE ->
                 setNumberBasicLayout()
-
-            KeyboardId.MODE_PHONE ->
-                setPhoneLayout()
 
             else ->
                 if (savedKeyboardState.isValid) {
@@ -551,7 +548,8 @@ class KeyboardState(private val switchActions: SwitchActions) {
         }
 
         when(code) {
-            Constants.CODE_TO_NUMBER_LAYOUT -> {
+            Constants.CODE_TO_NUMBER_LAYOUT,
+            Constants.CODE_TO_PHONE_LAYOUT -> {
                 if(currentLayout.kind == KeyboardLayoutKind.Number) {
                     // Return back to symbol layout
                     prefersNumberLayout = false
@@ -559,14 +557,6 @@ class KeyboardState(private val switchActions: SwitchActions) {
                 } else {
                     // Set number layout
                     setNumberLayout()
-                }
-            }
-
-            Constants.CODE_TO_PHONE_LAYOUT -> {
-                if(currentLayout.kind == KeyboardLayoutKind.Phone) {
-                    setAlphabetLayout(autoCapsFlags)
-                } else {
-                    setPhoneLayout()
                 }
             }
 

@@ -75,7 +75,7 @@ val TemplateNumberKey = BaseKey(
 )
 
 val TemplateT9Key = BaseKey(
-    spec = "!icon/numpad|!code/key_to_phone_layout",
+    spec = "!icon/numpad|!code/key_to_number_layout",
     attributes = KeyAttributes(
         showPopup = false
     )
@@ -371,7 +371,7 @@ val TemplateKeys = mapOf(
     "alphabet" to TemplateAlphabetKey,
     "action" to TemplateActionKey,
     "number" to TemplateNumberKey,
-    "t9" to TemplateT9Key,
+    "t9" to TemplateNumberKey,
     "contextual" to TemplateContextualKey,
     "zwnj" to TemplateZWNJKey,
     "optionalzwnj" to TemplateOptionalZWNJKey,
