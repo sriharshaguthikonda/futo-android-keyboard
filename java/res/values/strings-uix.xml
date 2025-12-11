@@ -90,8 +90,11 @@
     <string name="action_clipboard_manager_error_app_image_insertion_unsupported">App does not support image insertion</string>
 
     <string name="action_ai_reply_title">AI Reply</string>
+    <string name="action_insert_last_screenshot_title">Insert last screenshot</string>
     <string name="quick_clip_ai_reply">AI Reply</string>
     <string name="quick_clip_ai_generate">AI Generate</string>
+    <string name="action_insert_last_screenshot_no_permission">Storage permission is required to access screenshots. Please grant it and try again.</string>
+    <string name="action_insert_last_screenshot_not_found">No recent screenshot found.</string>
     <string name="cursor_overlay_vertical">Move up/down</string>
     <string name="cursor_overlay_horizontal">Move left/right</string>
     <string name="action_clipboard_manager_settings_title">Clipboard Manager Settings</string>
