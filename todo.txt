@@ -28,8 +28,15 @@ then git add commit and push with appropriate message
 [DONE] - Fixed 
 
 
+
+feature: the voice recognition button in floating bar mode does not activate voice recognition
+then git add commit and push with appropriate message
+
+
 feature: should be able to change the system prompt for ai reply from inside the keyboard without  going to keyboard app
 then git add commit and push with appropriate message
+
+
 
 
 feature: theme colour selection is still basic!

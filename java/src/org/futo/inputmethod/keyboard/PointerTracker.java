@@ -1101,10 +1101,15 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         // Release the last pressed key.
         setReleasedKeyGraphics(currentKey, true /* withAnimation */);
 
-        if(mCursorMoved && currentKey != null && currentKey.getCode() == Constants.CODE_DELETE) {
+        if (mCursorMoved && currentKey != null && currentKey.getCode() == Constants.CODE_DELETE) {
             sListener.onUpWithDeletePointerActive();
-        } else if(mCursorMoved) {
+        } else if (mCursorMoved) {
             sListener.onUpWithPointerActive();
+        }
+
+        // Sliding cursor / delete gestures are finished; hide any cursor overlays
+        if (mCursorMoved) {
+            sListener.onMovingCursorLockEvent(false);
         }
 
         if(mIsFlickingKey && currentKey != null) {
@@ -1263,6 +1268,9 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         setReleasedKeyGraphics(mCurrentKey, true /* withAnimation */);
         resetKeySelectionByDraggingFinger();
         dismissMoreKeysPanel();
+
+        // Cancel any active cursor movement overlays
+        sListener.onMovingCursorLockEvent(false);
     }
 
     private boolean isMajorEnoughMoveToBeOnNewKey(final int x, final int y, final long eventTime,
