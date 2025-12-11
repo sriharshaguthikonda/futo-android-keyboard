@@ -24,13 +24,17 @@ First combine out branch with the actual futo keyboard by futo!!
 
 
 feature: the keyboard app if it is not set default ask if we want to set it as default input everytime we open the app!
-git add commit and push with appropriate message
+
 
 
 feature: should be able to change the system prompt for ai reply from inside the keyboard without  going to keyboard app
-git add commit and push with appropriate message
+
 
 
 feature: theme colour selection is still basic!
-git add commit and push with appropriate message
 
+
+
+
+
+auto hotkey caps lock plus backspace is equal to control backspace.
