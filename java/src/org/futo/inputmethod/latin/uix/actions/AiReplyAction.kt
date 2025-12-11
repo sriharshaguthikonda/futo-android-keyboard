@@ -160,84 +160,89 @@ private class AiReplyWindow(
                 }
             }
 
-            // Navigation keys row (cursor movement)
+            // Navigation keys row (cursor movement) - full width, evenly spaced large buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    IconButton(
-                        onClick = { sendNav(KeyEvent.KEYCODE_DPAD_LEFT) },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.chevron_left),
-                            contentDescription = "Left",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(
-                        onClick = { sendNav(KeyEvent.KEYCODE_DPAD_UP) },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.chevron_up),
-                            contentDescription = "Up",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(
-                        onClick = { sendNav(KeyEvent.KEYCODE_DPAD_DOWN) },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.chevron_down),
-                            contentDescription = "Down",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(
-                        onClick = { sendNav(KeyEvent.KEYCODE_DPAD_RIGHT) },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.chevron_right),
-                            contentDescription = "Right",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                val navModifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+
+                IconButton(
+                    onClick = { sendNav(KeyEvent.KEYCODE_DPAD_LEFT) },
+                    modifier = navModifier
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.chevron_left),
+                        contentDescription = "Left",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(
+                    onClick = { sendNav(KeyEvent.KEYCODE_DPAD_UP) },
+                    modifier = navModifier
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.chevron_up),
+                        contentDescription = "Up",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(
+                    onClick = { sendNav(KeyEvent.KEYCODE_DPAD_DOWN) },
+                    modifier = navModifier
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.chevron_down),
+                        contentDescription = "Down",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(
+                    onClick = { sendNav(KeyEvent.KEYCODE_DPAD_RIGHT) },
+                    modifier = navModifier
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.chevron_right),
+                        contentDescription = "Right",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
-            // Editing controls: copy, paste, backspace, undo, redo
+            // Editing controls: select all, copy, paste, backspace, undo, redo
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val editModifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+
+                IconButton(
+                    onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON) },
+                    modifier = editModifier
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.maximize),
+                        contentDescription = "Select All",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 IconButton(
                     onClick = { manager.copyToClipboard(cut = false) },
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                    modifier = editModifier
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.copy),
@@ -247,10 +252,7 @@ private class AiReplyWindow(
                 }
                 IconButton(
                     onClick = { manager.pasteFromClipboard() },
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                    modifier = editModifier
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.clipboard),
@@ -260,10 +262,7 @@ private class AiReplyWindow(
                 }
                 IconButton(
                     onClick = { manager.backspace(1) },
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                    modifier = editModifier
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.delete),
@@ -273,10 +272,7 @@ private class AiReplyWindow(
                 }
                 IconButton(
                     onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON) },
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                    modifier = editModifier
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.undo),
@@ -286,10 +282,7 @@ private class AiReplyWindow(
                 }
                 IconButton(
                     onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_Y, KeyEvent.META_CTRL_ON) },
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                    modifier = editModifier
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.redo),
