@@ -29,7 +29,7 @@ then git add commit and push with appropriate message
 
 
 
-feature: the voice recognition button in floating bar mode does not activate voice recognition
+bug: the voice recognition button in floating bar mode does not activate voice recognition
 then git add commit and push with appropriate message
 [DONE] - Fixed
 

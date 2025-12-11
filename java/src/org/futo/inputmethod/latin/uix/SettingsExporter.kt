@@ -343,6 +343,12 @@ object SettingsExporter {
                             val value = current[key]
                             if (value != null) newPrefs[key] = value
                         }
+                        val currentSetupComplete = current[IS_SETUP_COMPLETE]
+                        if (currentSetupComplete != null) {
+                            newPrefs[IS_SETUP_COMPLETE] = currentSetupComplete
+                        } else {
+                            newPrefs.remove(IS_SETUP_COMPLETE)
+                        }
                         newPrefs
                     }
                 }
