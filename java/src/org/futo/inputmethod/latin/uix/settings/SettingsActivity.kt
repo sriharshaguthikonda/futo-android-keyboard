@@ -36,7 +36,9 @@ import kotlinx.coroutines.withContext
 import org.futo.inputmethod.latin.uix.BasicThemeProvider
 import org.futo.inputmethod.latin.uix.DynamicThemeProvider
 import org.futo.inputmethod.latin.uix.DynamicThemeProviderOwner
+import org.futo.inputmethod.latin.uix.EXPORT_CLIPBOARD_PINNED_REQUEST
 import org.futo.inputmethod.latin.uix.EXPORT_SETTINGS_REQUEST
+import org.futo.inputmethod.latin.uix.IMPORT_CLIPBOARD_PINNED_REQUEST
 import org.futo.inputmethod.latin.uix.IMPORT_SETTINGS_REQUEST
 import org.futo.inputmethod.latin.uix.ImportResourceActivity
 import org.futo.inputmethod.latin.uix.SettingsExporter
@@ -300,6 +302,26 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
                     }
                 }
                 exportInProgress.value = 0
+            }
+        } else if(requestCode == EXPORT_CLIPBOARD_PINNED_REQUEST) {
+            lifecycleScope.launch {
+                withContext(Dispatchers.IO) {
+                    data?.data?.let { uri ->
+                        contentResolver.openOutputStream(uri)!!
+                    }?.use {
+                        SettingsExporter.exportPinnedClipboard(this@SettingsActivity, it)
+                    }
+                }
+            }
+        } else if(requestCode == IMPORT_CLIPBOARD_PINNED_REQUEST) {
+            lifecycleScope.launch {
+                withContext(Dispatchers.IO) {
+                    data?.data?.let { uri ->
+                        contentResolver.openInputStream(uri)!!
+                    }?.use {
+                        SettingsExporter.importPinnedClipboard(this@SettingsActivity, it)
+                    }
+                }
             }
         }
     }

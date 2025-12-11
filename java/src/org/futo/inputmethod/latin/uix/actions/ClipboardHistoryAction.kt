@@ -43,6 +43,9 @@ import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.Action
 import org.futo.inputmethod.latin.uix.ActionWindow
 import org.futo.inputmethod.latin.uix.PersistentStateInitialization
+import org.futo.inputmethod.latin.uix.SettingsExporter
+import org.futo.inputmethod.latin.uix.settings.NavigationItem
+import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.UserSetting
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.SettingSlider
@@ -184,6 +187,36 @@ val ClipboardHistoryAction = Action(
                 title = R.string.action_clipboard_manager_settings_list_layout,
                 setting = ClipboardSingleColumn
             ).copy(visibilityCheck = { useDataStoreValue(ClipboardHistoryEnabled) }),
+
+            UserSetting(
+                name = R.string.action_clipboard_manager_settings_export_pinned,
+                component = {
+                    val context = LocalContext.current
+                    NavigationItem(
+                        title = stringResource(R.string.action_clipboard_manager_settings_export_pinned),
+                        style = NavigationItemStyle.MiscNoArrow,
+                        navigate = {
+                            SettingsExporter.triggerExportPinnedClipboard(context)
+                        }
+                    )
+                },
+                visibilityCheck = { useDataStoreValue(ClipboardHistoryEnabled) }
+            ),
+
+            UserSetting(
+                name = R.string.action_clipboard_manager_settings_import_pinned,
+                component = {
+                    val context = LocalContext.current
+                    NavigationItem(
+                        title = stringResource(R.string.action_clipboard_manager_settings_import_pinned),
+                        style = NavigationItemStyle.MiscNoArrow,
+                        navigate = {
+                            SettingsExporter.triggerImportPinnedClipboard(context)
+                        }
+                    )
+                },
+                visibilityCheck = { useDataStoreValue(ClipboardHistoryEnabled) }
+            ),
         )
     )
 )

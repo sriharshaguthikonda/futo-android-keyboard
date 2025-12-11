@@ -36,6 +36,7 @@ import okio.source
 import org.futo.inputmethod.engine.general.mozcUserProfileDir
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.PreferenceUtils.getDefaultSharedPreferences
+import org.futo.inputmethod.latin.uix.actions.ClipboardEntry
 import org.futo.inputmethod.latin.uix.actions.ClipboardFileName
 import org.futo.inputmethod.latin.uix.actions.ClipboardHistoryManager.Companion.onClipboardImportedFlow
 import org.futo.inputmethod.latin.uix.actions.clipboardFile
@@ -64,6 +65,8 @@ import java.util.zip.ZipOutputStream
 
 const val IMPORT_SETTINGS_REQUEST = 1801146881
 const val EXPORT_SETTINGS_REQUEST = 69835032
+const val IMPORT_CLIPBOARD_PINNED_REQUEST = 1801146882
+const val EXPORT_CLIPBOARD_PINNED_REQUEST = 69835033
 
 @Serializable
 data class PersonalWord(
@@ -193,6 +196,59 @@ object SettingsExporter {
     private const val sharedPreferencesFileName = "sharedPreferences.json"
     private const val clipboardFileName = ClipboardFileName
     private const val personalDictFileName = "userdictionary.json"
+
+    suspend fun exportPinnedClipboard(
+        context: Context,
+        outputStream: OutputStream
+    ) {
+        val clipboardFile = context.clipboardFile
+
+        if (!clipboardFile.exists()) {
+            outputStream.write("[]".encodeUtf8().toByteArray())
+            return
+        }
+
+        val inputString = clipboardFile.readText()
+        val data = Json.decodeFromString<List<ClipboardEntry>>(inputString)
+        val pinned = data.filter { it.pinned }
+        val json = Json.encodeToString(pinned)
+        outputStream.write(json.encodeUtf8().toByteArray())
+    }
+
+    suspend fun importPinnedClipboard(
+        context: Context,
+        inputStream: InputStream
+    ) {
+        val text = inputStream.readAllBytesCompat().toByteString().utf8()
+        val imported = Json.decodeFromString<List<ClipboardEntry>>(text).map {
+            it.copy(timestamp = System.currentTimeMillis(), pinned = true)
+        }
+
+        val clipboardFile = context.clipboardFile
+        val existing = if (clipboardFile.exists()) {
+            try {
+                val existingText = clipboardFile.readText()
+                Json.decodeFromString<List<ClipboardEntry>>(existingText).toMutableList()
+            } catch (_: Exception) {
+                mutableListOf()
+            }
+        } else {
+            mutableListOf()
+        }
+
+        imported.forEach { newEntry ->
+            existing.removeAll { existingEntry ->
+                (existingEntry.text != null && existingEntry.text == newEntry.text) ||
+                        (existingEntry.uri != null && existingEntry.uri == newEntry.uri)
+            }
+            existing.add(newEntry)
+        }
+
+        val json = Json.encodeToString(existing)
+        clipboardFile.writeText(json)
+
+        onClipboardImportedFlow.emit(clipboardFile)
+    }
 
     suspend fun exportSettings(
         context: Context,
@@ -438,12 +494,35 @@ object SettingsExporter {
         activity.startActivityForResult(intent, EXPORT_SETTINGS_REQUEST)
     }
 
+    fun triggerExportPinnedClipboard(context: Context) {
+        val date = Date()
+        val formatter = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", context.resources.configuration.locale)
+        val formattedDate = formatter.format(date)
+        val defaultFileName = "FUTOClipboardPinned_${formattedDate}.json"
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, defaultFileName)
+        }
+
+        val activity: SettingsActivity = findSettingsActivity(context)
+        activity.startActivityForResult(intent, EXPORT_CLIPBOARD_PINNED_REQUEST)
+    }
+
     fun triggerImportSettings(context: Context) {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "application/octet-stream"
         }
         (context as Activity).startActivityForResult(intent, IMPORT_SETTINGS_REQUEST)
+    }
+
+    fun triggerImportPinnedClipboard(context: Context) {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+        }
+        (context as Activity).startActivityForResult(intent, IMPORT_CLIPBOARD_PINNED_REQUEST)
     }
 
     data class CfgFileMetadata(
