@@ -569,7 +569,9 @@ private class VoiceInputBottomBarWindow(
                 ) {
                     if (!keyboardShown) {
                         IconButton(
-                            onClick = { manager.forceActionWindowAboveKeyboard(true) },
+                            onClick = {
+                                manager.closeActionWindow()
+                            },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
