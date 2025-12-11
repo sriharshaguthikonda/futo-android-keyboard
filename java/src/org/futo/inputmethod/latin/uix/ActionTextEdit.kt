@@ -176,6 +176,7 @@ private fun GenericEditTextCompose(
     onUnoverride: (() -> Unit)? = null,
     autofocus: Boolean = false,
     forceQwerty: Boolean = false,
+    isInsideIme: Boolean = false,
 ) {
     val context = LocalContext.current
 
@@ -197,6 +198,13 @@ private fun GenericEditTextCompose(
     val textSizeToUse = with(LocalDensity.current) { textSize.toPx() }
     val typefaceToUse = typeface
     val inspection = LocalInspectionMode.current
+    val editorInfo = remember {
+        EditorInfo().apply {
+            this.inputType = inputType
+            this.packageName = context.packageName
+        }
+    }
+
     val editText = remember {
         ActionEditText(context, inspection = inspection).apply {
             this.inputType = inputType
@@ -222,19 +230,23 @@ private fun GenericEditTextCompose(
 
             setHeight(height.toInt())
 
-            val editorInfo = EditorInfo().apply {
-                this.inputType = inputType
-                this.packageName = context.packageName
-            }
             onCreateInputConnection(editorInfo)
-
-            onOverride?.invoke(inputConnection!!, editorInfo)
 
             // Remove underline and padding
             background = null
             setPadding(0, 0, 0, 0)
 
+            isFocusable = true
+            isFocusableInTouchMode = true
+
             if(autofocus) requestFocus()
+        }
+    }
+
+    // Set up input connection override AFTER composition is complete
+    LaunchedEffect(Unit) {
+        editText.inputConnection?.let { ic ->
+            onOverride?.invoke(ic, editorInfo)
         }
     }
 
@@ -268,14 +280,17 @@ private fun GenericEditTextCompose(
     }
 
     val token = LocalView.current.windowToken
-    DisposableEffect(autofocus, token) {
+    DisposableEffect(autofocus, token, isInsideIme) {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        if(autofocus) {
+        // Don't try to show/hide soft input when inside an IME - we ARE the keyboard
+        if(autofocus && !isInsideIme) {
             imm.showSoftInput(editText, 0)
         }
 
         onDispose {
-            imm.hideSoftInputFromWindow(token, 0)
+            if(!isInsideIme) {
+                imm.hideSoftInputFromWindow(token, 0)
+            }
         }
     }
 }
@@ -286,7 +301,8 @@ fun ActionTextEditor(
     multiline: Boolean = false,
     textSize: TextUnit = 16.sp,
     typeface: Typeface? = null,
-    autocorrect: Boolean = false
+    autocorrect: Boolean = false,
+    autofocus: Boolean = true
 ) {
     val manager = if(!LocalInspectionMode.current) LocalManager.current else null
     GenericEditTextCompose(
@@ -304,7 +320,9 @@ fun ActionTextEditor(
         onUnoverride = {
             manager!!.unsetInputConnection()
             manager.setClipboardSearchFocus(false)
-        }
+        },
+        autofocus = autofocus,
+        isInsideIme = true
     )
 }
 
