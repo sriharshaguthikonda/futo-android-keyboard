@@ -31,9 +31,9 @@
         android:layout_width="match_parent"
         android:layout_height="32dp"
         android:layout_gravity="top"
-        android:background="#8000FF00"
+        android:background="@color/key_background_lxx_light"
         android:gravity="center"
-        android:textColor="@android:color/white"
+        android:textColor="@color/key_text_color_lxx_light"
         android:text="@string/cursor_overlay_vertical"
         android:visibility="gone" />
     <TextView
@@ -41,9 +41,9 @@
         android:layout_width="match_parent"
         android:layout_height="32dp"
         android:layout_gravity="bottom"
-        android:background="#80FF0000"
+        android:background="@color/gesture_trail_color_lxx_dark"
         android:gravity="center"
-        android:textColor="@android:color/white"
+        android:textColor="@color/key_text_color_lxx_dark"
         android:text="@string/cursor_overlay_horizontal"
         android:visibility="gone" />
 </org.futo.inputmethod.latin.InputView>
