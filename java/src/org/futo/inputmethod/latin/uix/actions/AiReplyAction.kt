@@ -20,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -165,59 +164,136 @@ private class AiReplyWindow(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    IconButton(
+                        onClick = { sendNav(KeyEvent.KEYCODE_DPAD_LEFT) },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.chevron_left),
+                            contentDescription = "Left",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(
+                        onClick = { sendNav(KeyEvent.KEYCODE_DPAD_UP) },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.chevron_up),
+                            contentDescription = "Up",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(
+                        onClick = { sendNav(KeyEvent.KEYCODE_DPAD_DOWN) },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.chevron_down),
+                            contentDescription = "Down",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(
+                        onClick = { sendNav(KeyEvent.KEYCODE_DPAD_RIGHT) },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.chevron_right),
+                            contentDescription = "Right",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Editing controls: copy, paste, backspace, undo, redo
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = { sendNav(KeyEvent.KEYCODE_DPAD_LEFT) },
+                    onClick = { manager.copyToClipboard(cut = false) },
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.chevron_left),
-                        contentDescription = "Left",
+                        painter = painterResource(R.drawable.copy),
+                        contentDescription = "Copy",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 IconButton(
-                    onClick = { sendNav(KeyEvent.KEYCODE_DPAD_UP) },
+                    onClick = { manager.pasteFromClipboard() },
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.chevron_up),
-                        contentDescription = "Up",
+                        painter = painterResource(R.drawable.clipboard),
+                        contentDescription = "Paste",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 IconButton(
-                    onClick = { sendNav(KeyEvent.KEYCODE_DPAD_DOWN) },
+                    onClick = { manager.backspace(1) },
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.chevron_down),
-                        contentDescription = "Down",
+                        painter = painterResource(R.drawable.delete),
+                        contentDescription = "Backspace",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 IconButton(
-                    onClick = { sendNav(KeyEvent.KEYCODE_DPAD_RIGHT) },
+                    onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON) },
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.chevron_right),
-                        contentDescription = "Right",
+                        painter = painterResource(R.drawable.undo),
+                        contentDescription = "Undo",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(
+                    onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_Y, KeyEvent.META_CTRL_ON) },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.redo),
+                        contentDescription = "Redo",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
