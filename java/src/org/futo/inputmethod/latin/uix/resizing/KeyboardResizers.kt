@@ -440,7 +440,7 @@ class KeyboardResizers(val latinIME: LatinIME) {
             else mod
                 .safeKeyboardPadding()
                 .keyboardBottomPadding(size)
-                .absolutePadding(bottom = navBarHeight())
+                .absolutePadding(bottom = navBarHeight() / 2)
         }
 
         Box(modifier) {

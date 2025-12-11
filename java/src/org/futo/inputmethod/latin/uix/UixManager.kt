@@ -897,7 +897,7 @@ class UixManager(private val latinIME: LatinIME) {
     fun ActionEditorHost() {
         Box(modifier = Modifier
             .fillMaxSize()
-            .padding(bottom = navBarHeight()), contentAlignment = Alignment.BottomCenter) {
+            .padding(bottom = navBarHeight()/2), contentAlignment = Alignment.BottomCenter) {
             AnimatedVisibility(
                 visible = isShowingActionEditor.value,
                 enter = slideInVertically { it },
@@ -1136,7 +1136,7 @@ class UixManager(private val latinIME: LatinIME) {
                     Icon(painterResource(R.drawable.maximize), contentDescription = stringResource(R.string.one_handed_mode_exit))
                 }
 
-                Spacer(Modifier.height(navBarHeight()))
+                Spacer(Modifier.height(navBarHeight() / 2))
             }
         }
     }
@@ -1310,7 +1310,7 @@ class UixManager(private val latinIME: LatinIME) {
                     }
 
                     if(latinIME.size.value !is FloatingKeyboardSize) {
-                        Spacer(Modifier.height(navBarHeight()))
+                        Spacer(Modifier.height(navBarHeight() / 2))
                     }
                 }
 
