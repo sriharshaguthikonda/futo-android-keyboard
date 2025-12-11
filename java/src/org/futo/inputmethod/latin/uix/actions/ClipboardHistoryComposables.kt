@@ -42,6 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import android.util.Log
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.uix.DialogRequestItem
@@ -65,6 +66,7 @@ import androidx.compose.ui.text.withStyle
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import org.futo.inputmethod.latin.uix.ActionTextEditor
+import org.futo.inputmethod.latin.uix.UriThumbnail
 
 @OptIn(ExperimentalFoundationApi::class) // Restored OptIn for combinedClickable
 @Composable
@@ -153,7 +155,28 @@ fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searc
                 annotatedText
             }
 
-            Text(displayedText, modifier = Modifier.padding(8.dp, 2.dp), style = Typography.SmallMl)
+            val hasImage = clipboardEntry.uri != null
+
+            if (hasImage) {
+                Box(
+                    modifier = Modifier
+                        .padding(start = 8.dp, end = 8.dp, bottom = 4.dp)
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                ) {
+                    UriThumbnail(
+                        uri = clipboardEntry.uri!!,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                if (displayedText.text.isNotEmpty()) {
+                    Text(displayedText, modifier = Modifier.padding(8.dp, 2.dp), style = Typography.SmallMl)
+                }
+            } else {
+                Text(displayedText, modifier = Modifier.padding(8.dp, 2.dp), style = Typography.SmallMl)
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
         }

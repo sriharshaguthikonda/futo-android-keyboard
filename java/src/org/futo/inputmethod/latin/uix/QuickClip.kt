@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import androidx.annotation.DrawableRes
@@ -16,16 +18,25 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
@@ -46,6 +57,8 @@ import org.futo.inputmethod.latin.uix.actions.AiReplyActionHolder
 import org.futo.inputmethod.latin.uix.ENABLE_AI_REPLY
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.uix.utils.latestClipboardText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 enum class QuickClipKind {
     FullString,
@@ -100,6 +113,35 @@ data class QuickClipState(
 )
 
 @Composable
+fun UriThumbnail(uri: Uri, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var bitmap by remember(uri) { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(uri) {
+        val decoded = withContext(Dispatchers.IO) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream)
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+        bitmap = decoded
+    }
+
+    val current = bitmap
+    if (current != null) {
+        Image(
+            bitmap = current.asImageBitmap(),
+            contentDescription = null,
+            modifier = modifier,
+            contentScale = ContentScale.Crop
+        )
+    }
+}
+
+@Composable
 private fun QuickClipPill(icon: Painter, contentDescription: String, text: String?, uri: Uri?, onActivate: () -> Unit) {
     Box(Modifier.fillMaxHeight().clickable {
         onActivate()
@@ -120,8 +162,14 @@ private fun QuickClipPill(icon: Painter, contentDescription: String, text: Strin
 
                 if(text != null) {
                     Text(text.replace("\n", " "), style = Typography.Small)
-                }else if(uri != null) {
-                    Icon(painterResource(R.drawable.image), contentDescription = null)
+                } else if(uri != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                    ) {
+                        UriThumbnail(uri = uri, modifier = Modifier.fillMaxHeight().fillMaxHeight())
+                    }
                 }
             }
         }

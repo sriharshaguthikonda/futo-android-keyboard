@@ -68,13 +68,21 @@ then git add commit and push with appropriate message
 
 bug: clipboard should also support other types of contents apart from text the most recent screenshot should be in the clipboard as well
 then git add commit and push with appropriate message
+[DONE] - Fixed
 
 
 
 
-bug: the search field in the settings of the keyboard application as testing text box but some reason many functions of the keyboard are not working when i am testing in that search field.
-
+bug: clipboard should show recent screenshot as well
 then git add commit and push with appropriate message
+
+
+
+
+bug: when the expand keyboard button is pressed in the floating bar mode of voice input it expands the keyboard but also keeps the floating bar the floating bar should be killed or made it disappear somehow - see if you can think of better way
+then git add commit and push with appropriate message
+[DONE] - Fixed
+
 
 
 
@@ -87,8 +95,15 @@ then git add commit and push with appropriate message
 
 
 
-bug: when the expand keyboard button is pressed in the floating bar mode of voice input it expands the keyboard but also keeps the floating bar the floating bar should be killed or made it disappear somehow - see if you can think of better way
+
+bug: the search field in the settings of the keyboard application as testing text box but some reason many functions of the keyboard are not working when i am testing in that search field.
+
 then git add commit and push with appropriate message
+
+
+
+
+
 
 
 
