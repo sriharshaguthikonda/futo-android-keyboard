@@ -92,7 +92,7 @@ val START_VOICE_ON_OPEN = SettingsKey(
 
 val VOICE_INPUT_BOTTOM_BAR_MODE = SettingsKey(
     key = booleanPreferencesKey("voice_input_bottom_bar_mode"),
-    default = false
+    default = true
 )
 
 val USE_PERSONAL_DICT = SettingsKey(

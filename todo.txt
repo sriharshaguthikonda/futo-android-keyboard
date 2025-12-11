@@ -18,7 +18,7 @@ feature: Voice Input Bottom Bar Mode (like Gboard)
 
 
 First combine out branch with the actual futo keyboard by futo!!
-
+[DONE] - Fixed 
 
 
 
