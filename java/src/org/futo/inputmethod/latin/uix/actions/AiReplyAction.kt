@@ -1,6 +1,8 @@
 package org.futo.inputmethod.latin.uix.actions
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,14 +16,20 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.size
@@ -37,6 +45,9 @@ import org.futo.inputmethod.latin.uix.Action
 import org.futo.inputmethod.latin.uix.ActionWindow
 import org.futo.inputmethod.latin.uix.GROQ_REPLY_API_KEY
 import org.futo.inputmethod.latin.uix.AI_REPLY_PROMPT
+import org.futo.inputmethod.latin.uix.AI_REPLY_SYSTEM_PROMPTS
+import org.futo.inputmethod.latin.uix.AI_REPLY_ACTIVE_PROMPT_NAME
+import org.futo.inputmethod.latin.uix.SystemPromptManager
 import org.futo.inputmethod.latin.uix.GROQ_REPLY_MODEL
 import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 import org.futo.inputmethod.latin.uix.getSetting
@@ -66,6 +77,16 @@ private class AiReplyWindow(
         val isLoading = remember { mutableStateOf(false) }
         val scrollState = rememberScrollState()
         
+        val systemPromptsItem = useDataStore(AI_REPLY_SYSTEM_PROMPTS)
+        val activePromptNameItem = useDataStore(AI_REPLY_ACTIVE_PROMPT_NAME)
+        val systemPrompts = remember(systemPromptsItem.value) { 
+            SystemPromptManager.parsePrompts(systemPromptsItem.value) 
+        }
+        val selectedPrompt = remember(activePromptNameItem.value, systemPrompts) {
+            systemPrompts.find { it.name == activePromptNameItem.value } ?: systemPrompts.firstOrNull()
+        }
+        val dropdownExpanded = remember { mutableStateOf(false) }
+        
         LaunchedEffect(promptText.value) { promptItem.setValue(promptText.value) }
         
         // Calculate max height based on keyboard state
@@ -90,6 +111,42 @@ private class AiReplyWindow(
                 reply.value?.let { 
                     Text(it) 
                     Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+            
+            // System prompt selector dropdown
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                        .clickable { dropdownExpanded.value = true }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = selectedPrompt?.name ?: "Select prompt",
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text("▼", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                
+                DropdownMenu(
+                    expanded = dropdownExpanded.value,
+                    onDismissRequest = { dropdownExpanded.value = false }
+                ) {
+                    systemPrompts.forEach { prompt ->
+                        DropdownMenuItem(
+                            text = { Text(prompt.name) },
+                            onClick = {
+                                activePromptNameItem.setValue(prompt.name)
+                                dropdownExpanded.value = false
+                            }
+                        )
+                    }
                 }
             }
             
@@ -127,7 +184,7 @@ private class AiReplyWindow(
                         coroutineScope.launch(Dispatchers.IO) {
                             try {
                                 withContext(Dispatchers.Main) { reply.value = "" }
-                                val systemPrompt = DEFAULT_SYSTEM_PROMPT
+                                val systemPrompt = selectedPrompt?.prompt ?: DEFAULT_SYSTEM_PROMPT
                                 val userPrompt = buildString {
                                     if (promptText.value.isNotBlank()) append(promptText.value).append('\n')
                                     append(text)

@@ -31,11 +31,20 @@ then git add commit and push with appropriate message
 
 feature: the voice recognition button in floating bar mode does not activate voice recognition
 then git add commit and push with appropriate message
+[DONE] - Fixed
 
 
-feature: should be able to change the system prompt for ai reply from inside the keyboard without  going to keyboard app
+feature: should be able to add more system pormpts for ai reply settings. we should be able to select different system prompts for ai reply from inside the keyboard without  going to keyboard app
 then git add commit and push with appropriate message
 
+
+
+
+
+
+
+bug: select all copy paste from the keyboard long press of a, c and v etc are not working see if it might also happen to other secondary functions as well, see and fix.
+then git add commit and push with appropriate message
 
 
 

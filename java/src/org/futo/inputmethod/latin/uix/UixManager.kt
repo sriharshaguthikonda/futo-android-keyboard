@@ -345,6 +345,32 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     }
 
     override fun sendKeyEvent(keyCode: Int, metaState: Int) {
+        if (uixManager.isClipboardSearchFocused.value &&
+            (metaState and KeyEvent.META_CTRL_ON) != 0
+        ) {
+            val ic = latinIME.currentInputConnection
+            if (ic != null) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_A -> {
+                        ic.performContextMenuAction(android.R.id.selectAll)
+                        return
+                    }
+                    KeyEvent.KEYCODE_C -> {
+                        ic.performContextMenuAction(android.R.id.copy)
+                        return
+                    }
+                    KeyEvent.KEYCODE_X -> {
+                        ic.performContextMenuAction(android.R.id.cut)
+                        return
+                    }
+                    KeyEvent.KEYCODE_V -> {
+                        ic.performContextMenuAction(android.R.id.paste)
+                        return
+                    }
+                }
+            }
+        }
+
         val event = Event.createDownUpKeyEvent(keyCode, metaState)
         latinIME.imeManager.getActiveIME(
             Settings.getInstance().current
