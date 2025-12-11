@@ -45,15 +45,44 @@ then git add commit and push with appropriate message
 [DONE] - Fixed
 
 
-TODO: 
 bug: t9 layout deletes the alphabets. 
 then git add commit and push with appropriate message
+[DONE] - Fixed by disabling the t9 layout
+
+
+
+
+
+feature : lets also copy the most recent voice input transcripts into the clipboard as well.
+then git add commit and push with appropriate message
+[DONE] - Fixed by disabling the t9 layout
+
+
+
+feature: able to import and export the clipboard pinned items
+then git add commit and push with appropriate message
+[DONE] - Fixed
+
+
+
+bug: the search field in the settings of the keyboard application as testing text box but some reason many functions of the keyboard are not working when i am testing in that search field.
+
+then git add commit and push with appropriate message
+
+
+
+
+bug: when the expand keyboard button is pressed in the floating bar mode of voice input it expands the keyboard but also keeps the floating bar the floating bar should be killed or made it disappear somehow - see if you can think of better way
+then git add commit and push with appropriate message
+
+
 
 
 
 
 bug: select all copy paste from the keyboard long press of a, c and v etc are not working see if it might also happen to other secondary functions as well, see and fix.
 then git add commit and push with appropriate message
+
 
 
 

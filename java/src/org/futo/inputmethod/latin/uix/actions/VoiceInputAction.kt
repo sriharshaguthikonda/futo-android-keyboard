@@ -3,6 +3,9 @@ package org.futo.inputmethod.latin.uix.actions
 import android.content.Intent
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -305,6 +308,9 @@ private class VoiceInputActionWindow(
         manager.getLifecycleScope().launch(Dispatchers.Main) {
             val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
             inputTransaction.commit(sanitized)
+            val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clipData = ClipData.newPlainText(context.getString(R.string.action_voice_input_title), sanitized)
+            clipboardManager.setPrimaryClip(clipData)
             manager.announce(result)
             manager.closeActionWindow()
         }
@@ -669,6 +675,9 @@ private class VoiceInputBottomBarWindow(
 
         val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
         inputTransaction.commit(sanitized)
+        val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clipData = ClipData.newPlainText(context.getString(R.string.action_voice_input_title), sanitized)
+        clipboardManager.setPrimaryClip(clipData)
         manager.announce(result)
     }
 
