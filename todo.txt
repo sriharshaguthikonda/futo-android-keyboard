@@ -88,10 +88,28 @@ then git add commit and push with appropriate message
 
 
 
-bug: the search field in the settings of the keyboard application should also expand if there is more lines of text is present, take image if pasted etc as well.
+bug: the search field in the settings of the keyboard application should also expand if there is more lines of text is present, 
+then git add commit and push with appropriate message
+[DONE] - Fixed
 
+
+
+
+feature : Reset theme to a default theme
 then git add commit and push with appropriate message
 
+
+
+
+
+
+
+
+
+
+
+bug: the search field in the settings of the keyboard application should take image if pasted etc as well.
+then git add commit and push with appropriate message
 
 
 

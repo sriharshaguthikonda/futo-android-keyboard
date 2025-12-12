@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
@@ -31,6 +32,7 @@ import org.futo.inputmethod.latin.uix.THEME_KEY
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.theme.selector.ThemePicker
+import org.futo.inputmethod.latin.uix.theme.defaultThemeOption
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.settings.RotatingChevronIcon
 
@@ -105,6 +107,12 @@ fun ThemeScreen(navController: NavHostController = rememberNavController()) {
             ScreenTitle(stringResource(R.string.theme_settings_title), showBack = true, navController)
             ThemePicker {
                 setTheme(it.key)
+            }
+            Button(
+                onClick = { setTheme(defaultThemeOption(context).key) },
+                modifier = Modifier.padding(16.dp)
+            ) {
+                androidx.compose.material3.Text(stringResource(R.string.theme_reset_to_default))
             }
         }
     }
