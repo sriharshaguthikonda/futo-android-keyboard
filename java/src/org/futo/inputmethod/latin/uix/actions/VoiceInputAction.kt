@@ -14,6 +14,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,10 +37,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -98,6 +106,7 @@ import org.futo.voiceinput.shared.ui.MicrophoneDeviceState
 import org.futo.voiceinput.shared.whisper.DecodingConfiguration
 import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
+import java.text.BreakIterator
 import java.util.Locale
 
 val SystemVoiceInputAction = Action(
@@ -453,11 +462,62 @@ private class VoiceInputBottomBarWindow(
 
     private var inputTransaction = manager.createInputTransaction()
 
+    private fun deleteWordBeforeCursor() {
+        val ic = manager.getLatinIMEForDebug().currentInputConnection
+        if (ic == null) {
+            manager.sendKeyEvent(KeyEvent.KEYCODE_DEL, 0)
+            return
+        }
+
+        val selectedText = ic.getSelectedText(0)
+        if (!selectedText.isNullOrEmpty()) {
+            manager.sendKeyEvent(KeyEvent.KEYCODE_DEL, 0)
+            return
+        }
+
+        val textBeforeCursor = ic.getTextBeforeCursor(48, 0) ?: run {
+            manager.sendKeyEvent(KeyEvent.KEYCODE_DEL, 0)
+            return
+        }
+
+        if (textBeforeCursor.isEmpty()) {
+            manager.sendKeyEvent(KeyEvent.KEYCODE_DEL, 0)
+            return
+        }
+
+        val breakIterator = BreakIterator.getWordInstance()
+        breakIterator.setText(textBeforeCursor.toString())
+
+        val end = breakIterator.last()
+        var start = breakIterator.previous()
+
+        if (start == BreakIterator.DONE) {
+            manager.sendKeyEvent(KeyEvent.KEYCODE_DEL, 0)
+            return
+        }
+
+        if (textBeforeCursor.subSequence(start, end).toString() == " ") {
+            val prevStart = breakIterator.previous()
+            if (prevStart != BreakIterator.DONE) {
+                start = prevStart
+            }
+        }
+
+        val lengthToDelete = end - start
+        if (lengthToDelete <= 0) {
+            manager.sendKeyEvent(KeyEvent.KEYCODE_DEL, 0)
+            return
+        }
+
+        ic.deleteSurroundingText(lengthToDelete, 0)
+    }
+
     @Composable
     override fun windowName(): String {
         return stringResource(R.string.action_voice_input_title)
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
     override fun WindowContents(keyboardShown: Boolean) {
         val isListeningState by isListening
@@ -618,10 +678,45 @@ private class VoiceInputBottomBarWindow(
                     }
                 }
 
-                // Backspace
-                IconButton(
-                    onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_DEL, 0) },
-                    modifier = Modifier.size(40.dp)
+                // Backspace with continuous word deletion on hold
+                val backspaceScope = rememberCoroutineScope()
+                var deleteJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    val startTime = System.currentTimeMillis()
+                                    
+                                    // Start a job that will begin word deletion after long press threshold
+                                    deleteJob = backspaceScope.launch {
+                                        delay(400) // Long press threshold
+                                        while (true) {
+                                            deleteWordBeforeCursor()
+                                            delay(150) // Repeat interval
+                                        }
+                                    }
+                                    
+                                    // Wait for release
+                                    do {
+                                        val event = awaitPointerEvent()
+                                    } while (event.changes.any { it.pressed })
+                                    
+                                    // Cancel the delete job
+                                    deleteJob?.cancel()
+                                    deleteJob = null
+                                    
+                                    // If it was a short tap (not long press), delete single char
+                                    val pressDuration = System.currentTimeMillis() - startTime
+                                    if (pressDuration < 400) {
+                                        manager.sendKeyEvent(KeyEvent.KEYCODE_DEL, 0)
+                                    }
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.sym_keyboard_delete_lxx_dark),
