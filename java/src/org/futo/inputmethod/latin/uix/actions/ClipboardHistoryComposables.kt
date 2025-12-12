@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
@@ -61,8 +62,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextIndent
 // Removed TextField imports as search now uses ActionTextEditor
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import org.futo.inputmethod.latin.uix.ActionTextEditor
@@ -93,6 +96,28 @@ fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searc
         }
     }
 
+    val displayedText = if (annotatedText.text.length > 256) {
+        buildAnnotatedString {
+            append(annotatedText.subSequence(0, 256))
+        }
+    } else {
+        annotatedText
+    }
+
+    val hasImage = clipboardEntry.uri != null
+
+    // Track how many characters fit in the first line
+    var firstLineEndIndex by remember { mutableStateOf(displayedText.text.length) }
+
+    // Calculate remaining text after first line
+    val remainingText = remember(displayedText, firstLineEndIndex) {
+        if (firstLineEndIndex < displayedText.text.length) {
+            displayedText.subSequence(firstLineEndIndex, displayedText.text.length)
+        } else {
+            null
+        }
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -108,10 +133,16 @@ fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searc
         shape = RoundedCornerShape(8.dp),
     ) {
         Column {
-            Row(modifier = Modifier.padding(0.dp)) {
-                IconButton(onClick = {
-                    onPin(clipboardEntry)
-                }, modifier = Modifier.size(32.dp)) {
+            // Header row: Pin icon, first line of text, Close icon
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Pin icon
+                IconButton(
+                    onClick = { onPin(clipboardEntry) },
+                    modifier = Modifier.size(32.dp)
+                ) {
                     Icon(
                         painterResource(id = R.drawable.push_pin),
                         contentDescription = if(clipboardEntry.pinned) {
@@ -128,11 +159,32 @@ fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searc
                     )
                 }
 
-                Spacer(modifier = Modifier.weight(1.0f))
+                // First line of text between icons
+                Text(
+                    displayedText,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(top = 8.dp, bottom = 0.dp),
+                    style = Typography.SmallMl,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
+                    onTextLayout = { textLayoutResult ->
+                        // Get the end offset of the first line
+                        if (textLayoutResult.lineCount > 0) {
+                            val lineEnd = textLayoutResult.getLineEnd(0, visibleEnd = true)
+                            if (lineEnd != firstLineEndIndex) {
+                                firstLineEndIndex = lineEnd
+                            }
+                        }
+                    }
+                )
 
-                IconButton(onClick = {
-                    onRemove(clipboardEntry)
-                }, modifier = Modifier.size(32.dp), enabled = !clipboardEntry.pinned) {
+                // Close icon
+                IconButton(
+                    onClick = { onRemove(clipboardEntry) },
+                    modifier = Modifier.size(32.dp),
+                    enabled = !clipboardEntry.pinned
+                ) {
                     Icon(
                         painterResource(id = R.drawable.close),
                         contentDescription = stringResource(R.string.action_clipboard_manager_remove_item),
@@ -146,16 +198,18 @@ fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searc
                 }
             }
 
-            val displayedText = if (annotatedText.text.length > 256) {
-                buildAnnotatedString {
-                    append(annotatedText.subSequence(0, 256))
-                    append("...")
-                }
-            } else {
-                annotatedText
+            // Remaining text below icons - only show what wasn't in header
+            // Use negative offset to reduce gap caused by IconButton height in the Row
+            if (remainingText != null && remainingText.text.isNotEmpty()) {
+                Text(
+                    remainingText,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = (-8).dp)
+                        .padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
+                    style = Typography.SmallMl
+                )
             }
-
-            val hasImage = clipboardEntry.uri != null
 
             if (hasImage) {
                 Box(
@@ -170,15 +224,9 @@ fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searc
                         modifier = Modifier.fillMaxSize()
                     )
                 }
-
-                if (displayedText.text.isNotEmpty()) {
-                    Text(displayedText, modifier = Modifier.padding(8.dp, 2.dp), style = Typography.SmallMl)
-                }
-            } else {
-                Text(displayedText, modifier = Modifier.padding(8.dp, 2.dp), style = Typography.SmallMl)
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }
