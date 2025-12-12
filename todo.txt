@@ -103,6 +103,8 @@ then git add commit and push with appropriate message
 
 
 
+feature : able to move the position of the keyboard to little left or right. if we decrease the size horizontally it always stays centrally. 
+then git add commit and push with appropriate message
 
 
 

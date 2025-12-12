@@ -135,6 +135,52 @@ open class KeyboardResizeHelper(
             KeyboardMode.Floating -> editedSettings // unused by Floating
         }
     }
+
+    fun applyHorizontalOffsetForRegular(shiftDelta: Float) = with(density) {
+        if (shiftDelta == 0.0f) return@with
+
+        val currentPadding = when (editedSettings.currentMode) {
+            KeyboardMode.Regular, KeyboardMode.Phone -> editedSettings.paddingDp
+            KeyboardMode.Split -> editedSettings.splitPaddingDp
+            else -> return@with
+        }
+
+        var newLeft = currentPadding.left + shiftDelta.toDp()
+        var newRight = currentPadding.right - shiftDelta.toDp()
+
+        // Prevent negative padding; if one side hits zero, shift the excess back to the other side.
+        if (newLeft < 0.dp) {
+            newRight += newLeft
+            newLeft = 0.dp
+            result = false
+        }
+
+        if (newRight < 0.dp) {
+            newLeft += newRight
+            newRight = 0.dp
+            result = false
+        }
+
+        // Respect maximum padding limits
+        val leftClamped = newLeft.coerceIn(0.dp, maximumSidePadding)
+        val rightClamped = newRight.coerceIn(0.dp, maximumSidePadding)
+        if (leftClamped != newLeft || rightClamped != newRight) {
+            result = false
+        }
+
+        newLeft = leftClamped
+        newRight = rightClamped
+
+        editedSettings = when (editedSettings.currentMode) {
+            KeyboardMode.Regular, KeyboardMode.Phone -> editedSettings.copy(
+                paddingDp = editedSettings.paddingDp.copy(left = newLeft, right = newRight)
+            )
+            KeyboardMode.Split -> editedSettings.copy(
+                splitPaddingDp = editedSettings.splitPaddingDp.copy(left = newLeft, right = newRight)
+            )
+            else -> editedSettings
+        }
+    }
 }
 
 class OneHandedKeyboardResizeHelper(
@@ -352,6 +398,10 @@ class KeyboardResizers(val latinIME: LatinIME) {
 
                 helper.editBottomPaddingAndHeightAddition()
                 helper.applySymmetricalPaddingForRegular(delta.left - delta.right)
+                // Allow shifting left/right when dragged from center horizontally.
+                if (delta.left == delta.right && delta.left != 0.0f) {
+                    helper.applyHorizontalOffsetForRegular(delta.left)
+                }
 
                 result = result && helper.result
 
