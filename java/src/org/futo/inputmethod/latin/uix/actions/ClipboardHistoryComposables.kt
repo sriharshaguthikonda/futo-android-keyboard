@@ -167,7 +167,7 @@ fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searc
                         .padding(top = 8.dp, bottom = 0.dp),
                     style = Typography.SmallMl,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
                     onTextLayout = { textLayoutResult ->
                         // Get the end offset of the first line
                         if (textLayoutResult.lineCount > 0) {
