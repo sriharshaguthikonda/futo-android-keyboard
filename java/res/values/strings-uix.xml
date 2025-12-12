@@ -514,6 +514,9 @@
     <!-- Theme, as in visual style -->
     <string name="theme_settings_title">Theme</string>
     <string name="theme_settings_key_borders">Key borders</string>
+    <string name="theme_settings_reset_to_default">Reset theme to default</string>
+    <string name="theme_settings_reset_to_default_desc">Restore all theme parameters to the default values. Helpful if imported settings caused mismatched colors.</string>
+    <string name="theme_settings_reset_to_default_tags">reset theme, theme reset, restore colors, default colors, fix theme, theme defaults</string>
     <string name="dev_settings_title">Developer Settings</string>
 
     <!-- Voice input settings menu -->

@@ -96,6 +96,10 @@ then git add commit and push with appropriate message
 
 
 feature : Reset theme to a default theme
+
+Build the apk - .\gradlew.bat assemblePlaystoreRelease
+see if any errors
+fix the errors
 then git add commit and push with appropriate message
 
 
@@ -119,8 +123,6 @@ then git add commit and push with appropriate message
 bug: the search field in the settings of the keyboard application as testing text box but some reason many functions of the keyboard are not working when i am testing in that search field.
 
 then git add commit and push with appropriate message
-
-
 
 
 

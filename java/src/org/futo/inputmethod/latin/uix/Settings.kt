@@ -39,6 +39,7 @@ import okio.source
 import org.futo.inputmethod.latin.ActiveSubtype
 import org.futo.inputmethod.latin.Subtypes
 import org.futo.inputmethod.latin.SubtypesSetting
+import org.futo.inputmethod.latin.uix.theme.defaultThemeOption
 import org.futo.inputmethod.latin.uix.theme.presets.ClassicMaterialDark
 import org.futo.inputmethod.v2keyboard.LayoutManager
 import java.io.File
@@ -586,6 +587,65 @@ val CustomOnSurfaceTransparentColor = SettingsKey(
     key = stringPreferencesKey("custom_on_surface_transparent_color"),
     default = "#E6E1E5"
 )
+
+suspend fun Context.resetThemeToDefault() {
+    withContext(Dispatchers.Default) {
+        listOf(
+            CustomAccentColor,
+            CustomBaseColor,
+            CustomIconColor,
+            CustomIconBgColor,
+            CustomKeyBgColor,
+            CustomModifierColor,
+            CustomBorderColor,
+            CustomBackgroundImage,
+            CustomPrimaryColor,
+            CustomOnPrimaryColor,
+            CustomPrimaryContainerColor,
+            CustomOnPrimaryContainerColor,
+            CustomSecondaryColor,
+            CustomOnSecondaryColor,
+            CustomSecondaryContainerColor,
+            CustomOnSecondaryContainerColor,
+            CustomTertiaryColor,
+            CustomOnTertiaryColor,
+            CustomTertiaryContainerColor,
+            CustomOnTertiaryContainerColor,
+            CustomErrorColor,
+            CustomOnErrorColor,
+            CustomErrorContainerColor,
+            CustomOnErrorContainerColor,
+            CustomOutlineColor,
+            CustomOutlineVariantColor,
+            CustomSurfaceColor,
+            CustomOnSurfaceColor,
+            CustomOnSurfaceVariantColor,
+            CustomSurfaceContainerHighestColor,
+            CustomShadowColor,
+            CustomKeyboardSurfaceColor,
+            CustomKeyboardContainerColor,
+            CustomKeyboardContainerVariantColor,
+            CustomOnKeyboardContainerColor,
+            CustomKeyboardPressColor,
+            CustomKeyboardFade0Color,
+            CustomKeyboardFade1Color,
+            CustomPrimaryTransparentColor,
+            CustomOnSurfaceTransparentColor,
+            CustomHomePrimaryBgColor,
+            CustomHomeSecondaryBgColor,
+            CustomHomeTertiaryBgColor,
+            CustomMiscBgColor,
+            CustomMiscNoArrowBgColor,
+            CustomHomePrimaryBgImage,
+            CustomHomeSecondaryBgImage,
+            CustomHomeTertiaryBgImage,
+            CustomMiscBgImage,
+            CustomMiscNoArrowBgImage,
+        ).forEach { setSetting(it, it.default) }
+
+        setSetting(THEME_KEY, defaultThemeOption(this@resetThemeToDefault).key)
+    }
+}
 
 val USE_SYSTEM_VOICE_INPUT = SettingsKey(
     key = booleanPreferencesKey("useSystemVoiceInput"),

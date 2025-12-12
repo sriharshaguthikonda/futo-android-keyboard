@@ -57,6 +57,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterVertically
@@ -74,6 +75,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -113,10 +115,12 @@ import org.futo.inputmethod.latin.uix.CustomHomeSecondaryBgImage
 import org.futo.inputmethod.latin.uix.CustomHomeTertiaryBgImage
 import org.futo.inputmethod.latin.uix.CustomMiscBgImage
 import org.futo.inputmethod.latin.uix.CustomMiscNoArrowBgImage
+import org.futo.inputmethod.latin.uix.resetThemeToDefault
 import android.graphics.BitmapFactory
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.pow
+import kotlinx.coroutines.launch
 
 @Composable
 fun ScreenTitle(title: String, showBack: Boolean = false, navController: NavHostController? = LocalNavController.current ?: rememberNavController()) {
@@ -139,6 +143,29 @@ fun ScreenTitle(title: String, showBack: Boolean = false, navController: NavHost
         Text(title, style = Typography.Heading.Medium, modifier = Modifier
             .align(CenterVertically)
             .padding(0.dp, 16.dp))
+    }
+}
+
+@Composable
+fun ResetThemeRow(
+    modifier: Modifier = Modifier,
+    onResetComplete: (() -> Unit)? = null
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    SettingItem(
+        title = stringResource(R.string.theme_settings_reset_to_default),
+        subtitle = stringResource(R.string.theme_settings_reset_to_default_desc),
+        onClick = {
+            scope.launch {
+                context.resetThemeToDefault()
+                onResetComplete?.invoke()
+            }
+        },
+        modifier = modifier
+    ) {
+        // no trailing content
     }
 }
 

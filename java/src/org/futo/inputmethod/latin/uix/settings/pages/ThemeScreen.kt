@@ -5,15 +5,17 @@ import android.os.Build
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,13 +31,43 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import org.futo.inputmethod.latin.uix.THEME_KEY
-import org.futo.inputmethod.latin.uix.settings.ScreenTitle
-import org.futo.inputmethod.latin.uix.settings.useDataStore
-import org.futo.inputmethod.latin.uix.theme.selector.ThemePicker
-import org.futo.inputmethod.latin.uix.theme.defaultThemeOption
 import org.futo.inputmethod.latin.R
+import org.futo.inputmethod.latin.uix.LocalNavController
+import org.futo.inputmethod.latin.uix.THEME_KEY
+import org.futo.inputmethod.latin.uix.resetThemeToDefault
+import org.futo.inputmethod.latin.uix.settings.ScreenTitle
+import org.futo.inputmethod.latin.uix.settings.ResetThemeRow
+import org.futo.inputmethod.latin.uix.settings.UserSetting
+import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
+import org.futo.inputmethod.latin.uix.settings.useDataStore
+import org.futo.inputmethod.latin.uix.theme.defaultThemeOption
+import org.futo.inputmethod.latin.uix.theme.selector.ThemePicker
 import org.futo.inputmethod.latin.uix.settings.RotatingChevronIcon
+import kotlinx.coroutines.launch
+
+val ThemeSettingsMenu = UserSettingsMenu(
+    title = R.string.theme_settings_title,
+    navPath = "themes",
+    registerNavPath = false,
+    settings = listOf(
+        UserSetting(
+            name = R.string.theme_settings_reset_to_default,
+            subtitle = R.string.theme_settings_reset_to_default_desc,
+            searchTags = R.string.theme_settings_reset_to_default_tags,
+            component = {
+                val context = LocalContext.current
+                val scope = rememberCoroutineScope()
+                ResetThemeRow(
+                    onResetComplete = {
+                        scope.launch {
+                            context.resetThemeToDefault()
+                        }
+                    }
+                )
+            }
+        )
+    )
+)
 
 @Preview
 @Composable
@@ -43,6 +75,7 @@ fun ThemeScreen(navController: NavHostController = rememberNavController()) {
     val (theme, setTheme) = useDataStore(THEME_KEY.key, THEME_KEY.default)
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val enableKeyboardPreview = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
     var showKeyboard by remember { mutableStateOf(false) }
 
@@ -106,14 +139,14 @@ fun ThemeScreen(navController: NavHostController = rememberNavController()) {
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             ScreenTitle(stringResource(R.string.theme_settings_title), showBack = true, navController)
+            ResetThemeRow(modifier = Modifier.padding(horizontal = 8.dp)) {
+                scope.launch {
+                    context.resetThemeToDefault()
+                    setTheme(defaultThemeOption(context).key)
+                }
+            }
             ThemePicker {
                 setTheme(it.key)
-            }
-            Button(
-                onClick = { setTheme(defaultThemeOption(context).key) },
-                modifier = Modifier.padding(16.dp)
-            ) {
-                androidx.compose.material3.Text(stringResource(R.string.theme_reset_to_default))
             }
         }
     }
