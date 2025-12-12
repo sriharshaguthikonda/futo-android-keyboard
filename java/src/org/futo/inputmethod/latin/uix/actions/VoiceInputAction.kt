@@ -372,7 +372,7 @@ private class VoiceInputBottomBarWindow(
     // Hide the keyboard and show only this minimal bar at the bottom
     override val onlyShowAboveKeyboard: Boolean = false
     override val showCloseButton: Boolean = false
-    override val fixedWindowHeight: Dp = 72.dp
+    override val fixedWindowHeight: Dp = 88.dp
     override val showHeaderBar: Boolean = false
 
     private var shouldPlaySounds: Boolean = false
@@ -518,31 +518,45 @@ private class VoiceInputBottomBarWindow(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Back/close button (compact)
+                // Back/close button
                 IconButton(
                     onClick = { manager.closeActionWindow() },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.arrow_left_26),
                         contentDescription = "Back",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
-                // Show keyboard button (restored)
+                // Undo button (moved to left side)
+                IconButton(
+                    onClick = {
+                        manager.sendKeyEvent(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON)
+                    },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.undo),
+                        contentDescription = "Undo",
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // Show keyboard button
                 IconButton(
                     onClick = { manager.closeActionWindow() },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.keyboard_regular),
                         contentDescription = "Show keyboard",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -604,29 +618,15 @@ private class VoiceInputBottomBarWindow(
                     }
                 }
 
-                // Undo
-                IconButton(
-                    onClick = {
-                        manager.sendKeyEvent(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON)
-                    },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.undo),
-                        contentDescription = "Undo",
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
                 // Backspace
                 IconButton(
                     onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_DEL, 0) },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.sym_keyboard_delete_lxx_dark),
                         contentDescription = "Backspace",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -635,19 +635,19 @@ private class VoiceInputBottomBarWindow(
                     onClick = {
                         manager.sendKeyEvent(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_SHIFT_ON)
                     },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.redo),
                         contentDescription = "Redo",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
                 // Mic button with pulsing animation when listening
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .scale(if (isListeningState) pulseScale else 1.0f)
                         .background(
                             color = if (isListeningState) {
@@ -678,7 +678,7 @@ private class VoiceInputBottomBarWindow(
                         } else {
                             MaterialTheme.colorScheme.onSecondaryContainer
                         },
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }
