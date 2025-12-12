@@ -101,6 +101,30 @@ Build the apk - .\gradlew.bat assemblePlaystoreRelease
 see if any errors
 fix the errors
 then git add commit and push with appropriate message
+[DONE] - Fixed
+
+
+
+
+
+
+feature : voice recognition button slightly to the left
+
+Build the apk - .\gradlew.bat assemblePlaystoreRelease
+see if any errors
+fix the errors
+then git add commit and push with appropriate message
+[DONE] - Fixed
+
+
+
+
+feature : when we slide on the floating VoiceInputBottomBarWindow, we should be able to navigate through text like happens on the main keyboard
+need a back space button on the right somewhere , undo on the left end and redo button on the right somewhere as well
+Build the apk - .\gradlew.bat assemblePlaystoreRelease
+see if any errors
+fix the errors
+then git add commit and push with appropriate message
 
 
 

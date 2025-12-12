@@ -738,8 +738,10 @@ fun RowScope.PinnedActionItems(onSelect: (Action) -> Unit, onLongSelect: (Action
         actions.toActionList()
     }
 
-    actionItems.forEach {
-        ActionItemSmall(it, onSelect, onLongSelect)
+    Row(modifier = Modifier.padding(end = 8.dp)) {
+        actionItems.forEach {
+            ActionItemSmall(it, onSelect, onLongSelect)
+        }
     }
 }
 
