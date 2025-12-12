@@ -133,7 +133,6 @@ then suggest git add commit and push with appropriate message
 
 feature: clipboard items in the ClipboardManager have that pin and close symbol and there is no text in between those symbols so the space is wasted i think the text can be there in that area as well. 
 
-need a back space button on the right somewhere , undo on the left end and redo button on the right somewhere as well
 Build the apk - .\gradlew.bat assemblePlaystoreRelease
 see if any errors
 fix the errors
