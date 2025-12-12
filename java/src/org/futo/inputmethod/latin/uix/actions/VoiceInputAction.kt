@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +35,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,13 +43,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import android.view.KeyEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
@@ -367,6 +373,7 @@ private class VoiceInputBottomBarWindow(
     override val onlyShowAboveKeyboard: Boolean = false
     override val showCloseButton: Boolean = false
     override val fixedWindowHeight: Dp = 72.dp
+    override val showHeaderBar: Boolean = false
 
     private var shouldPlaySounds: Boolean = false
     private val isListening = mutableStateOf(false)
@@ -496,128 +503,183 @@ private class VoiceInputBottomBarWindow(
             label = "wave3"
         )
 
+        val density = LocalDensity.current
+        val dragAccumPx = remember { mutableFloatStateOf(0f) }
+
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(32.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            shape = RoundedCornerShape(28.dp),
             color = LocalKeyboardScheme.current.keyboardContainer,
-            contentColor = LocalKeyboardScheme.current.onKeyboardContainer
+            contentColor = LocalKeyboardScheme.current.onKeyboardContainer,
+            tonalElevation = 2.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Close button
+                // Back/close button (compact)
                 IconButton(
                     onClick = { manager.closeActionWindow() },
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.close),
-                        contentDescription = "Close",
-                        modifier = Modifier.size(20.dp)
+                        painter = painterResource(id = R.drawable.arrow_left_26),
+                        contentDescription = "Back",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Show keyboard button (restored)
+                IconButton(
+                    onClick = { manager.closeActionWindow() },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.keyboard_regular),
+                        contentDescription = "Show keyboard",
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
                 // Sound wave indicator + Status text
                 Row(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 4.dp)
+                        .pointerInput(Unit) {
+                            val threshold = with(density) { 10.dp.toPx() }
+                            detectDragGestures(
+                                onDragEnd = { dragAccumPx.floatValue = 0f },
+                                onDragCancel = { dragAccumPx.floatValue = 0f },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragAccumPx.floatValue += dragAmount.x
+                                    while (dragAccumPx.floatValue > threshold) {
+                                        manager.sendKeyEvent(KeyEvent.KEYCODE_DPAD_RIGHT, 0)
+                                        dragAccumPx.floatValue -= threshold
+                                    }
+                                    while (dragAccumPx.floatValue < -threshold) {
+                                        manager.sendKeyEvent(KeyEvent.KEYCODE_DPAD_LEFT, 0)
+                                        dragAccumPx.floatValue += threshold
+                                    }
+                                }
+                            )
+                        },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    // Animated sound wave bars (only when listening)
                     if (isListeningState) {
                         Row(
-                            modifier = Modifier.padding(end = 8.dp),
+                            modifier = Modifier.padding(end = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            SoundWaveBar(height = 16.dp * wave1)
-                            SoundWaveBar(height = 16.dp * wave2)
-                            SoundWaveBar(height = 16.dp * wave3)
+                            SoundWaveBar(height = 12.dp * wave1)
+                            SoundWaveBar(height = 12.dp * wave2)
+                            SoundWaveBar(height = 12.dp * wave3)
                         }
                     }
-                    
+
                     Text(
                         text = statusText.value,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
-                    
-                    // Animated sound wave bars on the right side too
+
                     if (isListeningState) {
                         Row(
-                            modifier = Modifier.padding(start = 8.dp),
+                            modifier = Modifier.padding(start = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            SoundWaveBar(height = 16.dp * wave3)
-                            SoundWaveBar(height = 16.dp * wave1)
-                            SoundWaveBar(height = 16.dp * wave2)
+                            SoundWaveBar(height = 12.dp * wave3)
+                            SoundWaveBar(height = 12.dp * wave1)
+                            SoundWaveBar(height = 12.dp * wave2)
                         }
                     }
                 }
 
-                // Mic button with pulsing animation when listening
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                // Undo
+                IconButton(
+                    onClick = {
+                        manager.sendKeyEvent(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON)
+                    },
+                    modifier = Modifier.size(32.dp)
                 ) {
-                    if (!keyboardShown) {
-                        IconButton(
-                            onClick = {
-                                manager.closeActionWindow()
-                            },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.keyboard_regular),
-                                contentDescription = "Show keyboard",
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
+                    Icon(
+                        painter = painterResource(id = R.drawable.undo),
+                        contentDescription = "Undo",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .scale(if (isListeningState) pulseScale else 1.0f)
-                            .background(
-                                color = if (isListeningState) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.secondaryContainer
-                                },
-                                shape = CircleShape
-                            )
-                            .clickable {
-                                if (isListeningState) {
-                                    // Treat mic as stop button when already listening
-                                    isListening.value = false
-                                    statusText.value = "Stopping…"
-                                    recognizerView.value?.finish()
-                                } else {
-                                    recognizerView.value?.reset()
-                                    recognizerView.value?.start()
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.mic_fill),
-                            contentDescription = if (isListeningState) "Stop" else "Start",
-                            tint = if (isListeningState) {
-                                MaterialTheme.colorScheme.onPrimary
+                // Backspace
+                IconButton(
+                    onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_DEL, 0) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.sym_keyboard_delete_lxx_dark),
+                        contentDescription = "Backspace",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Redo
+                IconButton(
+                    onClick = {
+                        manager.sendKeyEvent(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON or KeyEvent.META_SHIFT_ON)
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.redo),
+                        contentDescription = "Redo",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Mic button with pulsing animation when listening
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .scale(if (isListeningState) pulseScale else 1.0f)
+                        .background(
+                            color = if (isListeningState) {
+                                MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.onSecondaryContainer
+                                MaterialTheme.colorScheme.secondaryContainer
                             },
-                            modifier = Modifier.size(24.dp)
+                            shape = CircleShape
                         )
-                    }
+                        .clickable {
+                            if (isListeningState) {
+                                // Treat mic as stop button when already listening
+                                isListening.value = false
+                                statusText.value = "Stopping…"
+                                recognizerView.value?.finish()
+                            } else {
+                                recognizerView.value?.reset()
+                                recognizerView.value?.start()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.mic_fill),
+                        contentDescription = if (isListeningState) "Stop" else "Start",
+                        tint = if (isListeningState) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        },
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
         }

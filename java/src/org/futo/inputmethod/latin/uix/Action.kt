@@ -134,6 +134,13 @@ abstract class ActionWindow {
     open val showCloseButton: Boolean
         get() = true
 
+    /**
+     * Whether the standard header bar (title/back/expand) should be shown above the window.
+     * Floating/pill UIs can turn this off and render their own controls.
+     */
+    open val showHeaderBar: Boolean
+        get() = true
+
     open val fixedWindowHeight: Dp?
         get() = null
 

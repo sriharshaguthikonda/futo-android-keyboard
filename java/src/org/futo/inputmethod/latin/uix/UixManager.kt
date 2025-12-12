@@ -786,7 +786,7 @@ class UixManager(private val latinIME: LatinIME) {
                     }
                 )
             ) {
-                if (mainKeyboardHidden.value || isInputOverridden.value) {
+                if (windowImpl.showHeaderBar && (mainKeyboardHidden.value || isInputOverridden.value)) {
                     ActionWindowBar(
                         onBack = { closeActionWindow(true) },
                         canExpand = currWindowAction.value!!.canShowKeyboard,
