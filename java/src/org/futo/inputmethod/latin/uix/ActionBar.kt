@@ -122,6 +122,7 @@ import org.futo.inputmethod.latin.uix.actions.PinnedActions
 import org.futo.inputmethod.latin.uix.actions.toActionList
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
+import org.futo.inputmethod.latin.uix.settings.pages.ShowCollapseKeyboardButtonSetting
 import org.futo.inputmethod.latin.uix.theme.ThemeOption
 import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.latin.uix.theme.UixThemeWrapper
@@ -777,6 +778,7 @@ fun ActionBar(
     val context = LocalContext.current
 
     val oldActionBar = useDataStore(OldStyleActionsBar)
+    val showCollapseButton = useDataStore(ShowCollapseKeyboardButtonSetting)
 
     val useDoubleHeight = isActionsExpanded && oldActionBar.value == false
 
@@ -816,13 +818,15 @@ fun ActionBar(
                 .weight(1.0f), color = actionBarColor()
         ) {
             Row(Modifier.safeKeyboardPadding()) {
-                ExpandActionsButton(isActionsExpanded) {
-                    toggleActionsExpanded()
+                if(showCollapseButton.value) {
+                    ExpandActionsButton(isActionsExpanded) {
+                        toggleActionsExpanded()
 
-                    keyboardManagerForAction?.performHapticAndAudioFeedback(
-                        Constants.CODE_TAB,
-                        view
-                    )
+                        keyboardManagerForAction?.performHapticAndAudioFeedback(
+                            Constants.CODE_TAB,
+                            view
+                        )
+                    }
                 }
 
                 if(oldActionBar.value && isActionsExpanded) {
@@ -1172,6 +1176,7 @@ private fun RowScope.InlineCandidates(
 ) {
     val view = LocalView.current
     val expandHeight = with(LocalDensity.current) { 120.dp.toPx().coerceAtMost(keyboardHeight / 2.0f) }
+    val showCollapseButton = useDataStore(ShowCollapseKeyboardButtonSetting)
     Box(Modifier.weight(1.0f).fillMaxHeight()) {
         LazyRow(
             modifier = Modifier.matchParentSize().pointerInput(Unit) {
@@ -1200,18 +1205,20 @@ private fun RowScope.InlineCandidates(
             verticalAlignment = CenterVertically,
             state = lazyListState
         ) {
-            item {
-                val manager = LocalManager.current
-                if(closeActionWindow != null) {
-                    CloseActionWindowButton(closeActionWindow)
-                } else {
-                    ExpandActionsButton(isActionsExpanded) {
-                        toggleActionsExpanded()
+            if(showCollapseButton.value) {
+                item {
+                    val manager = LocalManager.current
+                    if(closeActionWindow != null) {
+                        CloseActionWindowButton(closeActionWindow)
+                    } else {
+                        ExpandActionsButton(isActionsExpanded) {
+                            toggleActionsExpanded()
 
-                        manager.performHapticAndAudioFeedback(
-                            Constants.CODE_TAB,
-                            view
-                        )
+                            manager.performHapticAndAudioFeedback(
+                                Constants.CODE_TAB,
+                                view
+                            )
+                        }
                     }
                 }
             }
@@ -1280,14 +1287,17 @@ fun BoxScope.ActionBarWithExpandableCandidates(
         } ?: emptyList()
     }
 
+    val showCollapseButton = useDataStore(ShowCollapseKeyboardButtonSetting)
+
     val suggestionsExpansion = remember { mutableFloatStateOf(0.0f) }
     val lazyListState = rememberLazyListState()
+    val startOfCandidates = if(showCollapseButton.value) START_OF_CANDIDATES else 0
 
     LaunchedEffect(wordList, words?.mHighlightedCandidate) {
         if(words?.mHighlightedCandidate != null) {
-            lazyListState.scrollToItem(words.mHighlightedCandidate + START_OF_CANDIDATES)
+            lazyListState.scrollToItem(words.mHighlightedCandidate + startOfCandidates)
         } else {
-            lazyListState.scrollToItem(START_OF_CANDIDATES)
+            lazyListState.scrollToItem(startOfCandidates)
         }
     }
 

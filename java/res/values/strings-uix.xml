@@ -495,6 +495,8 @@
     <string name="keyboard_settings_extra_layouts_subtitle">Configure additional layouts in the languages screen</string>
     <string name="keyboard_settings_show_suggestion_row">Show action/suggestions bar</string>
     <string name="keyboard_settings_show_suggestion_row_subtitle">Show the bar containing suggestions. Recommended to keep enabled</string>
+    <string name="keyboard_settings_show_collapse_button">Show collapse keyboard button</string>
+    <string name="keyboard_settings_show_collapse_button_subtitle">Display the down arrow that hides or expands the action bar</string>
     <string name="keyboard_settings_inline_autofill">Inline autofill</string>
     <string name="keyboard_settings_inline_autofill_subtitle">Display password manager autofill and auto-reply suggestions (provided by app) in suggestion bar</string>
     <string name="keyboard_settings_period_key">Quick period key</string>

@@ -147,6 +147,11 @@ val ActionBarDisplayedSetting = SettingsKey(
     true
 )
 
+val ShowCollapseKeyboardButtonSetting = SettingsKey(
+    booleanPreferencesKey("show_collapse_keyboard_button"),
+    true
+)
+
 val InlineAutofillSetting = SettingsKey(
     booleanPreferencesKey("inline_autofill"),
     true
@@ -784,6 +789,11 @@ val KeyboardSettingsMenu = UserSettingsMenu(
             icon = {
                 Icon(painterResource(id = R.drawable.more_horizontal), contentDescription = null)
             }
+        ),
+        userSettingToggleDataStore(
+            title = R.string.keyboard_settings_show_collapse_button,
+            subtitle = R.string.keyboard_settings_show_collapse_button_subtitle,
+            setting = ShowCollapseKeyboardButtonSetting
         ),
         userSettingToggleDataStore(
             title = R.string.keyboard_settings_inline_autofill,
