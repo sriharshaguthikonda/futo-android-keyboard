@@ -32,6 +32,7 @@ public final class InputView extends FrameLayout {
     private MotionEventForwarder<?, ?> mActiveForwarder;
     private View mOverlayTop;
     private View mOverlayBottom;
+    private View mOverlayCenter;
 
     public InputView(final Context context, final AttributeSet attrs) {
         super(context, attrs, 0);
@@ -43,6 +44,7 @@ public final class InputView extends FrameLayout {
         mMainKeyboardView = (MainKeyboardView) findViewById(R.id.keyboard_view);
         mOverlayTop = findViewById(R.id.cursor_overlay_top);
         mOverlayBottom = findViewById(R.id.cursor_overlay_bottom);
+        mOverlayCenter = findViewById(R.id.cursor_overlay_center);
     }
 
     @Override
@@ -83,8 +85,27 @@ public final class InputView extends FrameLayout {
     }
 
     public void showCursorOverlays(boolean show) {
-        if (mOverlayTop != null) mOverlayTop.setVisibility(show ? View.VISIBLE : View.GONE);
-        if (mOverlayBottom != null) mOverlayBottom.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (mOverlayTop != null) mOverlayTop.setVisibility(View.GONE);
+        if (mOverlayBottom != null) mOverlayBottom.setVisibility(View.GONE);
+
+        if (mOverlayCenter != null) {
+            if (show) {
+                mOverlayCenter.animate().cancel();
+                mOverlayCenter.setAlpha(0f);
+                mOverlayCenter.setScaleX(0.8f);
+                mOverlayCenter.setScaleY(0.8f);
+                mOverlayCenter.setVisibility(View.VISIBLE);
+                mOverlayCenter.animate()
+                        .alpha(1f)
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(120L)
+                        .start();
+            } else {
+                mOverlayCenter.animate().cancel();
+                mOverlayCenter.setVisibility(View.GONE);
+            }
+        }
     }
 
     /**
