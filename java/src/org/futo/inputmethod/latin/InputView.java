@@ -21,6 +21,7 @@ import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.TouchDelegate;
 import android.widget.FrameLayout;
 
 import org.futo.inputmethod.accessibility.AccessibilityUtils;
@@ -32,6 +33,7 @@ public final class InputView extends FrameLayout {
     private MotionEventForwarder<?, ?> mActiveForwarder;
     private View mOverlayTop;
     private View mOverlayBottom;
+    private int mCursorPadVerticalExtension;
 
     public InputView(final Context context, final AttributeSet attrs) {
         super(context, attrs, 0);
@@ -43,6 +45,25 @@ public final class InputView extends FrameLayout {
         mMainKeyboardView = (MainKeyboardView) findViewById(R.id.keyboard_view);
         mOverlayTop = findViewById(R.id.cursor_overlay_top);
         mOverlayBottom = findViewById(R.id.cursor_overlay_bottom);
+        mCursorPadVerticalExtension = getResources()
+                .getDimensionPixelSize(R.dimen.cursor_pad_vertical_extension);
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+
+        if (mMainKeyboardView == null) {
+            setTouchDelegate(null);
+            return;
+        }
+
+        final Rect delegateArea = new Rect();
+        mMainKeyboardView.getHitRect(delegateArea);
+        delegateArea.top -= mCursorPadVerticalExtension;
+        delegateArea.bottom += mCursorPadVerticalExtension;
+
+        setTouchDelegate(new TouchDelegate(delegateArea, mMainKeyboardView));
     }
 
     @Override

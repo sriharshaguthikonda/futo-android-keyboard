@@ -22,6 +22,10 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:paddingTop="@dimen/cursor_pad_vertical_extension"
+    android:paddingBottom="@dimen/cursor_pad_vertical_extension"
     style="?attr/inputViewStyle">
     <include
         android:id="@+id/main_keyboard_frame"
@@ -29,8 +33,9 @@
     <TextView
         android:id="@+id/cursor_overlay_top"
         android:layout_width="match_parent"
-        android:layout_height="32dp"
+        android:layout_height="72dp"
         android:layout_gravity="top"
+        android:layout_marginTop="-16dp"
         android:background="@color/key_background_lxx_light"
         android:gravity="center"
         android:textColor="@color/key_text_color_lxx_light"
@@ -39,8 +44,9 @@
     <TextView
         android:id="@+id/cursor_overlay_bottom"
         android:layout_width="match_parent"
-        android:layout_height="32dp"
+        android:layout_height="72dp"
         android:layout_gravity="bottom"
+        android:layout_marginBottom="-16dp"
         android:background="@color/gesture_trail_color_lxx_dark"
         android:gravity="center"
         android:textColor="@color/key_text_color_lxx_dark"
