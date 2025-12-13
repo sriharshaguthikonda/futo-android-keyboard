@@ -121,6 +121,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.pow
 import kotlinx.coroutines.launch
+import org.futo.inputmethod.latin.uix.THEME_KEY
+import org.futo.inputmethod.latin.uix.theme.ThemeOptions
 
 @Composable
 fun ScreenTitle(title: String, showBack: Boolean = false, navController: NavHostController? = LocalNavController.current ?: rememberNavController()) {
@@ -713,22 +715,39 @@ fun NavigationItem(title: String, style: NavigationItemStyle, navigate: () -> Un
         icon = {
             icon?.let {
                 val scheme = LocalKeyboardScheme.current
+                val themeOption = ThemeOptions[useDataStoreValue(THEME_KEY)]
+                val useDynamicSettingsColors = themeOption?.dynamic == true
                 val circleColor = when(style) {
-                    NavigationItemStyle.HomePrimary -> runCatching {
-                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomePrimaryBgColor)))
-                    }.getOrElse { scheme.settingsIconBackground }
-                    NavigationItemStyle.HomeSecondary -> runCatching {
-                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomeSecondaryBgColor)))
-                    }.getOrElse { scheme.settingsIconBackground }
-                    NavigationItemStyle.HomeTertiary -> runCatching {
-                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomeTertiaryBgColor)))
-                    }.getOrElse { scheme.settingsIconBackground }
-                    NavigationItemStyle.Misc -> runCatching {
-                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomMiscBgColor)))
-                    }.getOrElse { scheme.settingsIconBackground }
-                    NavigationItemStyle.MiscNoArrow -> runCatching {
-                        Color(android.graphics.Color.parseColor(useDataStoreValue(CustomMiscNoArrowBgColor)))
-                    }.getOrElse { scheme.settingsIconBackground }
+                    NavigationItemStyle.HomePrimary -> when {
+                        useDynamicSettingsColors -> scheme.base.primaryContainer
+                        else -> runCatching {
+                            Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomePrimaryBgColor)))
+                        }.getOrElse { scheme.settingsIconBackground }
+                    }
+                    NavigationItemStyle.HomeSecondary -> when {
+                        useDynamicSettingsColors -> scheme.base.secondaryContainer
+                        else -> runCatching {
+                            Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomeSecondaryBgColor)))
+                        }.getOrElse { scheme.settingsIconBackground }
+                    }
+                    NavigationItemStyle.HomeTertiary -> when {
+                        useDynamicSettingsColors -> scheme.base.tertiaryContainer
+                        else -> runCatching {
+                            Color(android.graphics.Color.parseColor(useDataStoreValue(CustomHomeTertiaryBgColor)))
+                        }.getOrElse { scheme.settingsIconBackground }
+                    }
+                    NavigationItemStyle.Misc -> when {
+                        useDynamicSettingsColors -> scheme.base.surfaceTint
+                        else -> runCatching {
+                            Color(android.graphics.Color.parseColor(useDataStoreValue(CustomMiscBgColor)))
+                        }.getOrElse { scheme.settingsIconBackground }
+                    }
+                    NavigationItemStyle.MiscNoArrow -> when {
+                        useDynamicSettingsColors -> scheme.base.surfaceVariant
+                        else -> runCatching {
+                            Color(android.graphics.Color.parseColor(useDataStoreValue(CustomMiscNoArrowBgColor)))
+                        }.getOrElse { scheme.settingsIconBackground }
+                    }
                     NavigationItemStyle.ExternalLink,
                     NavigationItemStyle.Mail -> Color.Transparent
                 }

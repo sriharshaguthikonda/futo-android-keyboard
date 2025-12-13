@@ -180,6 +180,7 @@
     <string name="theme_dev">Construction Theme</string>
     <string name="theme_dynamic_system">Dynamic Auto</string>
     <string name="theme_dynamic_dark">Dynamic Dark</string>
+    <string name="theme_dynamic_dark_colored">Dynamic Dark Colored</string>
     <string name="theme_dynamic_light">Dynamic Light</string>
     <string name="theme_custom">Custom Theme</string>
     <string name="theme_reset_to_default">Reset to default</string>

@@ -18,6 +18,7 @@ import org.futo.inputmethod.latin.uix.theme.presets.DefaultDarkScheme
 import org.futo.inputmethod.latin.uix.theme.presets.DefaultLightScheme
 import org.futo.inputmethod.latin.uix.theme.presets.DynamicDarkTheme
 import org.futo.inputmethod.latin.uix.theme.presets.DynamicLightTheme
+import org.futo.inputmethod.latin.uix.theme.presets.DynamicDarkColoredTheme
 import org.futo.inputmethod.latin.uix.theme.presets.DynamicSystemTheme
 import org.futo.inputmethod.latin.uix.theme.presets.Emerald
 import org.futo.inputmethod.latin.uix.theme.presets.Gradient1
@@ -44,6 +45,7 @@ val ThemeOptions = mapOf(
 
     DynamicSystemTheme.key to DynamicSystemTheme,
     DynamicDarkTheme.key to DynamicDarkTheme,
+    DynamicDarkColoredTheme.key to DynamicDarkColoredTheme,
     DynamicLightTheme.key to DynamicLightTheme,
 
     ClassicMaterialDark.key to ClassicMaterialDark,

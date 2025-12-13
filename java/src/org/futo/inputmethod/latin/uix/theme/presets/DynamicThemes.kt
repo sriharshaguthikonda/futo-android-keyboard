@@ -45,6 +45,26 @@ val DynamicDarkTheme = ThemeOption(
     }
 )
 
+val DynamicDarkColoredTheme = ThemeOption(
+    dynamic = true,
+    key = "DynamicDarkColored",
+    name = R.string.theme_dynamic_dark_colored,
+    available = { Build.VERSION.SDK_INT >= Build.VERSION_CODES.S },
+    obtainColors = {
+        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            throw IllegalStateException("DynamicDarkColoredTheme obtainColors called when available() == false")
+        }
+
+        val scheme = wrapDarkColorScheme(dynamicDarkColorScheme(it))
+        scheme.copy(
+            extended = scheme.extended.copy(
+                settingsIconBackground = scheme.base.secondaryContainer,
+                settingsIconColor = scheme.base.onSecondaryContainer
+            )
+        )
+    }
+)
+
 val DynamicLightTheme = ThemeOption(
     dynamic = true,
     key = "DynamicLight",
