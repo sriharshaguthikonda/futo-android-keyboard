@@ -620,6 +620,9 @@
     <string name="help_menu_email_subtitle">Private feedback, help, or don\'t use GitHub? Email us</string>
     <string name="help_menu_email_tags">gmail, support, contact, help, broken, bug, error, issue, problem, complaint, ticket, payment, support, glitch, malfunction, fix, customer service, crash, question, inquiry, assistance</string>
 
+    <string name="settings_rerun_setup_title">Run setup again</string>
+    <string name="settings_rerun_setup_subtitle">Restart the guided setup to review permissions and backups</string>
+
     <!-- Setup configuration -->
     <string name="setup_step_1">Setup - Step 1</string>
     <string name="setup_step_2">Setup - Step 2</string>
@@ -630,9 +633,10 @@
     <string name="setup_active_input_method">Please select FUTO Keyboard as your active input method.</string>
     <string name="setup_switch_input_methods">Switch Input Methods</string>
 
-    <string name="setup_permissions_text">Enable accessibility service to allow app switching</string>
+    <string name="setup_permissions_text">Enable accessibility service to allow app switching. You can skip this step now and enable it later from Settings.</string>
     <string name="setup_permissions_granted_text">Accessibility service is enabled! You can now switch between apps.</string>
     <string name="setup_grant_permissions_button">Grant Permission</string>
+    <string name="setup_skip_for_now_button">Skip for now</string>
     <string name="setup_continue_button">Continue</string>
 
     <string name="setup_step_restore_backup">Step 3: Restore Backup (Optional)</string>
