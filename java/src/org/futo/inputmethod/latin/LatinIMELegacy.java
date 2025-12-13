@@ -57,6 +57,7 @@ import org.futo.inputmethod.accessibility.AccessibilityUtils;
 import org.futo.inputmethod.annotations.UsedForTesting;
 import org.futo.inputmethod.compat.ViewOutlineProviderCompatUtils;
 import org.futo.inputmethod.compat.ViewOutlineProviderCompatUtils.InsetsUpdater;
+import org.futo.inputmethod.engine.CursorSelectionGranularity;
 import org.futo.inputmethod.engine.IMEInterface;
 import org.futo.inputmethod.engine.IMEManager;
 import org.futo.inputmethod.event.Event;
@@ -135,6 +136,11 @@ public class LatinIMELegacy implements KeyboardActionListener,
     private RichInputMethodManager mRichImm;
     public final KeyboardSwitcher mKeyboardSwitcher;
     private EmojiAltPhysicalKeyDetector mEmojiAltPhysicalKeyDetector;
+
+    private boolean mSelectionActive = false;
+    private CursorSelectionGranularity mSelectionGranularity = CursorSelectionGranularity.CHARACTER;
+    private boolean mStickySelection = false;
+    private boolean mPrecisionCursorMode = true;
 
     // Used for re-initialize keyboard layout after onConfigurationChange.
     @Nullable private Context mDisplayContext;
@@ -618,9 +624,11 @@ public class LatinIMELegacy implements KeyboardActionListener,
 
     @Override
     public void onMovePointer(int steps) {
+        final int effectiveSteps = mPrecisionCursorMode ? steps : steps * 3;
+        final boolean stepOverWords = mSelectionGranularity == CursorSelectionGranularity.WORD;
         mImeManager.getActiveIME(
                 mSettings.getCurrent()
-        ).onMovePointer(steps, false, null);
+        ).onMovePointer(effectiveSteps, stepOverWords, mSelectionActive);
     }
 
     @Override
@@ -629,13 +637,15 @@ public class LatinIMELegacy implements KeyboardActionListener,
 
         final InputConnection ic = mInputMethodService.getCurrentInputConnection();
         if (ic == null) return;
-        
+
         ic.beginBatchEdit();
-        final int keyCode = steps < 0 ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN;
+        final int effectiveSteps = mPrecisionCursorMode ? steps : steps * 2;
+        final int keyCode = effectiveSteps < 0 ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN;
+        final int metaState = mSelectionActive ? KeyEvent.META_SHIFT_ON : 0;
         final long eventTime = android.os.SystemClock.uptimeMillis();
-        for(int i = 0; i < Math.abs(steps); i++) {
-            ic.sendKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyCode, 0));
-            ic.sendKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0));
+        for(int i = 0; i < Math.abs(effectiveSteps); i++) {
+            ic.sendKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyCode, 0, metaState));
+            ic.sendKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0, metaState));
         }
         ic.endBatchEdit();
     }
@@ -678,6 +688,28 @@ public class LatinIMELegacy implements KeyboardActionListener,
                 ((InputView)mInputView).showCursorOverlays(false);
             }
         }
+    }
+
+    @Override
+    public void onSelectionUpdate(boolean selecting, CursorSelectionGranularity granularity, boolean sticky, boolean precisionMode) {
+        mSelectionGranularity = granularity;
+        mPrecisionCursorMode = precisionMode;
+        if (sticky) {
+            mStickySelection = true;
+        } else if (!selecting) {
+            mStickySelection = false;
+        }
+
+        mSelectionActive = selecting || mStickySelection;
+
+        if (!mSelectionActive && !mStickySelection) {
+            mSelectionGranularity = CursorSelectionGranularity.CHARACTER;
+            mPrecisionCursorMode = true;
+        }
+
+        mImeManager.getActiveIME(
+                mSettings.getCurrent()
+        ).onSelectionUpdate(mSelectionActive, mSelectionGranularity, mStickySelection, mPrecisionCursorMode);
     }
 
     // TODO: Instead of checking for alphabetic keyboard here, separate keycodes for

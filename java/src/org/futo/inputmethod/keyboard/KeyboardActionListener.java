@@ -18,6 +18,7 @@ package org.futo.inputmethod.keyboard;
 
 import org.futo.inputmethod.latin.common.Constants;
 import org.futo.inputmethod.latin.common.InputPointers;
+import org.futo.inputmethod.engine.CursorSelectionGranularity;
 
 public interface KeyboardActionListener {
     /**
@@ -108,6 +109,8 @@ public interface KeyboardActionListener {
     public void onUpWithPointerActive();
     public void onSwipeLanguage(int direction);
     public void onMovingCursorLockEvent(boolean canMoveCursor);
+    public void onSelectionUpdate(boolean selecting, CursorSelectionGranularity granularity,
+                                  boolean sticky, boolean precisionMode);
 
     public static final KeyboardActionListener EMPTY_LISTENER = new Adapter();
 
@@ -148,5 +151,9 @@ public interface KeyboardActionListener {
         public void onSwipeLanguage(int direction) {}
         @Override
         public void onMovingCursorLockEvent(boolean canMoveCursor) {}
+
+        @Override
+        public void onSelectionUpdate(boolean selecting, CursorSelectionGranularity granularity,
+                                      boolean sticky, boolean precisionMode) {}
     }
 }

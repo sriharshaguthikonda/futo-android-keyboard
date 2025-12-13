@@ -22,6 +22,7 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.view.MotionEvent;
 
+import org.futo.inputmethod.engine.CursorSelectionGranularity;
 import org.futo.inputmethod.keyboard.internal.BatchInputArbiter;
 import org.futo.inputmethod.keyboard.internal.BatchInputArbiter.BatchInputArbiterListener;
 import org.futo.inputmethod.keyboard.internal.BogusMoveEventDetector;
@@ -94,6 +95,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             (int)(128.0 * Resources.getSystem().getDisplayMetrics().density),
             Resources.getSystem().getDisplayMetrics().widthPixels * 3 / 2
     );
+    private static final long SELECTION_DOUBLE_DRAG_TIMEOUT_MS = 450;
+    private static long sLastCursorDragEndTime = 0;
 
     private static GestureStrokeRecognitionParams sGestureStrokeRecognitionParams;
     private static GestureStrokeDrawingParams sGestureStrokeDrawingParams;
@@ -150,6 +153,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private boolean mStartedOnFastLongPress;
     private boolean mCursorMoved = false;
     private boolean mSpacebarLongPressed = false;
+    private boolean mSelectionStickyRequested = false;
+    private CursorSelectionGranularity mSelectionGranularity = CursorSelectionGranularity.CHARACTER;
 
     // true if keyboard layout has been changed.
     private boolean mKeyboardLayoutHasBeenChanged;
@@ -750,6 +755,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             mIsFlickingKey = !mIsSlidingCursor && key.getHasFlick();
             mFlickDirection = key.flickDirection(0, 0);
             mCurrentKey = key;
+            mSelectionStickyRequested = false;
+            mSelectionGranularity = CursorSelectionGranularity.CHARACTER;
         }
     }
 
@@ -962,6 +969,13 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
 
             int steps = (x - mStartX) / pointerStep;
             int vsteps = (y - mStartY) / pointerStep;
+            final boolean multiTouchSelecting = getActivePointerTrackerCount() > 1;
+            final boolean doubleDragSelecting = SystemClock.uptimeMillis() - sLastCursorDragEndTime < SELECTION_DOUBLE_DRAG_TIMEOUT_MS;
+            final boolean selecting = multiTouchSelecting || doubleDragSelecting;
+            mSelectionGranularity = Math.abs(vsteps) > Math.abs(steps)
+                    ? CursorSelectionGranularity.LINE
+                    : (selecting || Math.abs(steps) > 1 ? CursorSelectionGranularity.WORD : CursorSelectionGranularity.CHARACTER);
+            final boolean precisionMode = Math.abs(x - mStartX) < sPointerBigStep && Math.abs(y - mStartY) < sPointerBigStep;
             final int swipeIgnoreTime = settingsValues.mKeyLongpressTimeout / MULTIPLIER_FOR_LONG_PRESS_TIMEOUT_IN_SLIDING_INPUT;
             if (steps != 0 && mStartTime + swipeIgnoreTime < System.currentTimeMillis()) {
                 mCursorMoved = true;
@@ -970,14 +984,18 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 if(settingsValues.mSpacebarMode == Settings.SPACEBAR_MODE_SWIPE_LANGUAGE && !mSpacebarLongPressed) {
                     sListener.onSwipeLanguage(steps);
                 } else {
+                    sListener.onSelectionUpdate(selecting, mSelectionGranularity, multiTouchSelecting, precisionMode);
                     sListener.onMovePointer(steps);
+                    mSelectionStickyRequested = mSelectionStickyRequested || multiTouchSelecting;
                 }
             }
 
             if (vsteps != 0 && mStartTime + swipeIgnoreTime < System.currentTimeMillis()) {
                 mCursorMoved = true;
                 mStartY += vsteps * pointerStep;
+                sListener.onSelectionUpdate(selecting, mSelectionGranularity, multiTouchSelecting, precisionMode);
                 sListener.onMovePointerVertical(vsteps);
+                mSelectionStickyRequested = mSelectionStickyRequested || multiTouchSelecting;
             }
 
             mLastX = x;
@@ -992,6 +1010,11 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             }
 
             int steps = (x - mStartX) / pointerStep;
+            final boolean multiTouchSelecting = getActivePointerTrackerCount() > 1;
+            final boolean doubleDragSelecting = SystemClock.uptimeMillis() - sLastCursorDragEndTime < SELECTION_DOUBLE_DRAG_TIMEOUT_MS;
+            final boolean selecting = multiTouchSelecting || doubleDragSelecting;
+            mSelectionGranularity = CursorSelectionGranularity.WORD;
+            final boolean precisionMode = Math.abs(x - mStartX) < sPointerBigStep;
             if (steps != 0) {
                 sTimerProxy.cancelKeyTimersOf(this);
                 mCursorMoved = true;
@@ -999,6 +1022,10 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
 
                 if(settingsValues.mIsRTL) steps = -steps;
 
+                if (selecting) {
+                    sListener.onSelectionUpdate(true, mSelectionGranularity, multiTouchSelecting, precisionMode);
+                    mSelectionStickyRequested = mSelectionStickyRequested || multiTouchSelecting;
+                }
                 sListener.onMoveDeletePointer(steps);
             }
 
@@ -1110,6 +1137,15 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         // Sliding cursor / delete gestures are finished; hide any cursor overlays
         if (mCursorMoved) {
             sListener.onMovingCursorLockEvent(false);
+            if (isInSlidingKeyInput) {
+                sLastCursorDragEndTime = eventTime;
+                if (!mSelectionStickyRequested) {
+                    sListener.onSelectionUpdate(false, CursorSelectionGranularity.CHARACTER, false, true);
+                } else {
+                    sListener.onSelectionUpdate(true, mSelectionGranularity, true, true);
+                }
+                mSelectionStickyRequested = false;
+            }
         }
 
         if(mIsFlickingKey && currentKey != null) {
