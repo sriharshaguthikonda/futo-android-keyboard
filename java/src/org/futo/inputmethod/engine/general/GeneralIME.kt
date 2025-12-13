@@ -13,6 +13,7 @@ import org.futo.inputmethod.engine.GlobalIMEMessage
 import org.futo.inputmethod.engine.IMEHelper
 import org.futo.inputmethod.engine.IMEInterface
 import org.futo.inputmethod.engine.IMEMessage
+import org.futo.inputmethod.engine.CursorSelectionGranularity
 import org.futo.inputmethod.event.Event
 import org.futo.inputmethod.event.InputTransaction
 import org.futo.inputmethod.keyboard.KeyboardSwitcher
@@ -109,6 +110,11 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         suggestionBlacklist = suggestionBlacklist,
         suggestedWordsCallback = this
     )
+
+    private var selectionActive: Boolean = false
+    private var selectionGranularity: CursorSelectionGranularity = CursorSelectionGranularity.CHARACTER
+    private var selectionSticky: Boolean = false
+    private var precisionCursorMode: Boolean = true
 
     override fun addToHistory(
         word: String,
@@ -486,32 +492,37 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         setNeutralSuggestionStrip()
 
         val shiftMode: Int = helper.keyboardShiftMode
-        val select = select
+        var shouldSelect = select
             ?: ((shiftMode == WordComposer.CAPS_MODE_MANUAL_SHIFTED) || (shiftMode == WordComposer.CAPS_MODE_MANUAL_SHIFT_LOCKED))
+        shouldSelect = shouldSelect || selectionActive
+        val shouldStepOverWords = stepOverWords || selectionGranularity == CursorSelectionGranularity.WORD
+        val effectiveSteps = if (precisionCursorMode) steps else steps * 3
 
-        if (select) {
+        if (shouldSelect) {
             inputLogic.disableRecapitalization()
         }
 
-        if (steps < 0) {
-            inputLogic.cursorLeft(steps, stepOverWords, select)
+        if (effectiveSteps < 0) {
+            inputLogic.cursorLeft(effectiveSteps, shouldStepOverWords, shouldSelect)
         } else {
-            inputLogic.cursorRight(steps, stepOverWords, select)
+            inputLogic.cursorRight(effectiveSteps, shouldStepOverWords, shouldSelect)
         }
     }
 
     override fun onMoveDeletePointer(steps: Int) {
         setNeutralSuggestionStrip()
+        val effectiveSteps = if (precisionCursorMode) steps else steps * 3
         if (inputLogic.mConnection.hasCursorPosition()) {
             val stepOverWords =
                 settings.current.mBackspaceMode == Settings.BACKSPACE_MODE_WORDS
-            if (steps < 0) {
-                inputLogic.cursorLeft(steps, stepOverWords, true)
+            val shouldSelect = selectionActive
+            if (effectiveSteps < 0) {
+                inputLogic.cursorLeft(effectiveSteps, stepOverWords, true || shouldSelect)
             } else {
-                inputLogic.cursorRight(steps, stepOverWords, true)
+                inputLogic.cursorRight(effectiveSteps, stepOverWords, true || shouldSelect)
             }
         } else {
-            var steps = steps
+            var steps = effectiveSteps
             while (steps < 0) {
                 onEvent(
                     Event.createSoftwareKeypressEvent(
@@ -587,6 +598,27 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
 
     override fun onMovingCursorLockEvent(canMoveCursor: Boolean) {
         // GeneralIME does nothing
+    }
+
+    override fun onSelectionUpdate(
+        selecting: Boolean,
+        granularity: CursorSelectionGranularity,
+        sticky: Boolean,
+        precisionMode: Boolean
+    ) {
+        selectionGranularity = granularity
+        selectionSticky = when {
+            sticky -> true
+            !selecting -> false
+            else -> selectionSticky
+        }
+        selectionActive = selecting || selectionSticky
+        precisionCursorMode = precisionMode
+
+        if (!selectionActive && !selectionSticky) {
+            selectionGranularity = CursorSelectionGranularity.CHARACTER
+            precisionCursorMode = true
+        }
     }
 
     override fun clearUserHistoryDictionaries() {

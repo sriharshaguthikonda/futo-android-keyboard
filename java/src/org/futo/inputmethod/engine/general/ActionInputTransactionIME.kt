@@ -2,6 +2,7 @@ package org.futo.inputmethod.engine.general
 
 import org.futo.inputmethod.engine.IMEHelper
 import org.futo.inputmethod.engine.IMEInterface
+import org.futo.inputmethod.engine.CursorSelectionGranularity
 import org.futo.inputmethod.event.Event
 import org.futo.inputmethod.latin.InputConnectionInternalComposingWrapper
 import org.futo.inputmethod.latin.SupportsNonComposing
@@ -60,6 +61,7 @@ class ActionInputTransactionIME(val helper: IMEHelper) : IMEInterface, ActionInp
     override fun onUpWithPointerActive() {}
     override fun onSwipeLanguage(direction: Int) {}
     override fun onMovingCursorLockEvent(canMoveCursor: Boolean) {}
+    override fun onSelectionUpdate(selecting: Boolean, granularity: CursorSelectionGranularity, sticky: Boolean, precisionMode: Boolean) {}
     override fun clearUserHistoryDictionaries() {}
     override fun requestSuggestionRefresh() {}
     override fun onLayoutUpdated(layout: KeyboardLayoutSetV2) { }

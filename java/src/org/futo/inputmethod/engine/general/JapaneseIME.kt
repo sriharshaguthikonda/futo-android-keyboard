@@ -26,6 +26,7 @@ import org.futo.inputmethod.engine.GlobalIMEMessage
 import org.futo.inputmethod.engine.IMEHelper
 import org.futo.inputmethod.engine.IMEInterface
 import org.futo.inputmethod.engine.IMEMessage
+import org.futo.inputmethod.engine.CursorSelectionGranularity
 import org.futo.inputmethod.event.Event
 import org.futo.inputmethod.keyboard.KeyboardId
 import org.futo.inputmethod.keyboard.internal.KeyboardLayoutKind
@@ -1185,6 +1186,15 @@ class JapaneseIME(val helper: IMEHelper) : IMEInterface {
     }
 
     override fun onMovingCursorLockEvent(canMoveCursor: Boolean) {
+
+    }
+
+    override fun onSelectionUpdate(
+        selecting: Boolean,
+        granularity: CursorSelectionGranularity,
+        sticky: Boolean,
+        precisionMode: Boolean
+    ) {
 
     }
 

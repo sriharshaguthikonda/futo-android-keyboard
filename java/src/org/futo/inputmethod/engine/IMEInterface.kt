@@ -1,6 +1,7 @@
 package org.futo.inputmethod.engine
 
 import org.futo.inputmethod.annotations.UsedForTesting
+import org.futo.inputmethod.engine.CursorSelectionGranularity
 import org.futo.inputmethod.event.Event
 import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.common.InputPointers
@@ -71,6 +72,7 @@ interface IMEInterface {
     fun onUpWithPointerActive()
     fun onSwipeLanguage(direction: Int)
     fun onMovingCursorLockEvent(canMoveCursor: Boolean)
+    fun onSelectionUpdate(selecting: Boolean, granularity: CursorSelectionGranularity, sticky: Boolean, precisionMode: Boolean)
     fun clearUserHistoryDictionaries()
 
     /** Refresh as a result of blacklist update */
