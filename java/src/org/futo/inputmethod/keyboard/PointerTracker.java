@@ -18,6 +18,8 @@ package org.futo.inputmethod.keyboard;
 
 import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -150,6 +152,11 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private boolean mStartedOnFastLongPress;
     private boolean mCursorMoved = false;
     private boolean mSpacebarLongPressed = false;
+    private boolean mIsCursorLocked = false;
+    private int mCursorLockOriginX = 0;
+    private int mCursorLockOriginY = 0;
+    private int mCursorLockStepX = 0;
+    private int mCursorLockStepY = 0;
 
     // true if keyboard layout has been changed.
     private boolean mKeyboardLayoutHasBeenChanged;
@@ -168,6 +175,29 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     boolean mIsInSlidingKeyInput;
     // if not a NOT_A_CODE, the key of this code is repeating
     private int mCurrentRepeatingKeyCode = Constants.NOT_A_CODE;
+
+    private static final Handler sCursorLockHandler = new Handler(Looper.getMainLooper());
+    private static final long CURSOR_LOCK_REPEAT_INTERVAL = 35L;
+
+    private final Runnable mCursorLockRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!mIsCursorLocked) {
+                return;
+            }
+
+            if (mCursorLockStepX != 0) {
+                sListener.onMovePointer(mCursorLockStepX);
+            }
+            if (mCursorLockStepY != 0) {
+                sListener.onMovePointerVertical(mCursorLockStepY);
+            }
+
+            if (mCursorLockStepX != 0 || mCursorLockStepY != 0) {
+                sCursorLockHandler.postDelayed(this, CURSOR_LOCK_REPEAT_INTERVAL);
+            }
+        }
+    };
 
     // true if dragging finger is allowed.
     private boolean mIsAllowedDraggingFinger;
@@ -745,8 +775,11 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             mStartTime = System.currentTimeMillis();
             mStartedOnFastLongPress = key.isFastLongPress();
             mSpacebarLongPressed = false;
+            stopCursorLock();
 
-            mIsSlidingCursor = key.getCode() == Constants.CODE_DELETE || key.getCode() == Constants.CODE_SPACE;
+            mIsSlidingCursor = key.getCode() == Constants.CODE_DELETE
+                    || key.getCode() == Constants.CODE_SPACE
+                    || key.getCode() == Constants.CODE_LANGUAGE_SWITCH;
             mIsFlickingKey = !mIsSlidingCursor && key.getHasFlick();
             mFlickDirection = key.flickDirection(0, 0);
             mCurrentKey = key;
@@ -954,9 +987,13 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
 
         final SettingsValues settingsValues = Settings.getInstance().getCurrent();
 
-        if (mIsSlidingCursor && oldKey != null && oldKey.getCode() == Constants.CODE_SPACE) {
+        if (mIsSlidingCursor && oldKey != null
+                && (oldKey.getCode() == Constants.CODE_SPACE
+                || (oldKey.getCode() == Constants.CODE_LANGUAGE_SWITCH && mSpacebarLongPressed))) {
             int pointerStep = sPointerStep;
-            if(settingsValues.mSpacebarMode == Settings.SPACEBAR_MODE_SWIPE_LANGUAGE && !mSpacebarLongPressed) {
+            if(oldKey.getCode() == Constants.CODE_SPACE
+                    && settingsValues.mSpacebarMode == Settings.SPACEBAR_MODE_SWIPE_LANGUAGE
+                    && !mSpacebarLongPressed) {
                 pointerStep = sPointerHugeStep;
             }
 
@@ -967,7 +1004,9 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 mCursorMoved = true;
                 mStartX += steps * pointerStep;
 
-                if(settingsValues.mSpacebarMode == Settings.SPACEBAR_MODE_SWIPE_LANGUAGE && !mSpacebarLongPressed) {
+                if(oldKey.getCode() == Constants.CODE_SPACE
+                        && settingsValues.mSpacebarMode == Settings.SPACEBAR_MODE_SWIPE_LANGUAGE
+                        && !mSpacebarLongPressed) {
                     sListener.onSwipeLanguage(steps);
                 } else {
                     sListener.onMovePointer(steps);
@@ -978,6 +1017,10 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 mCursorMoved = true;
                 mStartY += vsteps * pointerStep;
                 sListener.onMovePointerVertical(vsteps);
+            }
+
+            if (mSpacebarLongPressed && pointerStep > 0) {
+                updateCursorLockSteps(x, y, pointerStep);
             }
 
             mLastX = x;
@@ -1034,9 +1077,51 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             if (sInGesture) {
                 mCurrentKey = null;
                 setReleasedKeyGraphics(oldKey, true /* withAnimation */);
-                return;
-            }
+            return;
         }
+    }
+
+    private void startCursorLock(final int originX, final int originY) {
+        mIsCursorLocked = true;
+        mCursorLockOriginX = originX;
+        mCursorLockOriginY = originY;
+        mCursorLockStepX = 0;
+        mCursorLockStepY = 0;
+        sCursorLockHandler.removeCallbacks(mCursorLockRunnable);
+    }
+
+    private void updateCursorLockSteps(final int x, final int y, final int pointerStep) {
+        if (!mIsCursorLocked) {
+            return;
+        }
+
+        int stepX = (x - mCursorLockOriginX) / pointerStep;
+        int stepY = (y - mCursorLockOriginY) / pointerStep;
+
+        stepX = Math.max(-3, Math.min(3, stepX));
+        stepY = Math.max(-3, Math.min(3, stepY));
+
+        final boolean hadDirection = mCursorLockStepX != 0 || mCursorLockStepY != 0;
+        mCursorLockStepX = stepX;
+        mCursorLockStepY = stepY;
+
+        if (stepX == 0 && stepY == 0) {
+            if (hadDirection) {
+                sCursorLockHandler.removeCallbacks(mCursorLockRunnable);
+            }
+            return;
+        }
+
+        sCursorLockHandler.removeCallbacks(mCursorLockRunnable);
+        sCursorLockHandler.postDelayed(mCursorLockRunnable, CURSOR_LOCK_REPEAT_INTERVAL);
+    }
+
+    private void stopCursorLock() {
+        mIsCursorLocked = false;
+        mCursorLockStepX = 0;
+        mCursorLockStepY = 0;
+        sCursorLockHandler.removeCallbacks(mCursorLockRunnable);
+    }
 
         if (newKey != null) {
             if (oldKey != null && isMajorEnoughMoveToBeOnNewKey(x, y, eventTime, newKey)) {
@@ -1100,6 +1185,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         mCurrentRepeatingKeyCode = Constants.NOT_A_CODE;
         // Release the last pressed key.
         setReleasedKeyGraphics(currentKey, true /* withAnimation */);
+        stopCursorLock();
 
         if (mCursorMoved && currentKey != null && currentKey.getCode() == Constants.CODE_DELETE) {
             sListener.onUpWithDeletePointerActive();
@@ -1196,28 +1282,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         }
         final int code = key.getCode();
         if (code == Constants.CODE_SPACE || code == Constants.CODE_LANGUAGE_SWITCH) {
-            int spacebarMode = Settings.getInstance().getCurrent().mSpacebarMode;
-            if(spacebarMode == Settings.SPACEBAR_MODE_SWIPE_LANGUAGE) {
-                mSpacebarLongPressed = true;
-                mStartX = mLastX;
-                mStartY = mLastY;
-                sListener.onMovingCursorLockEvent(true);
-                return;
-            } else if(spacebarMode == Settings.SPACEBAR_MODE_SWIPE_CURSOR_ONLY) {
-                mSpacebarLongPressed = true;
-                mStartX = mLastX;
-                mStartY = mLastY;
-                sListener.onMovingCursorLockEvent(true);
-                return;
-            }
-
-            // Long pressing the space key invokes IME switcher dialog.
-            if (sListener.onCustomRequest(Constants.CUSTOM_CODE_SHOW_INPUT_METHOD_PICKER)) {
-                cancelKeyTracking();
-                sListener.onReleaseKey(code, false /* withSliding */);
-                return;
-            }
             mSpacebarLongPressed = true;
+            startCursorLock(mLastX, mLastY);
             mStartX = mLastX;
             mStartY = mLastY;
             sListener.onMovingCursorLockEvent(true);
@@ -1268,6 +1334,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         setReleasedKeyGraphics(mCurrentKey, true /* withAnimation */);
         resetKeySelectionByDraggingFinger();
         dismissMoreKeysPanel();
+        stopCursorLock();
 
         // Cancel any active cursor movement overlays
         sListener.onMovingCursorLockEvent(false);
