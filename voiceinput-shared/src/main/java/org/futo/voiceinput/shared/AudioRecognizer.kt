@@ -106,6 +106,7 @@ class AudioRecognizer(
 ) {
     private var isRecording = false
     private var recorder: AudioRecord? = null
+    @Volatile private var sessionId: Long = 0
 
     init {
         modelManager.useGpu = settings.useGpuOffload
@@ -225,6 +226,7 @@ class AudioRecognizer(
     }
 
     fun reset() {
+        sessionId++
         recorder?.stop()
         recorderJob?.cancel()
 
@@ -522,6 +524,7 @@ class AudioRecognizer(
     }
 
     private fun startRecording() {
+        sessionId++
         val device = try {
             createRecorderAndJob(settings.recordingConfiguration.preferBluetoothMic)
         } catch (e: SecurityException) {
@@ -549,22 +552,25 @@ class AudioRecognizer(
         }
     }
 
-    private val runnerCallback: ModelInferenceCallback = object : ModelInferenceCallback {
-        override fun updateStatus(state: InferenceState) {
-            listener.decodingStatus(state)
-        }
-
-        override fun languageDetected(language: Language) {
-            listener.languageDetected(language)
-        }
-
-        override fun partialResult(string: String) {
-            if(isBlankResult(string)) return
-            listener.partialResult(normalizeTranscription(string))
-        }
-    }
-
     private suspend fun runModel() {
+        val currentSessionId = sessionId
+
+        val runnerCallback: ModelInferenceCallback = object : ModelInferenceCallback {
+            override fun updateStatus(state: InferenceState) {
+                listener.decodingStatus(state)
+            }
+
+            override fun languageDetected(language: Language) {
+                listener.languageDetected(language)
+            }
+
+            override fun partialResult(string: String) {
+                if (currentSessionId != sessionId) return
+                if(isBlankResult(string)) return
+                listener.partialResult(normalizeTranscription(string))
+            }
+        }
+
         loadModelJob?.let {
             if (it.isActive) {
                 println("Model was not finished loading...")
@@ -587,9 +593,11 @@ class AudioRecognizer(
                 
                 if (!groqResult.isNullOrBlank()) {
                     // Groq succeeded, return its result
+                    if (currentSessionId != sessionId) return
                     yield()
                     lifecycleScope.launch {
                         withContext(Dispatchers.Main) {
+                            if (currentSessionId != sessionId) return@withContext
                             listener.finished(normalizeTranscription(groqResult))
                         }
                     }
@@ -615,11 +623,14 @@ class AudioRecognizer(
             return
         }
 
+        if (currentSessionId != sessionId) return
+
         val text = if (isBlankResult(outputText)) "" else outputText
 
         yield()
         lifecycleScope.launch {
             withContext(Dispatchers.Main) {
+                if (currentSessionId != sessionId) return@withContext
                 yield()
                 listener.finished(normalizeTranscription(text))
             }
