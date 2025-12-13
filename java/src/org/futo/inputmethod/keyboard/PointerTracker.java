@@ -1196,27 +1196,6 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         }
         final int code = key.getCode();
         if (code == Constants.CODE_SPACE || code == Constants.CODE_LANGUAGE_SWITCH) {
-            int spacebarMode = Settings.getInstance().getCurrent().mSpacebarMode;
-            if(spacebarMode == Settings.SPACEBAR_MODE_SWIPE_LANGUAGE) {
-                mSpacebarLongPressed = true;
-                mStartX = mLastX;
-                mStartY = mLastY;
-                sListener.onMovingCursorLockEvent(true);
-                return;
-            } else if(spacebarMode == Settings.SPACEBAR_MODE_SWIPE_CURSOR_ONLY) {
-                mSpacebarLongPressed = true;
-                mStartX = mLastX;
-                mStartY = mLastY;
-                sListener.onMovingCursorLockEvent(true);
-                return;
-            }
-
-            // Long pressing the space key invokes IME switcher dialog.
-            if (sListener.onCustomRequest(Constants.CUSTOM_CODE_SHOW_INPUT_METHOD_PICKER)) {
-                cancelKeyTracking();
-                sListener.onReleaseKey(code, false /* withSliding */);
-                return;
-            }
             mSpacebarLongPressed = true;
             mStartX = mLastX;
             mStartY = mLastY;
