@@ -1212,7 +1212,7 @@ class UixManager(private val latinIME: LatinIME) {
         size: ComputedKeyboardSize,
         content: @Composable BoxScope.(actionBarGap: Dp) -> Unit
     ) = with(LocalDensity.current) {
-        val shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
+        val shape = RoundedCornerShape(bottomStart = 34.dp, bottomEnd = 34.dp)
 
         OffsetPositioner(Offset.Zero) {
             KeyboardSurface(
