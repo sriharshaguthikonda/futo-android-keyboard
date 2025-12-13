@@ -182,6 +182,7 @@ fun SetupNavigation(
     imeEnabled: Boolean,
     imeSelected: Boolean,
     doublePackage: Boolean,
+    restartCounter: Int = 0,
     main: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -195,17 +196,31 @@ fun SetupNavigation(
     }
 
     var currentStep by remember { mutableStateOf(0) }
+    var isManualRestarting by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isSetupComplete, imeEnabled, imeSelected) {
+    LaunchedEffect(restartCounter) {
+        if (restartCounter > 0) {
+            currentStep = 1
+            isManualRestarting = true
+        }
+    }
+
+    LaunchedEffect(isSetupComplete, imeEnabled, imeSelected, isManualRestarting) {
         isSetupComplete?.let {
-            currentStep = if (it) {
-                6 // Go directly to main settings
-            } else if (!imeEnabled) {
-                1
-            } else if (!imeSelected) {
-                2
+            if (isManualRestarting) {
+                if (currentStep >= 6) {
+                    isManualRestarting = false
+                }
             } else {
-                3
+                currentStep = if (it) {
+                    6 // Go directly to main settings
+                } else if (!imeEnabled) {
+                    1
+                } else if (!imeSelected) {
+                    2
+                } else {
+                    3
+                }
             }
         }
     }

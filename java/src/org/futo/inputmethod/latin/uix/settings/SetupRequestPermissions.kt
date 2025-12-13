@@ -10,11 +10,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -112,6 +111,17 @@ fun SetupRequestPermissions(onFinished: () -> Unit = { }) {
                         stringResource(R.string.setup_grant_permissions_button)
                     }
                 )
+            }
+
+            if (!isPermissionGranted) {
+                Button(
+                    onClick = onFinished,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Text(stringResource(R.string.setup_skip_for_now_button))
+                }
             }
         }
     }

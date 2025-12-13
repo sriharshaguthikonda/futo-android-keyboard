@@ -43,6 +43,8 @@ import org.futo.inputmethod.latin.uix.IMPORT_SETTINGS_REQUEST
 import org.futo.inputmethod.latin.uix.ImportResourceActivity
 import org.futo.inputmethod.latin.uix.SettingsExporter
 import org.futo.inputmethod.latin.uix.THEME_KEY
+import org.futo.inputmethod.latin.uix.IS_SETUP_COMPLETE
+import org.futo.inputmethod.latin.uix.dataStore
 import org.futo.inputmethod.latin.uix.getSettingBlocking
 import org.futo.inputmethod.latin.uix.getSettingFlow
 import org.futo.inputmethod.latin.uix.theme.ThemeOption
@@ -93,6 +95,7 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
     private val inputMethodEnabled = mutableStateOf(false)
     private val inputMethodSelected = mutableStateOf(false)
     private val doublePackage = mutableStateOf(false)
+    private val setupRestartCounter = mutableStateOf(0)
 
     private var wasImeEverDisabled = false
 
@@ -153,6 +156,19 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
         navigatorProvider.addNavigator(DialogNavigator())
     }
 
+    fun restartSetupFromSettings() {
+        lifecycleScope.launch {
+            applicationContext.dataStore.updateData { preferences ->
+                preferences.toMutablePreferences().apply {
+                    this[IS_SETUP_COMPLETE] = false
+                }
+            }
+            setupRestartCounter.value = setupRestartCounter.value + 1
+        }
+
+        navController.popBackStack("home", inclusive = false)
+    }
+
     private fun updateContent() {
         setContent {
             DataStoreCacheProvider {
@@ -165,13 +181,14 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
                         ) {
                             Box(Modifier.safeDrawingPadding()) {
                                 // Calling SetupNavigation from Setup.kt
-                                SetupNavigation(
-                                    imeEnabled = inputMethodEnabled.value,
-                                    imeSelected = inputMethodSelected.value,
-                                    doublePackage = doublePackage.value
-                                ) {
-                                    SettingsNavigator(navController = navController)
-                                }
+                            SetupNavigation(
+                                imeEnabled = inputMethodEnabled.value,
+                                imeSelected = inputMethodSelected.value,
+                                doublePackage = doublePackage.value,
+                                restartCounter = setupRestartCounter.value
+                            ) {
+                                SettingsNavigator(navController = navController)
+                            }
                             }
                         }
                     }
