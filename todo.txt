@@ -24,6 +24,9 @@
 
 ## PENDING
 
+- [ ] **Voice recognition button** - pill mode, floating bar mode, if i click on the voice recognition button second time, it does not paste into the text area. but it the clipboard i see it combines the text with the previous audio....i think it is sending combined audio to the server.
+
+
 - [ ] **Keyboard horizontal positioning** - Move keyboard left/right when resized (not just centered)
 - [ ] **Settings search image paste** - Support pasting images in settings search field
 - [ ] **Settings search keyboard functions** - Fix keyboard functions not working in search field

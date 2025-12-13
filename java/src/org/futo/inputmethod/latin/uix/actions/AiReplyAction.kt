@@ -59,6 +59,7 @@ import androidx.compose.runtime.LaunchedEffect
 import org.futo.voiceinput.shared.groq.GroqChatApi
 import android.util.Log
 import org.futo.inputmethod.latin.uix.utils.latestClipboardText
+import androidx.compose.ui.unit.Dp
 
 private const val DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant that writes concise replies."
 
@@ -66,6 +67,8 @@ private class AiReplyWindow(
     val manager: KeyboardManagerForAction,
     val text: String
 ) : ActionWindow() {
+    override val fixedWindowHeight: Dp = 350.dp
+    
     @Composable
     override fun windowName(): String = stringResource(R.string.action_ai_reply_title)
 
@@ -216,7 +219,7 @@ private class AiReplyWindow(
                 }
             }
 
-            // Editing controls: select all, copy, paste, backspace, undo, redo
+            // Editing controls: undo on the left, then select all, copy, paste, backspace, redo
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -230,6 +233,16 @@ private class AiReplyWindow(
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
 
+                IconButton(
+                    onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON) },
+                    modifier = editModifier
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.undo),
+                        contentDescription = "Undo",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 IconButton(
                     onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON) },
                     modifier = editModifier
@@ -267,16 +280,6 @@ private class AiReplyWindow(
                     Icon(
                         painter = painterResource(R.drawable.delete),
                         contentDescription = "Backspace",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(
-                    onClick = { manager.sendKeyEvent(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON) },
-                    modifier = editModifier
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.undo),
-                        contentDescription = "Undo",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
