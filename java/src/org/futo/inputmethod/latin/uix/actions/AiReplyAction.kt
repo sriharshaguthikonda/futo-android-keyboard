@@ -54,6 +54,7 @@ import org.futo.inputmethod.latin.uix.GROQ_REPLY_MODEL
 import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.settings.useDataStore
+import org.futo.inputmethod.latin.uix.showToastAboveKeyboard
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.LaunchedEffect
 import org.futo.voiceinput.shared.groq.GroqChatApi
@@ -315,11 +316,10 @@ private class AiReplyWindow(
                         val model = context.getSetting(GROQ_REPLY_MODEL)
                         
                         if (apiKey.isBlank()) {
-                            Toast.makeText(
-                                context, 
-                                context.getString(R.string.groq_api_key_required), 
+                            context.showToastAboveKeyboard(
+                                context.getString(R.string.groq_api_key_required),
                                 Toast.LENGTH_LONG
-                            ).show()
+                            )
                             return@Button
                         }
                         
@@ -355,7 +355,7 @@ private class AiReplyWindow(
                                 Log.e("AiReplyAction", "Error generating reply", t)
                                 withContext(Dispatchers.Main) {
                                     val errorMsg = context.getString(R.string.ai_reply_error, t.message ?: context.getString(R.string.unknown_error))
-                                    Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                                    context.showToastAboveKeyboard(errorMsg, Toast.LENGTH_LONG)
                                 }
                             } finally {
                                 withContext(Dispatchers.Main) {

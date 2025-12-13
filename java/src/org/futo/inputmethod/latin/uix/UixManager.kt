@@ -26,6 +26,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -44,7 +45,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -97,6 +98,8 @@ import androidx.navigation.NavHostController
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.futo.inputmethod.accessibility.AccessibilityUtils
@@ -165,13 +168,14 @@ val LocalNavController = compositionLocalOf<NavHostController?> {
 
 private val UixLocaleFollowsSubtypeLocale = true
 
+
+
 @Composable
-fun navBarHeight(): Dp = with(LocalDensity.current) {
-    if(SupportsNavbarExtension) {
-        WindowInsets.systemBars.getBottom(this).toDp()
-    } else {
-        0.dp
-    }
+fun navBarHeight(): Dp {
+    if (!SupportsNavbarExtension) return 0.dp
+    val density = LocalDensity.current
+    val bottomPx = WindowInsets.navigationBars.getBottom(density)
+    return with(density) { bottomPx.toDp() }
 }
 
 
@@ -265,12 +269,10 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
             null
         ).let { result ->
             if(!result) {
-                val toast = Toast.makeText(
-                    latinIME,
+                latinIME.showToastAboveKeyboard(
                     latinIME.getString(R.string.action_clipboard_manager_error_app_image_insertion_unsupported),
                     Toast.LENGTH_SHORT
                 )
-                toast.show()
             }
 
             result
@@ -352,21 +354,43 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
             if (ic != null) {
                 when (keyCode) {
                     KeyEvent.KEYCODE_A -> {
+                        uixManager.flashKeyboardBorder(Color(0xFFAA00FF))
                         ic.performContextMenuAction(android.R.id.selectAll)
                         return
                     }
                     KeyEvent.KEYCODE_C -> {
+                        uixManager.flashKeyboardBorder(Color(0xFF00C853))
                         ic.performContextMenuAction(android.R.id.copy)
                         return
                     }
                     KeyEvent.KEYCODE_X -> {
+                        uixManager.flashKeyboardBorder(Color(0xFFD50000))
                         ic.performContextMenuAction(android.R.id.cut)
                         return
                     }
                     KeyEvent.KEYCODE_V -> {
+                        uixManager.flashKeyboardBorder(Color(0xFF2962FF))
                         ic.performContextMenuAction(android.R.id.paste)
                         return
                     }
+                }
+            }
+        }
+
+        if ((metaState and KeyEvent.META_CTRL_ON) != 0) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_A -> {
+                    uixManager.flashKeyboardBorder(Color(0xFFAA00FF))
+                }
+                KeyEvent.KEYCODE_Z -> {
+                    if ((metaState and KeyEvent.META_SHIFT_ON) != 0) {
+                        uixManager.flashKeyboardBorder(Color(0xFF00BFA5))
+                    } else {
+                        uixManager.flashKeyboardBorder(Color(0xFFFF6D00))
+                    }
+                }
+                KeyEvent.KEYCODE_Y -> {
+                    uixManager.flashKeyboardBorder(Color(0xFF00BFA5))
                 }
             }
         }
@@ -527,6 +551,7 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     }
 
     override fun copyToClipboard(cut: Boolean) {
+        uixManager.flashKeyboardBorder(if(cut) Color(0xFFD50000) else Color(0xFF00C853))
         if(cut) {
             sendKeyEvent(KeyEvent.KEYCODE_X, KeyEvent.META_CTRL_ON)
         } else {
@@ -534,6 +559,7 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
         }
     }
     override fun pasteFromClipboard() {
+        uixManager.flashKeyboardBorder(Color(0xFF2962FF))
         sendKeyEvent(KeyEvent.KEYCODE_V, KeyEvent.META_CTRL_ON)
     }
 }
@@ -606,6 +632,18 @@ class UixManager(private val latinIME: LatinIME) {
     private var measuredTouchableHeight = 0
     val touchableHeight: Int
         get() = measuredTouchableHeight
+
+    private val keyboardBorderFlashColor = mutableStateOf<Color?>(null)
+    private var keyboardBorderFlashJob: Job? = null
+
+    internal fun flashKeyboardBorder(color: Color) {
+        keyboardBorderFlashJob?.cancel()
+        keyboardBorderFlashColor.value = color
+        keyboardBorderFlashJob = latinIME.lifecycleScope.launch(Dispatchers.Main) {
+            delay(250L)
+            keyboardBorderFlashColor.value = null
+        }
+    }
 
     val isMainKeyboardHidden get() = mainKeyboardHidden.value
 
@@ -983,6 +1021,7 @@ class UixManager(private val latinIME: LatinIME) {
         content: @Composable BoxScope.() -> Unit
     ) = with(LocalDensity.current) {
         val backgroundBrush = LocalKeyboardScheme.current.keyboardBackgroundGradient ?: SolidColor(backgroundColor)
+        val borderColor by animateColorAsState(keyboardBorderFlashColor.value ?: Color.Transparent)
 
         Box(modifier
             .onSizeChanged { measuredTouchableHeight = it.height }
@@ -1001,6 +1040,7 @@ class UixManager(private val latinIME: LatinIME) {
                 //bottom = padding.bottom.toDp().coerceAtLeast(0.dp),
             )
             .clip(shape)
+            .border(3.dp, borderColor, shape)
             .clipToBounds()
             // Blocks any input to inputDarkener within the keyboard
             .pointerInput(Unit) {}
@@ -1172,11 +1212,14 @@ class UixManager(private val latinIME: LatinIME) {
         size: ComputedKeyboardSize,
         content: @Composable BoxScope.(actionBarGap: Dp) -> Unit
     ) = with(LocalDensity.current) {
+        val shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
+
         OffsetPositioner(Offset.Zero) {
             KeyboardSurface(
                 requiredWidthPx = size.width,
                 backgroundColor = latinIME.keyboardColor,
-                padding = size.padding
+                padding = size.padding,
+                shape = shape
             ) {
                 val paddingOverride = when(size) {
                     is OneHandedKeyboardSize -> {

@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
@@ -44,6 +45,27 @@ fun String.urlDecode(): String {
     return URLDecoder.decode(this, "utf-8")
 }
 
+fun Context.makeToastAboveKeyboard(text: CharSequence, duration: Int = Toast.LENGTH_SHORT): Toast {
+    val toast = Toast.makeText(this, text, duration)
+
+    val latinIME = this as? LatinIME ?: return toast
+    val view = latinIME.composeView ?: return toast
+    if (view.height <= 0) return toast
+
+    val location = IntArray(2)
+    view.getLocationOnScreen(location)
+    val imeTop = location[1]
+    if (imeTop <= 0) return toast
+
+    val screenHeight = resources.displayMetrics.heightPixels
+    val yOffset = (screenHeight - imeTop + fromDp(12f)).toInt()
+    toast.setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL, 0, yOffset)
+    return toast
+}
+
+fun Context.showToastAboveKeyboard(text: CharSequence, duration: Int = Toast.LENGTH_SHORT) {
+    makeToastAboveKeyboard(text, duration).show()
+}
 
 // This ugly workaround is required as Android Compose freaks out when you use a Dialog outside of
 // an activity (i.e. in an input method service)

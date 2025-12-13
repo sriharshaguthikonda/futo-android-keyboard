@@ -14,6 +14,7 @@ import kotlinx.coroutines.runBlocking
 import org.futo.inputmethod.latin.BuildConfig
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.getSetting
+import org.futo.inputmethod.latin.uix.makeToastAboveKeyboard
 import org.futo.inputmethod.latin.uix.setSetting
 import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
@@ -58,7 +59,7 @@ val HelpMenu = UserSettingsMenu(
                 style = NavigationItemStyle.MiscNoArrow,
                 navigate = {
                     val makeToast: (String) -> Unit = { text ->
-                        Toast.makeText(context, text, Toast.LENGTH_SHORT).let {
+                        context.makeToastAboveKeyboard(text, Toast.LENGTH_SHORT).let {
                             lastToast.value?.cancel()
                             lastToast.value = it
                             it.show()

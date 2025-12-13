@@ -34,6 +34,7 @@ import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.setSetting
+import org.futo.inputmethod.latin.uix.showToastAboveKeyboard
 import org.futo.inputmethod.latin.uix.settings.SettingItem
 import org.futo.inputmethod.latin.uix.settings.pages.ParagraphText
 import org.futo.inputmethod.latin.uix.settings.pages.PaymentSurface
@@ -91,7 +92,7 @@ fun Context.openURI(uri: String, newTask: Boolean = false) {
 
         startActivity(intent)
     } catch(e: ActivityNotFoundException) {
-        Toast.makeText(this, e.localizedMessage, Toast.LENGTH_SHORT).show()
+        showToastAboveKeyboard(e.localizedMessage ?: "", Toast.LENGTH_SHORT)
     }
 }
 

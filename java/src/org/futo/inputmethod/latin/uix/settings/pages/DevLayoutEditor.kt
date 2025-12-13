@@ -38,6 +38,7 @@ import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.getSettingBlocking
 import org.futo.inputmethod.latin.uix.setSettingBlocking
+import org.futo.inputmethod.latin.uix.showToastAboveKeyboard
 import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
@@ -267,11 +268,10 @@ fun DevLayoutEdit(navController: NavHostController = rememberNavController(), i:
             navController.navigateUp()
         } else {
             backTime = System.currentTimeMillis()
-            Toast.makeText(
-                context,
+            context.showToastAboveKeyboard(
                 "Tap back again to cancel your changes and go back.",
                 Toast.LENGTH_SHORT
-            ).show()
+            )
         }
     }
 

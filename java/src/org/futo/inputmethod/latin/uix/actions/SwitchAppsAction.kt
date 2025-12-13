@@ -8,6 +8,7 @@ import android.content.Intent
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.Action
 import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
+import org.futo.inputmethod.latin.uix.showToastAboveKeyboard
 import org.futo.inputmethod.latin.uix.services.QuickSwitchService
 import org.futo.inputmethod.latin.uix.ENABLE_SWITCH_APPS
 import org.futo.inputmethod.latin.uix.getSettingBlocking
@@ -53,11 +54,10 @@ val SwitchAppsAction = Action(
                 context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
         } else {
-            Toast.makeText(
-                context,
+            context.showToastAboveKeyboard(
                 context.getString(R.string.action_switch_apps_enable_service),
                 Toast.LENGTH_SHORT
-            ).show()
+            )
         }
     },
     windowImpl = null,

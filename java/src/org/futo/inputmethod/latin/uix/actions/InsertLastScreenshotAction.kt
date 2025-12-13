@@ -17,6 +17,7 @@ import org.futo.inputmethod.latin.permissions.PermissionsManager
 import org.futo.inputmethod.latin.permissions.PermissionsUtil
 import org.futo.inputmethod.latin.uix.Action
 import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
+import org.futo.inputmethod.latin.uix.showToastAboveKeyboard
 
 private fun requiredMediaPermissions(): Array<String> {
     return when {
@@ -39,11 +40,10 @@ private suspend fun ensureMediaPermission(context: Context): Boolean {
             null,
             *perms
         )
-        Toast.makeText(
-            context,
+        context.showToastAboveKeyboard(
             context.getString(R.string.action_insert_last_screenshot_no_permission),
             Toast.LENGTH_SHORT
-        ).show()
+        )
         false
     }
 }
@@ -123,11 +123,10 @@ val InsertLastScreenshotAction = Action(
 
             if (result == null) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
+                    context.showToastAboveKeyboard(
                         context.getString(R.string.action_insert_last_screenshot_not_found),
                         Toast.LENGTH_SHORT
-                    ).show()
+                    )
                 }
                 return@launch
             }
