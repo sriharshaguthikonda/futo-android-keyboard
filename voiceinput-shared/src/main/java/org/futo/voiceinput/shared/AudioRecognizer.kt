@@ -47,6 +47,7 @@ import org.futo.voiceinput.shared.whisper.isBlankResult
 import org.futo.voiceinput.shared.util.normalizeTranscription
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -106,6 +107,7 @@ class AudioRecognizer(
 ) {
     private var isRecording = false
     private var recorder: AudioRecord? = null
+    private val sessionId = AtomicLong(0)
 
     init {
         modelManager.useGpu = settings.useGpuOffload
@@ -225,6 +227,7 @@ class AudioRecognizer(
     }
 
     fun reset() {
+        sessionId.incrementAndGet()
         recorder?.stop()
         recorderJob?.cancel()
 
@@ -522,6 +525,7 @@ class AudioRecognizer(
     }
 
     private fun startRecording() {
+        val currentSessionId = sessionId.incrementAndGet()
         val device = try {
             createRecorderAndJob(settings.recordingConfiguration.preferBluetoothMic)
         } catch (e: SecurityException) {
@@ -541,6 +545,7 @@ class AudioRecognizer(
                     preloadModels()
                 } catch(_: InvalidModelException) {
                     withContext(Dispatchers.Main) {
+                        if (currentSessionId != sessionId.get()) return@withContext
                         reset()
                         listener.modelLoadingFailed()
                     }
@@ -549,28 +554,35 @@ class AudioRecognizer(
         }
     }
 
-    private val runnerCallback: ModelInferenceCallback = object : ModelInferenceCallback {
-        override fun updateStatus(state: InferenceState) {
-            listener.decodingStatus(state)
-        }
-
-        override fun languageDetected(language: Language) {
-            listener.languageDetected(language)
-        }
-
-        override fun partialResult(string: String) {
-            if(isBlankResult(string)) return
-            listener.partialResult(normalizeTranscription(string))
-        }
-    }
-
     private suspend fun runModel() {
+        val currentSessionId = sessionId.get()
+
+        val runnerCallback: ModelInferenceCallback = object : ModelInferenceCallback {
+            override fun updateStatus(state: InferenceState) {
+                if (currentSessionId != sessionId.get()) return
+                listener.decodingStatus(state)
+            }
+
+            override fun languageDetected(language: Language) {
+                if (currentSessionId != sessionId.get()) return
+                listener.languageDetected(language)
+            }
+
+            override fun partialResult(string: String) {
+                if (currentSessionId != sessionId.get()) return
+                if(isBlankResult(string)) return
+                listener.partialResult(normalizeTranscription(string))
+            }
+        }
+
         loadModelJob?.let {
             if (it.isActive) {
                 println("Model was not finished loading...")
                 it.join()
             }
         }
+
+        if (currentSessionId != sessionId.get()) return
 
         val floatArray = floatSamples.array().sliceArray(0 until floatSamples.position())
 
@@ -587,9 +599,11 @@ class AudioRecognizer(
                 
                 if (!groqResult.isNullOrBlank()) {
                     // Groq succeeded, return its result
+                    if (currentSessionId != sessionId.get()) return
                     yield()
                     lifecycleScope.launch {
                         withContext(Dispatchers.Main) {
+                            if (currentSessionId != sessionId.get()) return@withContext
                             listener.finished(normalizeTranscription(groqResult))
                         }
                     }
@@ -615,11 +629,14 @@ class AudioRecognizer(
             return
         }
 
+        if (currentSessionId != sessionId.get()) return
+
         val text = if (isBlankResult(outputText)) "" else outputText
 
         yield()
         lifecycleScope.launch {
             withContext(Dispatchers.Main) {
+                if (currentSessionId != sessionId.get()) return@withContext
                 yield()
                 listener.finished(normalizeTranscription(text))
             }
