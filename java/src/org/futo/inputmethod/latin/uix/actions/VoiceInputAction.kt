@@ -69,6 +69,7 @@ import kotlinx.coroutines.yield
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.AUDIO_FOCUS
 import org.futo.inputmethod.latin.uix.Action
+import org.futo.inputmethod.latin.uix.ActionInputTransaction
 import org.futo.inputmethod.latin.uix.ActionWindow
 import org.futo.inputmethod.latin.uix.CAN_EXPAND_SPACE
 import org.futo.inputmethod.latin.uix.CloseResult
@@ -460,7 +461,13 @@ private class VoiceInputBottomBarWindow(
         recognizerView.start()
     }
 
-    private var inputTransaction = manager.createInputTransaction()
+    private var inputTransaction: ActionInputTransaction? = null
+
+    private fun beginNewSession() {
+        wasFinished = false
+        cancelPlayed = false
+        inputTransaction = manager.createInputTransaction()
+    }
 
     private fun deleteWordBeforeCursor() {
         val ic = manager.getLatinIMEForDebug().currentInputConnection
@@ -794,8 +801,11 @@ private class VoiceInputBottomBarWindow(
     }
 
     override fun close(): CloseResult {
+        inputTransaction?.cancel()
+        inputTransaction = null
         runBlocking { initJob.cancelAndJoin() }
         recognizerView.value?.cancel()
+        state.modelManager.cancelAll()
         return CloseResult.Default
     }
 
@@ -807,7 +817,8 @@ private class VoiceInputBottomBarWindow(
                 state.soundPlayer.playCancelSound()
                 cancelPlayed = true
             }
-            inputTransaction.cancel()
+            inputTransaction?.cancel()
+            inputTransaction = null
         }
         isListening.value = false
         statusText.value = "Cancelled"
@@ -817,6 +828,12 @@ private class VoiceInputBottomBarWindow(
         if (shouldPlaySounds) {
             state.soundPlayer.playStartSound()
         }
+
+        // Reset state for new recognition
+        if (!isListening.value) {
+            beginNewSession()
+        }
+
         isListening.value = true
         statusText.value = "Listening…"
 
@@ -832,8 +849,14 @@ private class VoiceInputBottomBarWindow(
         isListening.value = false
         statusText.value = "Done"
 
-        val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
-        inputTransaction.commit(sanitized)
+        val transaction = inputTransaction ?: run {
+            val t = manager.createInputTransaction()
+            inputTransaction = t
+            t
+        }
+        val sanitized = ModelOutputSanitizer.sanitize(result, transaction.textContext, manager.isCapsLocked())
+        transaction.commit(sanitized)
+        inputTransaction = null
         val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clipData = ClipData.newPlainText(context.getString(R.string.action_voice_input_title), sanitized)
         clipboardManager.setPrimaryClip(clipData)
@@ -841,8 +864,9 @@ private class VoiceInputBottomBarWindow(
     }
 
     override fun partialResult(result: String) {
-        val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
-        inputTransaction.updatePartial(sanitized)
+        val transaction = inputTransaction ?: return
+        val sanitized = ModelOutputSanitizer.sanitize(result, transaction.textContext, manager.isCapsLocked())
+        transaction.updatePartial(sanitized)
         // Show abbreviated partial result in status
         statusText.value = if (result.length > 30) "…${result.takeLast(30)}" else result.ifEmpty { "Listening…" }
     }

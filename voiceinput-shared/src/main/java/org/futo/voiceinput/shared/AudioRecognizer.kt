@@ -228,11 +228,16 @@ class AudioRecognizer(
         recorder?.stop()
         recorderJob?.cancel()
 
+        loadModelJob?.cancel()
+        loadModelJob = null
+
         recorder?.release()
         recorder = null
 
         modelJob?.cancel()
         isRecording = false
+
+        floatSamples = FloatBuffer.allocate(16000 * 30)
 
         modelRunner.cancelAll()
 
