@@ -44,6 +44,7 @@ import org.futo.inputmethod.latin.uix.TextEditPopupActivity
 import org.futo.inputmethod.latin.uix.USE_SYSTEM_VOICE_INPUT
 import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
+import org.futo.inputmethod.latin.uix.settings.SettingsActivity
 import org.futo.inputmethod.latin.uix.settings.UserSetting
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.render
@@ -137,6 +138,21 @@ val HomeScreenLite = UserSettingsMenu(
             navigateTo = "help",
             icon = R.drawable.help_circle
         ),
+
+        UserSetting(
+            name = R.string.settings_rerun_setup_title
+        ) {
+            val navController = LocalNavController.current
+            NavigationItem(
+                title = stringResource(R.string.settings_rerun_setup_title),
+                subtitle = stringResource(R.string.settings_rerun_setup_subtitle),
+                style = NavigationItemStyle.Misc,
+                navigate = {
+                    (navController?.context as? SettingsActivity)?.restartSetupFromSettings()
+                },
+                icon = painterResource(R.drawable.settings)
+            )
+        },
 
         //if(isDeveloper || LocalInspectionMode.current) {
         userSettingNavigationItem(
