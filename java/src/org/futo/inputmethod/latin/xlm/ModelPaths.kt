@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.annotation.Keep
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.futo.inputmethod.annotations.ExternallyReferenced
@@ -23,6 +24,11 @@ val BASE_MODEL_NAME = "ml4_1_f16_meta_fixed"
 val MODEL_OPTION_KEY = SettingsKey(
     stringSetPreferencesKey("lmModelsByLanguage"),
     setOf("en:$BASE_MODEL_NAME")
+)
+
+val DRAFTING_MODEL_KEY = SettingsKey(
+    stringPreferencesKey("drafting_model"),
+    BASE_MODEL_NAME
 )
 
 @Keep
@@ -244,5 +250,13 @@ object ModelPaths {
                 name = it.nameWithoutExtension
             )
         } ?: listOf()
+    }
+
+    fun getDraftingModelFile(context: Context): File? {
+        ensureDefaultModelExists(context)
+        val modelName = context.getSetting(DRAFTING_MODEL_KEY)
+        val modelDirectory = getModelDirectory(context)
+        val modelFile = File(modelDirectory, "$modelName.gguf")
+        return if (modelFile.exists()) modelFile else null
     }
 }

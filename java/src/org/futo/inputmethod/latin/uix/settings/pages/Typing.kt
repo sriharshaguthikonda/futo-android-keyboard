@@ -114,6 +114,11 @@ val InlineAutofillSetting = SettingsKey(
     true
 )
 
+val InlineDraftingSetting = SettingsKey(
+    booleanPreferencesKey("inline_drafting_suggestions"),
+    false
+)
+
 fun NavGraphBuilder.addTypingNavigation(
     navController: NavHostController
 ) {
@@ -529,6 +534,12 @@ fun TypingScreen(navController: NavHostController = rememberNavController()) {
                 title = "Inline autofill",
                 subtitle = "Display password manager autofill in suggestion bar",
                 setting = InlineAutofillSetting
+            )
+
+            SettingToggleDataStore(
+                title = "Inline drafting (local)",
+                subtitle = "Use local GGUF models to provide inline suggestions",
+                setting = InlineDraftingSetting
             )
         }
 

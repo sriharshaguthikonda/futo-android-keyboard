@@ -11,6 +11,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InlineSuggestionsResponse
@@ -115,6 +116,7 @@ import org.futo.inputmethod.latin.uix.settings.DataStoreCacheProvider
 import org.futo.inputmethod.latin.uix.settings.SettingsActivity
 import org.futo.inputmethod.latin.uix.settings.pages.ActionBarDisplayedSetting
 import org.futo.inputmethod.latin.uix.settings.pages.InlineAutofillSetting
+import org.futo.inputmethod.latin.uix.settings.pages.InlineDraftingSetting
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.theme.ThemeOption
 import org.futo.inputmethod.latin.uix.theme.Typography
@@ -126,6 +128,7 @@ import org.futo.inputmethod.updates.deferManualUpdate
 import org.futo.inputmethod.updates.isManualUpdateTimeExpired
 import org.futo.inputmethod.updates.openManualUpdateCheck
 import org.futo.inputmethod.updates.retrieveSavedLastUpdateCheckResult
+import org.futo.inputmethod.latin.xlm.ModelPaths
 import org.futo.inputmethod.v2keyboard.ComputedKeyboardSize
 import org.futo.inputmethod.v2keyboard.FloatingKeyboardSize
 import org.futo.inputmethod.v2keyboard.KeyboardSizingCalculator
@@ -134,6 +137,7 @@ import org.futo.inputmethod.v2keyboard.OneHandedKeyboardSize
 import org.futo.inputmethod.v2keyboard.RegularKeyboardSize
 import org.futo.inputmethod.v2keyboard.SplitKeyboardSize
 import org.futo.inputmethod.v2keyboard.opposite
+import android.widget.TextView
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -417,6 +421,7 @@ class UixManager(private val latinIME: LatinIME) {
     private var persistentStates: HashMap<Action, PersistentActionState?> = hashMapOf()
 
     private var inlineSuggestions: MutableState<List<MutableState<View?>>> = mutableStateOf(emptyList())
+    private var inlineSuggestionsFromModel: Boolean = false
     private val keyboardManagerForAction = UixActionKeyboardManager(this, latinIME)
 
     private var mainKeyboardHidden = mutableStateOf(false)
@@ -1141,6 +1146,59 @@ class UixManager(private val latinIME: LatinIME) {
             }
             numSuggestionsSinceNotice += 1
         }
+
+        updateInlineSuggestionsFromModel(suggestedWords)
+    }
+
+    private fun updateInlineSuggestionsFromModel(words: SuggestedWords?) {
+        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        if(latinIME.getSetting(ActionBarDisplayedSetting) == false) return
+
+        val draftingEnabled = latinIME.getSetting(InlineDraftingSetting)
+        if(!draftingEnabled) {
+            if(inlineSuggestionsFromModel) {
+                inlineSuggestions.value = emptyList()
+                inlineSuggestionsFromModel = false
+            }
+            return
+        }
+
+        if(ModelPaths.getDraftingModelFile(latinIME) == null) {
+            if(inlineSuggestionsFromModel) {
+                inlineSuggestions.value = emptyList()
+                inlineSuggestionsFromModel = false
+            }
+            return
+        }
+
+        if(inlineSuggestions.value.isNotEmpty() && !inlineSuggestionsFromModel) {
+            return
+        }
+
+        val candidates = words?.mSuggestedWordInfoList
+            ?.map { it.mWord }
+            ?.filter { it.isNotBlank() }
+            ?.distinct()
+            ?.take(3)
+            ?: emptyList()
+
+        if(candidates.isEmpty()) {
+            if(inlineSuggestionsFromModel) {
+                inlineSuggestions.value = emptyList()
+                inlineSuggestionsFromModel = false
+            }
+            return
+        }
+
+        inlineSuggestionsFromModel = true
+        inlineSuggestions.value = candidates.map { word ->
+            mutableStateOf<View?>(TextView(latinIME).apply {
+                text = word
+                textSize = 16f
+                setPadding(24, 8, 24, 8)
+                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            })
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -1150,6 +1208,7 @@ class UixManager(private val latinIME: LatinIME) {
 
         currentNotice.value?.onDismiss(latinIME)
 
+        inlineSuggestionsFromModel = false
         inlineSuggestions.value = response.inlineSuggestions.map {
             latinIME.inflateInlineSuggestion(it)
         }
@@ -1266,6 +1325,7 @@ class UixManager(private val latinIME: LatinIME) {
 
     fun inputStarted(editorInfo: EditorInfo?) {
         inlineSuggestions.value = emptyList()
+        inlineSuggestionsFromModel = false
         this.editorInfo = editorInfo
 
         currTutorialMode.value = tutorialMode
