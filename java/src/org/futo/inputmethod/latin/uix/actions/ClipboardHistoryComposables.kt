@@ -420,58 +420,100 @@ fun ClipboardHistoryWindowTitleBar(
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
 
+    // Keep the search query state in sync with the manager so the text editor
+    // can live in the title bar.
+    val searchText = remember { mutableStateOf(manager.getClipboardSearchQuery()) }
+    LaunchedEffect(manager.getClipboardSearchQuery()) {
+        val managerText = manager.getClipboardSearchQuery()
+        if (managerText != searchText.value) {
+            searchText.value = managerText
+        }
+    }
+    LaunchedEffect(searchText.value) {
+        manager.setClipboardSearchQuery(searchText.value)
+    }
+
     if (!clipboardHistoryEnabledState.value) return
 
-    if (unlocked && !clipboardHistoryManager.clipboardIOFailure.value) {
-        IconButton(onClick = {
-            val numUnpinnedItems = clipboardHistoryManager.clipboardHistory.count { !it.pinned }
-            if (clipboardHistoryManager.clipboardHistory.isEmpty()) {
-                manager.requestDialog(
-                    context.getString(R.string.action_clipboard_manager_disable_text),
-                    listOf(
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_disable_button)) {
-                            clipboardHistoryEnabledState.setValue(false)
-                        },
-                    ),
-                    {}
-                )
-            } else if (numUnpinnedItems == 0) {
-                manager.requestDialog(
-                    context.getString(R.string.action_clipboard_manager_unpin_all_items_text),
-                    listOf(
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_unpin_all_items_button)) {
-                            clipboardHistoryManager.clipboardHistory.toList().forEach {
-                                if (it.pinned) {
-                                    clipboardHistoryManager.onPin(it)
-                                }
-                            }
-                        },
-                    ),
-                    {}
-                )
-            } else {
-                manager.requestDialog(
-                    context.getString(R.string.action_clipboard_manager_clear_unpinned_items_text),
-                    listOf(
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_clear_unpinned_items_button)) {
-                            clipboardHistoryManager.clipboardHistory.toList().forEach {
-                                if (!it.pinned) {
-                                    clipboardHistoryManager.onRemove(it)
-                                }
-                            }
-                        },
-                    ),
-                    {}
-                )
+    with(rowScope) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                color = LocalKeyboardScheme.current.keyboardContainer,
+                contentColor = LocalKeyboardScheme.current.onKeyboardContainer,
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    // Automatically focus the search field just like the emoji search bar
+                    ActionTextEditor(text = searchText)
+                }
             }
-        }) {
-            Icon(
-                painterResource(id = R.drawable.close),
-                contentDescription = stringResource(R.string.action_clipboard_manager_clear_clipboard)
-            )
+
+            if (unlocked && !clipboardHistoryManager.clipboardIOFailure.value) {
+                IconButton(onClick = {
+                    val numUnpinnedItems = clipboardHistoryManager.clipboardHistory.count { !it.pinned }
+                    if (clipboardHistoryManager.clipboardHistory.isEmpty()) {
+                        manager.requestDialog(
+                            context.getString(R.string.action_clipboard_manager_disable_text),
+                            listOf(
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_disable_button)) {
+                                    clipboardHistoryEnabledState.setValue(false)
+                                },
+                            ),
+                            {}
+                        )
+                    } else if (numUnpinnedItems == 0) {
+                        manager.requestDialog(
+                            context.getString(R.string.action_clipboard_manager_unpin_all_items_text),
+                            listOf(
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_unpin_all_items_button)) {
+                                    clipboardHistoryManager.clipboardHistory.toList().forEach {
+                                        if (it.pinned) {
+                                            clipboardHistoryManager.onPin(it)
+                                        }
+                                    }
+                                },
+                            ),
+                            {}
+                        )
+                    } else {
+                        manager.requestDialog(
+                            context.getString(R.string.action_clipboard_manager_clear_unpinned_items_text),
+                            listOf(
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_clear_unpinned_items_button)) {
+                                    clipboardHistoryManager.clipboardHistory.toList().forEach {
+                                        if (!it.pinned) {
+                                            clipboardHistoryManager.onRemove(it)
+                                        }
+                                    }
+                                },
+                            ),
+                            {}
+                        )
+                    }
+                }) {
+                    Icon(
+                        painterResource(id = R.drawable.close),
+                        contentDescription = stringResource(R.string.action_clipboard_manager_clear_clipboard)
+                    )
+                }
+            }
         }
     }
 }
@@ -487,92 +529,12 @@ fun ClipboardHistoryWindowContent(
     val view = LocalView.current
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
-    // Search text state used by the ActionTextEditor
-    val searchText = remember { mutableStateOf(manager.getClipboardSearchQuery()) }
-
-    // Keep state in sync with manager changes triggered elsewhere
-    LaunchedEffect(manager.getClipboardSearchQuery()) {
-        val managerText = manager.getClipboardSearchQuery()
-        if (managerText != searchText.value) {
-            searchText.value = managerText
-        }
-    }
-
-    // Update manager whenever the text changes
-    LaunchedEffect(searchText.value) {
-        manager.setClipboardSearchQuery(searchText.value)
-    }
-
-    // Ensure focus state resets when closing the clipboard history
-    DisposableEffect(Unit) {
-        onDispose {
-            manager.setClipboardSearchFocus(false)
-        }
-    }
-
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        if (keyboardShown) {
-            Row(
-                modifier = Modifier
-                    .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 4.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = stringResource(id = R.string.action_clipboard_manager_title),
-                    style = Typography.Body.MediumMl
-                )
-
-                Surface(
-                    color = LocalKeyboardScheme.current.keyboardContainer,
-                    contentColor = LocalKeyboardScheme.current.onKeyboardContainer,
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp)
-                            .fillMaxSize(),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        // Automatically focus the search field just like the emoji search bar
-                        ActionTextEditor(text = searchText)
-                    }
-                }
-
-                IconButton(
-                    onClick = { manager.closeActionWindow() },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        painterResource(id = R.drawable.close),
-                        contentDescription = stringResource(R.string.keyboard_actionbar_close_docked_action_window_talkback)
-                    )
-                }
-            }
-        } else {
-            Surface(
-                color = LocalKeyboardScheme.current.keyboardContainer,
-                contentColor = LocalKeyboardScheme.current.onKeyboardContainer,
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier
-                    .padding(8.dp)
-                    .height(48.dp)
-                    .fillMaxWidth()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp)
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    // Automatically focus the search field just like the emoji search bar
-                    ActionTextEditor(text = searchText)
-                }
+        // Title bar now owns the search field; keep focus reset on close.
+        DisposableEffect(Unit) {
+            onDispose {
+                manager.setClipboardSearchFocus(false)
             }
         }
 
