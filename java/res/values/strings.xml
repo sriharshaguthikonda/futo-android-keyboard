@@ -277,4 +277,8 @@ mobile devices. [CHAR LIMIT=25] -->
 
     <!-- Label for the search input field in clipboard history view [CHAR LIMIT=30] -->
     <string name="search_clipboard_history_label">Search history</string>
+
+    <!-- Misc keyboard settings -->
+    <string name="keyboard_settings_drafting_inline">GGUF inline drafting</string>
+    <string name="keyboard_settings_drafting_inline_subtitle">Use the selected drafting GGUF model for inline suggestions when available</string>
 </resources>

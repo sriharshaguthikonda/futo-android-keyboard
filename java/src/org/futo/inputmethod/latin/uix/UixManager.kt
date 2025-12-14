@@ -134,6 +134,7 @@ import org.futo.inputmethod.latin.uix.theme.ThemeOption
 import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.latin.uix.theme.UixThemeAuto
 import org.futo.inputmethod.latin.uix.theme.UixThemeWrapper
+import org.futo.inputmethod.latin.uix.DraftingInlineSuggestionController
 import org.futo.inputmethod.updates.autoDeferManualUpdateIfNeeded
 import org.futo.inputmethod.updates.deferManualUpdate
 import org.futo.inputmethod.updates.isManualUpdateTimeExpired
@@ -594,6 +595,7 @@ class UixManager(private val latinIME: LatinIME) {
     private var persistentStates: HashMap<Action, PersistentActionState?> = hashMapOf()
 
     private var inlineSuggestions: MutableState<List<MutableState<View?>>> = mutableStateOf(emptyList())
+    private val draftingInlineSuggestions = DraftingInlineSuggestionController(latinIME, latinIME.lifecycleScope)
     val keyboardManagerForAction = UixActionKeyboardManager(this, latinIME) // Now public (default visibility)
 
     var mainKeyboardHidden = mutableStateOf(false) // Changed to public (default visibility)
@@ -1663,6 +1665,9 @@ class UixManager(private val latinIME: LatinIME) {
     // Called by InputLogic on any event
     fun onInputEvent(textBlank: Boolean) {
         inlineStuffHiddenByTyping.value = textBlank == false
+        draftingInlineSuggestions.onInputEvent(textBlank, inlineSuggestions.value.isNotEmpty()) {
+            inlineSuggestions.value = it
+        }
     }
 
     private var prevLocale: Locale? = null

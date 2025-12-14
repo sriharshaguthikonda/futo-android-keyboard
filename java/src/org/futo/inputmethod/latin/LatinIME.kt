@@ -187,9 +187,9 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         this as LatinIMELegacy.SuggestionStripController,
     )
 
-    val uixManager = UixManager(this)
+    lateinit var uixManager: UixManager
 
-    val sizingCalculator = KeyboardSizingCalculator(this, uixManager)
+    lateinit var sizingCalculator: KeyboardSizingCalculator
 
     private var activeThemeOption: ThemeOption? = null
     private val activeColorScheme = mutableStateOf(DefaultDarkScheme.obtainColors(this))
@@ -382,6 +382,10 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         LayoutManager.init(this)
 
         DataStoreHelper.init(this)
+
+        uixManager = UixManager(this)
+
+        sizingCalculator = KeyboardSizingCalculator(this, uixManager)
 
         val filter = IntentFilter(Intent.ACTION_USER_UNLOCKED)
         registerReceiver(unlockReceiver, filter)
