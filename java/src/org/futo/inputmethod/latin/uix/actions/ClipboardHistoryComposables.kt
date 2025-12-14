@@ -70,26 +70,181 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import org.futo.inputmethod.latin.uix.ActionTextEditor
 import org.futo.inputmethod.latin.uix.UriThumbnail
+import kotlin.math.min
+
+private fun levenshteinDistance(lhs: CharSequence, rhs: CharSequence): Int {
+    val lhsLen = lhs.length
+    val rhsLen = rhs.length
+    var cost = IntArray(lhsLen + 1) { it }
+    for (i in 1..rhsLen) {
+        val newCost = IntArray(lhsLen + 1)
+        newCost[0] = i
+        for (j in 1..lhsLen) {
+            val match = if (lhs[j - 1].lowercaseChar() == rhs[i - 1].lowercaseChar()) 0 else 1
+            val costReplace = cost[j - 1] + match
+            val costInsert = cost[j] + 1
+            val costDelete = newCost[j - 1] + 1
+            newCost[j] = minOf(costInsert, costDelete, costReplace)
+        }
+        cost = newCost
+    }
+    return cost[lhsLen]
+}
+
+private fun findAllOccurrences(text: String, query: String): List<IntRange> {
+    val ranges = mutableListOf<IntRange>()
+    var startIndex = 0
+    while (startIndex < text.length) {
+        val index = text.indexOf(query, startIndex, ignoreCase = true)
+        if (index == -1) break
+        ranges.add(index until (index + query.length))
+        startIndex = index + query.length
+    }
+    return ranges
+}
+
+private fun regexMatchRanges(text: String, pattern: String): List<IntRange>? {
+    return try {
+        val regex = Regex(pattern, RegexOption.IGNORE_CASE)
+        val ranges = regex.findAll(text).map { it.range }.toList()
+        if (ranges.isNotEmpty()) ranges else null
+    } catch (e: Exception) {
+        null
+    }
+}
+
+private fun fuzzyMatchRange(text: String, query: String): IntRange? {
+    val normalizedText = text.lowercase()
+    val normalizedQuery = query.lowercase()
+    val queryLength = normalizedQuery.length
+    if (queryLength == 0) return null
+
+    val maxDistance = (queryLength * 0.4).toInt().coerceAtLeast(1)
+
+    if (normalizedText.length <= queryLength) {
+        val distance = levenshteinDistance(normalizedQuery, normalizedText)
+        return if (distance <= maxDistance) {
+            0 until normalizedText.length
+        } else {
+            null
+        }
+    }
+
+    var bestRange: IntRange? = null
+    var bestDistance = Int.MAX_VALUE
+    for (i in 0..normalizedText.length - queryLength) {
+        val window = normalizedText.substring(i, i + queryLength)
+        val distance = levenshteinDistance(normalizedQuery, window)
+        if (distance < bestDistance) {
+            bestDistance = distance
+            bestRange = i until (i + queryLength)
+            if (bestDistance == 0) break
+        }
+    }
+
+    return if (bestDistance <= maxDistance) bestRange else null
+}
+
+private data class ClipboardSearchResult(
+    val entry: ClipboardEntry,
+    val highlightRanges: List<IntRange>,
+    val score: Double
+)
+
+private fun mergeRanges(ranges: List<IntRange>): List<IntRange> {
+    if (ranges.isEmpty()) return emptyList()
+
+    val sorted = ranges.sortedBy { it.first }
+    val merged = mutableListOf<IntRange>()
+    var current = sorted.first()
+
+    for (i in 1 until sorted.size) {
+        val next = sorted[i]
+        current = if (next.first <= current.last + 1) {
+            IntRange(current.first, maxOf(current.last, next.last))
+        } else {
+            merged.add(current)
+            next
+        }
+    }
+
+    merged.add(current)
+    return merged
+}
+
+private fun evaluateClipboardSearch(entry: ClipboardEntry, query: String): ClipboardSearchResult? {
+    val trimmedQuery = query.trim()
+    if (trimmedQuery.isEmpty()) {
+        return ClipboardSearchResult(entry, emptyList(), 0.0)
+    }
+
+    val text = entry.text ?: return null
+
+    // Prefer regex if the user explicitly provided a pattern that compiles.
+    val regexRanges = regexMatchRanges(text, trimmedQuery)
+    if (!regexRanges.isNullOrEmpty()) {
+        return ClipboardSearchResult(entry, regexRanges, 3.0 + regexRanges.size)
+    }
+
+    val terms = trimmedQuery.split(" ").filter { it.isNotBlank() }
+    if (terms.isEmpty()) {
+        return ClipboardSearchResult(entry, emptyList(), 0.0)
+    }
+
+    val matchedRanges = mutableListOf<IntRange>()
+    var score = 0.0
+
+    for (term in terms) {
+        val directMatches = findAllOccurrences(text, term)
+        if (directMatches.isNotEmpty()) {
+            matchedRanges.addAll(directMatches)
+            score += 2.0 + (directMatches.size * 0.1)
+            continue
+        }
+
+        val fuzzyRange = fuzzyMatchRange(text, term)
+        if (fuzzyRange != null) {
+            matchedRanges.add(fuzzyRange)
+            val matchedText = text.substring(fuzzyRange.first, fuzzyRange.last + 1)
+            val distance = levenshteinDistance(matchedText, term)
+            val similarity = 1.0 - (distance.toDouble() / maxOf(matchedText.length, term.length))
+            score += 1.0 + similarity
+            continue
+        }
+
+        // Fail fast if any individual term cannot be matched at all.
+        return null
+    }
+
+    val mergedRanges = mergeRanges(matchedRanges)
+    return ClipboardSearchResult(entry, mergedRanges, score)
+}
 
 @OptIn(ExperimentalFoundationApi::class) // Restored OptIn for combinedClickable
 @Composable
-fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searchQuery: String, onPaste: (ClipboardEntry) -> Unit, onRemove: (ClipboardEntry) -> Unit, onPin: (ClipboardEntry) -> Unit) {
+fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, highlightRanges: List<IntRange>, onPaste: (ClipboardEntry) -> Unit, onRemove: (ClipboardEntry) -> Unit, onPin: (ClipboardEntry) -> Unit) {
     val textToDisplay = clipboardEntry.text ?: ""
+    val validRanges = highlightRanges.mapNotNull { range ->
+        val clampedStart = range.first.coerceAtLeast(0)
+        val clampedEnd = min(range.last, textToDisplay.length - 1)
+        if (clampedStart <= clampedEnd) IntRange(clampedStart, clampedEnd) else null
+    }.sortedBy { it.first }
+
     val annotatedText = buildAnnotatedString {
-        if (searchQuery.isNotEmpty() && textToDisplay.contains(searchQuery, ignoreCase = true)) {
-            var startIndex = 0
-            while (startIndex < textToDisplay.length) {
-                val indexOfMatch = textToDisplay.indexOf(searchQuery, startIndex, ignoreCase = true)
-                if (indexOfMatch == -1) {
-                    append(textToDisplay.substring(startIndex))
-                    break
+        if (validRanges.isNotEmpty()) {
+            var currentIndex = 0
+            validRanges.forEach { range ->
+                if (currentIndex < range.first) {
+                    append(textToDisplay.substring(currentIndex, range.first))
                 }
-                append(textToDisplay.substring(startIndex, indexOfMatch))
-                // Corrected: SpanStyle uses 'background' not 'backgroundColor'
+                val endExclusive = (range.last + 1).coerceAtMost(textToDisplay.length)
                 withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, background = Color.Yellow.copy(alpha = 0.5f))) {
-                    append(textToDisplay.substring(indexOfMatch, indexOfMatch + searchQuery.length))
+                    append(textToDisplay.substring(range.first, endExclusive))
                 }
-                startIndex = indexOfMatch + searchQuery.length
+                currentIndex = endExclusive
+            }
+            if (currentIndex < textToDisplay.length) {
+                append(textToDisplay.substring(currentIndex))
             }
         } else {
             append(textToDisplay)
@@ -246,7 +401,7 @@ fun ClipboardEntryViewPreview() {
             ClipboardEntryView(
                 modifier = Modifier,
                 clipboardEntry = ClipboardEntry(0L, it % 2 == 0, sampleText[it], null, listOf()),
-                searchQuery = searchQuery,
+                highlightRanges = findAllOccurrences(sampleText[it], searchQuery),
                 onPin = {},
                 onPaste = {},
                 onRemove = {}
@@ -265,58 +420,100 @@ fun ClipboardHistoryWindowTitleBar(
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
 
+    // Keep the search query state in sync with the manager so the text editor
+    // can live in the title bar.
+    val searchText = remember { mutableStateOf(manager.getClipboardSearchQuery()) }
+    LaunchedEffect(manager.getClipboardSearchQuery()) {
+        val managerText = manager.getClipboardSearchQuery()
+        if (managerText != searchText.value) {
+            searchText.value = managerText
+        }
+    }
+    LaunchedEffect(searchText.value) {
+        manager.setClipboardSearchQuery(searchText.value)
+    }
+
     if (!clipboardHistoryEnabledState.value) return
 
-    if (unlocked && !clipboardHistoryManager.clipboardIOFailure.value) {
-        IconButton(onClick = {
-            val numUnpinnedItems = clipboardHistoryManager.clipboardHistory.count { !it.pinned }
-            if (clipboardHistoryManager.clipboardHistory.isEmpty()) {
-                manager.requestDialog(
-                    context.getString(R.string.action_clipboard_manager_disable_text),
-                    listOf(
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_disable_button)) {
-                            clipboardHistoryEnabledState.setValue(false)
-                        },
-                    ),
-                    {}
-                )
-            } else if (numUnpinnedItems == 0) {
-                manager.requestDialog(
-                    context.getString(R.string.action_clipboard_manager_unpin_all_items_text),
-                    listOf(
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_unpin_all_items_button)) {
-                            clipboardHistoryManager.clipboardHistory.toList().forEach {
-                                if (it.pinned) {
-                                    clipboardHistoryManager.onPin(it)
-                                }
-                            }
-                        },
-                    ),
-                    {}
-                )
-            } else {
-                manager.requestDialog(
-                    context.getString(R.string.action_clipboard_manager_clear_unpinned_items_text),
-                    listOf(
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
-                        DialogRequestItem(context.getString(R.string.action_clipboard_manager_clear_unpinned_items_button)) {
-                            clipboardHistoryManager.clipboardHistory.toList().forEach {
-                                if (!it.pinned) {
-                                    clipboardHistoryManager.onRemove(it)
-                                }
-                            }
-                        },
-                    ),
-                    {}
-                )
+    with(rowScope) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                color = LocalKeyboardScheme.current.keyboardContainer,
+                contentColor = LocalKeyboardScheme.current.onKeyboardContainer,
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    // Automatically focus the search field just like the emoji search bar
+                    ActionTextEditor(text = searchText)
+                }
             }
-        }) {
-            Icon(
-                painterResource(id = R.drawable.close),
-                contentDescription = stringResource(R.string.action_clipboard_manager_clear_clipboard)
-            )
+
+            if (unlocked && !clipboardHistoryManager.clipboardIOFailure.value) {
+                IconButton(onClick = {
+                    val numUnpinnedItems = clipboardHistoryManager.clipboardHistory.count { !it.pinned }
+                    if (clipboardHistoryManager.clipboardHistory.isEmpty()) {
+                        manager.requestDialog(
+                            context.getString(R.string.action_clipboard_manager_disable_text),
+                            listOf(
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_disable_button)) {
+                                    clipboardHistoryEnabledState.setValue(false)
+                                },
+                            ),
+                            {}
+                        )
+                    } else if (numUnpinnedItems == 0) {
+                        manager.requestDialog(
+                            context.getString(R.string.action_clipboard_manager_unpin_all_items_text),
+                            listOf(
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_unpin_all_items_button)) {
+                                    clipboardHistoryManager.clipboardHistory.toList().forEach {
+                                        if (it.pinned) {
+                                            clipboardHistoryManager.onPin(it)
+                                        }
+                                    }
+                                },
+                            ),
+                            {}
+                        )
+                    } else {
+                        manager.requestDialog(
+                            context.getString(R.string.action_clipboard_manager_clear_unpinned_items_text),
+                            listOf(
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_cancel_action_button)) {},
+                                DialogRequestItem(context.getString(R.string.action_clipboard_manager_clear_unpinned_items_button)) {
+                                    clipboardHistoryManager.clipboardHistory.toList().forEach {
+                                        if (!it.pinned) {
+                                            clipboardHistoryManager.onRemove(it)
+                                        }
+                                    }
+                                },
+                            ),
+                            {}
+                        )
+                    }
+                }) {
+                    Icon(
+                        painterResource(id = R.drawable.close),
+                        contentDescription = stringResource(R.string.action_clipboard_manager_clear_clipboard)
+                    )
+                }
+            }
         }
     }
 }
@@ -332,48 +529,12 @@ fun ClipboardHistoryWindowContent(
     val view = LocalView.current
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
-    // Search text state used by the ActionTextEditor
-    val searchText = remember { mutableStateOf(manager.getClipboardSearchQuery()) }
-
-    // Keep state in sync with manager changes triggered elsewhere
-    LaunchedEffect(manager.getClipboardSearchQuery()) {
-        val managerText = manager.getClipboardSearchQuery()
-        if (managerText != searchText.value) {
-            searchText.value = managerText
-        }
-    }
-
-    // Update manager whenever the text changes
-    LaunchedEffect(searchText.value) {
-        manager.setClipboardSearchQuery(searchText.value)
-    }
-
-    // Ensure focus state resets when closing the clipboard history
-    DisposableEffect(Unit) {
-        onDispose {
-            manager.setClipboardSearchFocus(false)
-        }
-    }
-
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Surface(
-            color = LocalKeyboardScheme.current.keyboardContainer,
-            contentColor = LocalKeyboardScheme.current.onKeyboardContainer,
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier
-                .padding(8.dp)
-                .height(48.dp)
-                .fillMaxWidth()
-        ) {
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                // Automatically focus the search field just like the emoji search bar
-                ActionTextEditor(text = searchText)
+        // Title bar now owns the search field; keep focus reset on close.
+        DisposableEffect(Unit) {
+            onDispose {
+                manager.setClipboardSearchFocus(false)
             }
         }
 
@@ -458,13 +619,13 @@ fun ClipboardHistoryWindowContent(
         }
     } else {
         val currentSearchQuery = manager.getClipboardSearchQuery()
-        val filteredList = if (currentSearchQuery.isBlank()) {
-            clipboardHistoryManager.clipboardHistory.toList() // Use a copy for stability during recomposition
-        } else {
-            clipboardHistoryManager.clipboardHistory.filter {
-                it.text?.contains(currentSearchQuery, ignoreCase = true) == true
-            }
-        }
+        val filteredList = clipboardHistoryManager.clipboardHistory.toList()
+            .mapNotNull { evaluateClipboardSearch(it, currentSearchQuery) }
+            .sortedWith(
+                compareByDescending<ClipboardSearchResult> { it.score }
+                    .thenByDescending { it.entry.pinned }
+                    .thenByDescending { it.entry.timestamp }
+            )
 
         LazyVerticalStaggeredGrid(
             modifier = Modifier.fillMaxWidth(),
@@ -473,16 +634,16 @@ fun ClipboardHistoryWindowContent(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             items(
-                items = filteredList.reversed(), // Show newest first
+                items = filteredList,
                 key = { entry ->
                     // Ensure unique keys, especially if text can be null or identical
-                    (entry.text ?: "") + entry.timestamp.toString()
+                    (entry.entry.text ?: "") + entry.entry.timestamp.toString()
                 }
             ) { entry ->
                 ClipboardEntryView(
                     modifier = Modifier.animateItemPlacement(),
-                    clipboardEntry = entry,
-                    searchQuery = currentSearchQuery, // Pass the search query from manager
+                    clipboardEntry = entry.entry,
+                    highlightRanges = entry.highlightRanges,
                     onPaste = {
                         if (it.uri != null) {
                             manager.typeUri(it.uri, it.mimeTypes)
