@@ -147,33 +147,77 @@ private fun fuzzyMatchRange(text: String, query: String): IntRange? {
 
 private data class ClipboardSearchResult(
     val entry: ClipboardEntry,
-    val highlightRanges: List<IntRange>
+    val highlightRanges: List<IntRange>,
+    val score: Double
 )
+
+private fun mergeRanges(ranges: List<IntRange>): List<IntRange> {
+    if (ranges.isEmpty()) return emptyList()
+
+    val sorted = ranges.sortedBy { it.first }
+    val merged = mutableListOf<IntRange>()
+    var current = sorted.first()
+
+    for (i in 1 until sorted.size) {
+        val next = sorted[i]
+        current = if (next.first <= current.last + 1) {
+            IntRange(current.first, maxOf(current.last, next.last))
+        } else {
+            merged.add(current)
+            next
+        }
+    }
+
+    merged.add(current)
+    return merged
+}
 
 private fun evaluateClipboardSearch(entry: ClipboardEntry, query: String): ClipboardSearchResult? {
     val trimmedQuery = query.trim()
     if (trimmedQuery.isEmpty()) {
-        return ClipboardSearchResult(entry, emptyList())
+        return ClipboardSearchResult(entry, emptyList(), 0.0)
     }
 
     val text = entry.text ?: return null
 
+    // Prefer regex if the user explicitly provided a pattern that compiles.
     val regexRanges = regexMatchRanges(text, trimmedQuery)
     if (!regexRanges.isNullOrEmpty()) {
-        return ClipboardSearchResult(entry, regexRanges)
+        return ClipboardSearchResult(entry, regexRanges, 3.0 + regexRanges.size)
     }
 
-    val directMatches = findAllOccurrences(text, trimmedQuery)
-    if (directMatches.isNotEmpty()) {
-        return ClipboardSearchResult(entry, directMatches)
+    val terms = trimmedQuery.split(" ").filter { it.isNotBlank() }
+    if (terms.isEmpty()) {
+        return ClipboardSearchResult(entry, emptyList(), 0.0)
     }
 
-    val fuzzyRange = fuzzyMatchRange(text, trimmedQuery)
-    if (fuzzyRange != null) {
-        return ClipboardSearchResult(entry, listOf(fuzzyRange))
+    val matchedRanges = mutableListOf<IntRange>()
+    var score = 0.0
+
+    for (term in terms) {
+        val directMatches = findAllOccurrences(text, term)
+        if (directMatches.isNotEmpty()) {
+            matchedRanges.addAll(directMatches)
+            score += 2.0 + (directMatches.size * 0.1)
+            continue
+        }
+
+        val fuzzyRange = fuzzyMatchRange(text, term)
+        if (fuzzyRange != null) {
+            matchedRanges.add(fuzzyRange)
+            val matchedText = text.substring(fuzzyRange.first, fuzzyRange.last + 1)
+            val distance = levenshteinDistance(matchedText, term)
+            val similarity = 1.0 - (distance.toDouble() / maxOf(matchedText.length, term.length))
+            score += 1.0 + similarity
+            continue
+        }
+
+        // Fail fast if any individual term cannot be matched at all.
+        return null
     }
 
-    return null
+    val mergedRanges = mergeRanges(matchedRanges)
+    return ClipboardSearchResult(entry, mergedRanges, score)
 }
 
 @OptIn(ExperimentalFoundationApi::class) // Restored OptIn for combinedClickable
@@ -569,9 +613,13 @@ fun ClipboardHistoryWindowContent(
         }
     } else {
         val currentSearchQuery = manager.getClipboardSearchQuery()
-        val filteredList = clipboardHistoryManager.clipboardHistory.toList().mapNotNull {
-            evaluateClipboardSearch(it, currentSearchQuery)
-        }
+        val filteredList = clipboardHistoryManager.clipboardHistory.toList()
+            .mapNotNull { evaluateClipboardSearch(it, currentSearchQuery) }
+            .sortedWith(
+                compareByDescending<ClipboardSearchResult> { it.score }
+                    .thenByDescending { it.entry.pinned }
+                    .thenByDescending { it.entry.timestamp }
+            )
 
         LazyVerticalStaggeredGrid(
             modifier = Modifier.fillMaxWidth(),
@@ -580,7 +628,7 @@ fun ClipboardHistoryWindowContent(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             items(
-                items = filteredList.reversed(), // Show newest first
+                items = filteredList,
                 key = { entry ->
                     // Ensure unique keys, especially if text can be null or identical
                     (entry.entry.text ?: "") + entry.entry.timestamp.toString()
