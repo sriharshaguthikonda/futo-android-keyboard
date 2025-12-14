@@ -12,6 +12,7 @@ import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.setSetting
+import org.futo.inputmethod.latin.uix.DraftingModelKey
 import org.futo.inputmethod.latin.utils.JniUtils
 import java.io.File
 import java.io.FileOutputStream
@@ -215,6 +216,21 @@ object ModelPaths {
         }
 
         return modelDirectory
+    }
+
+    fun getDraftingModelFile(context: Context): File? {
+        val name = context.getSetting(DraftingModelKey)
+        if (name.isBlank()) return null
+
+        val file = File(getModelDirectory(context), name)
+        return if (file.isFile) file else null
+    }
+
+    suspend fun setDraftingModel(context: Context, file: File) {
+        if(!file.absolutePath.startsWith(getModelDirectory(context).absolutePath)) {
+            throw IllegalArgumentException("Drafting model must live in ${getModelDirectory(context).absolutePath}")
+        }
+        context.setSetting(DraftingModelKey, file.name)
     }
 
     fun ensureDefaultModelExists(context: Context) {

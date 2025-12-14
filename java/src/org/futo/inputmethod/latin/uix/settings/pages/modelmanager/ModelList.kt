@@ -91,6 +91,15 @@ fun ModelListScreen(navController: NavHostController = rememberNavController()) 
         Spacer(modifier = Modifier.height(32.dp))
         ScreenTitle("Actions")
         NavigationItem(
+            title = "Download GGUF model (FLAN-T5-small)",
+            subtitle = "Opens Hugging Face; download a small GGUF to import",
+            style = NavigationItemStyle.Misc,
+            navigate = {
+                // Community-converted GGUF (small footprint)
+                context.openURI("https://huggingface.co/AncientCatz/flan-t5-small-Q2_K-GGUF")
+            }
+        )
+        NavigationItem(
             title = "Docs",
             style = NavigationItemStyle.Misc,
             navigate = {

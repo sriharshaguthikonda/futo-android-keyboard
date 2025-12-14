@@ -36,6 +36,7 @@ import org.futo.inputmethod.latin.xlm.MODEL_OPTION_KEY
 import org.futo.inputmethod.latin.xlm.ModelInfo
 import org.futo.inputmethod.latin.xlm.ModelInfoLoader
 import org.futo.inputmethod.latin.xlm.ModelPaths
+import org.futo.inputmethod.latin.uix.DraftingModelKey
 import org.futo.inputmethod.updates.openURI
 import java.io.File
 
@@ -97,6 +98,7 @@ fun ManageModelScreen(model: ModelInfo = PreviewModels[0], navController: NavHos
     val modelOptions = useDataStore(key = MODEL_OPTION_KEY.key, default = MODEL_OPTION_KEY.default)
 
     val finetuningEnabled = useDataStore(key = USE_TRANSFORMER_FINETUNING.key, default = USE_TRANSFORMER_FINETUNING.default)
+    val draftingModelName = useDataStore(key = DraftingModelKey.key, default = DraftingModelKey.default)
 
     ScrollableList {
         ScreenTitle(name, showBack = true, navController)
@@ -174,6 +176,22 @@ fun ManageModelScreen(model: ModelInfo = PreviewModels[0], navController: NavHos
                 }
             )
         }
+
+        Spacer(modifier = Modifier.height(32.dp))
+        ScreenTitle("Drafting model (GGUF)")
+
+        val isDraftingModel = draftingModelName.value == file.name
+        NavigationItem(
+            title = if (isDraftingModel) "Currently selected for drafting" else "Set as drafting model",
+            style = if (isDraftingModel) NavigationItemStyle.MiscNoArrow else NavigationItemStyle.Misc,
+            navigate = {
+                if (!isDraftingModel) {
+                    coroutineScope.lifecycleScope.launch {
+                        ModelPaths.setDraftingModel(context, file)
+                    }
+                }
+            }
+        )
 
         Spacer(modifier = Modifier.height(32.dp))
         ScreenTitle("Actions")

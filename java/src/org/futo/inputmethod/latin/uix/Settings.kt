@@ -424,6 +424,11 @@ val CustomHomeSecondaryBgImage = SettingsKey(
     default = ""
 )
 
+val DraftingModelKey = SettingsKey(
+    key = stringPreferencesKey("drafting_model_filename"),
+    default = ""
+)
+
 val CustomHomeTertiaryBgColor = SettingsKey(
     key = stringPreferencesKey("custom_home_tertiary_bg_color"),
     default = CustomIconBgColor.default

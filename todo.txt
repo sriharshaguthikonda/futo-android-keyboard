@@ -24,12 +24,13 @@
 
 
 - [x] **Voice recognition button** - pill mode, floating bar mode, if i click on the voice recognition button second time, it does not paste into the text area. but it the clipboard i see it combines the text with the previous audio....i think it is sending combined audio to the server.
-
+- [x] we should be able to skip the enable accessibility service grant permission at setup. later we should be able rerun the setup from inside  the settings section.
 - [x] **Toast messages** - when toast messages happen, copying or other thing when keyboard is on, it appears on top of the keyboard obscuring some letters. i don't want that to happen. we can have/force the toast message above the keyboard.
 
 
 - [x] we should be able to skip the enable accessibility service grant permission at setup. later we should be able rerun the setup from inside  the settings section.
 
+- [x] **AI drafting GGUF flow** - Added settings link to download GGUF (FLAN-T5-small) under Models → Actions. Next: add model selector for drafting and wire inline suggestions to chosen GGUF model.
 
 voice-session-id-guard branch
 voice-session-id-guard
