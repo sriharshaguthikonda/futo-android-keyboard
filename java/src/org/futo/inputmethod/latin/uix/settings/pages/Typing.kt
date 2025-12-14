@@ -152,6 +152,11 @@ val InlineAutofillSetting = SettingsKey(
     true
 )
 
+val EnableDraftingInlineSuggestions = SettingsKey(
+    booleanPreferencesKey("enable_drafting_inline_suggestions"),
+    false
+)
+
 val ResizeMenuLite = UserSettingsMenu(
     title = R.string.size_settings_title,
     navPath = "resize", registerNavPath = false,
@@ -789,6 +794,11 @@ val KeyboardSettingsMenu = UserSettingsMenu(
             title = R.string.keyboard_settings_inline_autofill,
             subtitle = R.string.keyboard_settings_inline_autofill_subtitle,
             setting = InlineAutofillSetting
+        ),
+        userSettingToggleDataStore(
+            title = R.string.keyboard_settings_drafting_inline,
+            subtitle = R.string.keyboard_settings_drafting_inline_subtitle,
+            setting = EnableDraftingInlineSuggestions
         ),
         userSettingToggleSharedPrefs(
             title = R.string.keyboard_settings_period_key,

@@ -497,6 +497,8 @@
     <string name="keyboard_settings_show_suggestion_row_subtitle">Show the bar containing suggestions. Recommended to keep enabled</string>
     <string name="keyboard_settings_inline_autofill">Inline autofill</string>
     <string name="keyboard_settings_inline_autofill_subtitle">Display password manager autofill and auto-reply suggestions (provided by app) in suggestion bar</string>
+    <string name="keyboard_settings_drafting_inline">GGUF inline drafting</string>
+    <string name="keyboard_settings_drafting_inline_subtitle">Use the selected drafting GGUF model for inline suggestions when available</string>
     <string name="keyboard_settings_period_key">Quick period key</string>
     <string name="keyboard_settings_period_key_subtitle">Flick the period key to quickly insert most common symbols</string>
 
