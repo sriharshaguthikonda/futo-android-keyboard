@@ -60,6 +60,104 @@ private fun normalizeString(s: String): String {
     } ?: s).lowercase()
 }
 
+private fun levenshteinDistance(a: String, b: String): Int {
+    if (a.isEmpty()) return b.length
+    if (b.isEmpty()) return a.length
+
+    val previousRow = IntArray(b.length + 1) { it }
+    val currentRow = IntArray(b.length + 1)
+
+    for (i in a.indices) {
+        currentRow[0] = i + 1
+        for (j in b.indices) {
+            val cost = if (a[i] == b[j]) 0 else 1
+            currentRow[j + 1] = minOf(
+                currentRow[j] + 1,
+                previousRow[j + 1] + 1,
+                previousRow[j] + cost
+            )
+        }
+        for (j in currentRow.indices) {
+            previousRow[j] = currentRow[j]
+        }
+    }
+
+    return previousRow.last()
+}
+
+private fun jaroWinklerSimilarity(s1: String, s2: String): Double {
+    if (s1 == s2) return 1.0
+    if (s1.isEmpty() || s2.isEmpty()) return 0.0
+
+    val maxDist = (maxOf(s1.length, s2.length) / 2) - 1
+    val s1Matches = BooleanArray(s1.length)
+    val s2Matches = BooleanArray(s2.length)
+
+    var matches = 0
+    var transpositions = 0
+
+    for (i in s1.indices) {
+        val start = (i - maxDist).coerceAtLeast(0)
+        val end = (i + maxDist + 1).coerceAtMost(s2.length)
+
+        for (j in start until end) {
+            if (s2Matches[j]) continue
+            if (s1[i] != s2[j]) continue
+            s1Matches[i] = true
+            s2Matches[j] = true
+            matches++
+            break
+        }
+    }
+
+    if (matches == 0) return 0.0
+
+    var k = 0
+    for (i in s1.indices) {
+        if (!s1Matches[i]) continue
+        while (!s2Matches[k]) k++
+        if (s1[i] != s2[k]) transpositions++
+        k++
+    }
+
+    val m = matches.toDouble()
+    val jaro = (m / s1.length + m / s2.length + (m - transpositions / 2.0) / m) / 3.0
+
+    var prefix = 0
+    while (prefix < minOf(4, s1.length, s2.length) && s1[prefix] == s2[prefix]) {
+        prefix++
+    }
+
+    return jaro + prefix * 0.1 * (1 - jaro)
+}
+
+private fun fuzzyMatches(query: String, candidate: String): Boolean {
+    if (candidate.contains(query) || query.contains(candidate)) return true
+
+    val distanceThreshold = (query.length / 4).coerceAtLeast(1).coerceAtMost(3)
+    val tokens = candidate.split("\n", " ").filter { it.isNotBlank() }
+
+    val levenshteinHit = tokens.any { levenshteinDistance(query, it) <= distanceThreshold }
+    val jaroWinklerHit = tokens.any { jaroWinklerSimilarity(query, it) >= 0.82 }
+
+    return levenshteinHit || jaroWinklerHit
+}
+
+private fun matchesQuery(query: String, searchableParts: List<String>): Boolean {
+    if (query.isBlank()) return false
+
+    val queryTokens = query.split(" ").filter { it.isNotBlank() }
+
+    val regex = runCatching { query.toRegex() }.getOrNull()
+    if (regex != null && searchableParts.any { regex.containsMatchIn(it) }) return true
+
+    // Require every query token to match at least one searchable token to better support
+    // multi-word queries while still allowing minor mistakes.
+    return queryTokens.all { token ->
+        searchableParts.any { fuzzyMatches(token, it) }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Preview(showBackground = true)
 @Composable
@@ -73,11 +171,12 @@ fun SearchScreen(navController: NavHostController = rememberNavController()) {
             .filter { it.name != 0 }
             .associate {
                 it to run {
-                    normalizeString(context.getString(it.name)) + "\n" +
-                            (it.searchTagList?.joinToString("\n") { normalizeString(context.getString(it)) }
-                                ?: it.searchTags?.let { normalizeString(context.getString(it)) }
-                                ?: "") + "\n" +
-                            (it.subtitle?.let { normalizeString(context.getString(it)) } ?: "")
+                    buildList {
+                        add(normalizeString(context.getString(it.name)))
+                        it.searchTagList?.forEach { tag -> add(normalizeString(context.getString(tag))) }
+                        it.searchTags?.let { tag -> add(normalizeString(context.getString(tag))) }
+                        it.subtitle?.let { subtitle -> add(normalizeString(context.getString(subtitle))) }
+                    }.filter { value -> value.isNotBlank() }
                 }
             }
     }
@@ -87,7 +186,7 @@ fun SearchScreen(navController: NavHostController = rememberNavController()) {
         SettingsMenus.map { menu ->
             menu to menu.settings
                 .filter { it.name != 0 && it.appearsInSearch }
-                .filter { searchTagsByMenu[it]!!.contains(query) }
+                .filter { matchesQuery(query, searchTagsByMenu[it].orEmpty()) }
         }
     }.filter {
         it.first.visibilityCheck?.invoke() != false
