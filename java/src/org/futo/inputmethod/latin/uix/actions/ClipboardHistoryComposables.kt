@@ -70,26 +70,137 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import org.futo.inputmethod.latin.uix.ActionTextEditor
 import org.futo.inputmethod.latin.uix.UriThumbnail
+import kotlin.math.min
+
+private fun levenshteinDistance(lhs: CharSequence, rhs: CharSequence): Int {
+    val lhsLen = lhs.length
+    val rhsLen = rhs.length
+    var cost = IntArray(lhsLen + 1) { it }
+    for (i in 1..rhsLen) {
+        val newCost = IntArray(lhsLen + 1)
+        newCost[0] = i
+        for (j in 1..lhsLen) {
+            val match = if (lhs[j - 1].lowercaseChar() == rhs[i - 1].lowercaseChar()) 0 else 1
+            val costReplace = cost[j - 1] + match
+            val costInsert = cost[j] + 1
+            val costDelete = newCost[j - 1] + 1
+            newCost[j] = minOf(costInsert, costDelete, costReplace)
+        }
+        cost = newCost
+    }
+    return cost[lhsLen]
+}
+
+private fun findAllOccurrences(text: String, query: String): List<IntRange> {
+    val ranges = mutableListOf<IntRange>()
+    var startIndex = 0
+    while (startIndex < text.length) {
+        val index = text.indexOf(query, startIndex, ignoreCase = true)
+        if (index == -1) break
+        ranges.add(index until (index + query.length))
+        startIndex = index + query.length
+    }
+    return ranges
+}
+
+private fun regexMatchRanges(text: String, pattern: String): List<IntRange>? {
+    return try {
+        val regex = Regex(pattern, RegexOption.IGNORE_CASE)
+        val ranges = regex.findAll(text).map { it.range }.toList()
+        if (ranges.isNotEmpty()) ranges else null
+    } catch (e: Exception) {
+        null
+    }
+}
+
+private fun fuzzyMatchRange(text: String, query: String): IntRange? {
+    val normalizedText = text.lowercase()
+    val normalizedQuery = query.lowercase()
+    val queryLength = normalizedQuery.length
+    if (queryLength == 0) return null
+
+    val maxDistance = (queryLength * 0.4).toInt().coerceAtLeast(1)
+
+    if (normalizedText.length <= queryLength) {
+        val distance = levenshteinDistance(normalizedQuery, normalizedText)
+        return if (distance <= maxDistance) {
+            0 until normalizedText.length
+        } else {
+            null
+        }
+    }
+
+    var bestRange: IntRange? = null
+    var bestDistance = Int.MAX_VALUE
+    for (i in 0..normalizedText.length - queryLength) {
+        val window = normalizedText.substring(i, i + queryLength)
+        val distance = levenshteinDistance(normalizedQuery, window)
+        if (distance < bestDistance) {
+            bestDistance = distance
+            bestRange = i until (i + queryLength)
+            if (bestDistance == 0) break
+        }
+    }
+
+    return if (bestDistance <= maxDistance) bestRange else null
+}
+
+private data class ClipboardSearchResult(
+    val entry: ClipboardEntry,
+    val highlightRanges: List<IntRange>
+)
+
+private fun evaluateClipboardSearch(entry: ClipboardEntry, query: String): ClipboardSearchResult? {
+    val trimmedQuery = query.trim()
+    if (trimmedQuery.isEmpty()) {
+        return ClipboardSearchResult(entry, emptyList())
+    }
+
+    val text = entry.text ?: return null
+
+    val regexRanges = regexMatchRanges(text, trimmedQuery)
+    if (!regexRanges.isNullOrEmpty()) {
+        return ClipboardSearchResult(entry, regexRanges)
+    }
+
+    val directMatches = findAllOccurrences(text, trimmedQuery)
+    if (directMatches.isNotEmpty()) {
+        return ClipboardSearchResult(entry, directMatches)
+    }
+
+    val fuzzyRange = fuzzyMatchRange(text, trimmedQuery)
+    if (fuzzyRange != null) {
+        return ClipboardSearchResult(entry, listOf(fuzzyRange))
+    }
+
+    return null
+}
 
 @OptIn(ExperimentalFoundationApi::class) // Restored OptIn for combinedClickable
 @Composable
-fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, searchQuery: String, onPaste: (ClipboardEntry) -> Unit, onRemove: (ClipboardEntry) -> Unit, onPin: (ClipboardEntry) -> Unit) {
+fun ClipboardEntryView(modifier: Modifier, clipboardEntry: ClipboardEntry, highlightRanges: List<IntRange>, onPaste: (ClipboardEntry) -> Unit, onRemove: (ClipboardEntry) -> Unit, onPin: (ClipboardEntry) -> Unit) {
     val textToDisplay = clipboardEntry.text ?: ""
+    val validRanges = highlightRanges.mapNotNull { range ->
+        val clampedStart = range.first.coerceAtLeast(0)
+        val clampedEnd = min(range.last, textToDisplay.length - 1)
+        if (clampedStart <= clampedEnd) IntRange(clampedStart, clampedEnd) else null
+    }.sortedBy { it.first }
+
     val annotatedText = buildAnnotatedString {
-        if (searchQuery.isNotEmpty() && textToDisplay.contains(searchQuery, ignoreCase = true)) {
-            var startIndex = 0
-            while (startIndex < textToDisplay.length) {
-                val indexOfMatch = textToDisplay.indexOf(searchQuery, startIndex, ignoreCase = true)
-                if (indexOfMatch == -1) {
-                    append(textToDisplay.substring(startIndex))
-                    break
+        if (validRanges.isNotEmpty()) {
+            var currentIndex = 0
+            validRanges.forEach { range ->
+                if (currentIndex < range.first) {
+                    append(textToDisplay.substring(currentIndex, range.first))
                 }
-                append(textToDisplay.substring(startIndex, indexOfMatch))
-                // Corrected: SpanStyle uses 'background' not 'backgroundColor'
+                val endExclusive = (range.last + 1).coerceAtMost(textToDisplay.length)
                 withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, background = Color.Yellow.copy(alpha = 0.5f))) {
-                    append(textToDisplay.substring(indexOfMatch, indexOfMatch + searchQuery.length))
+                    append(textToDisplay.substring(range.first, endExclusive))
                 }
-                startIndex = indexOfMatch + searchQuery.length
+                currentIndex = endExclusive
+            }
+            if (currentIndex < textToDisplay.length) {
+                append(textToDisplay.substring(currentIndex))
             }
         } else {
             append(textToDisplay)
@@ -246,7 +357,7 @@ fun ClipboardEntryViewPreview() {
             ClipboardEntryView(
                 modifier = Modifier,
                 clipboardEntry = ClipboardEntry(0L, it % 2 == 0, sampleText[it], null, listOf()),
-                searchQuery = searchQuery,
+                highlightRanges = findAllOccurrences(sampleText[it], searchQuery),
                 onPin = {},
                 onPaste = {},
                 onRemove = {}
@@ -458,12 +569,8 @@ fun ClipboardHistoryWindowContent(
         }
     } else {
         val currentSearchQuery = manager.getClipboardSearchQuery()
-        val filteredList = if (currentSearchQuery.isBlank()) {
-            clipboardHistoryManager.clipboardHistory.toList() // Use a copy for stability during recomposition
-        } else {
-            clipboardHistoryManager.clipboardHistory.filter {
-                it.text?.contains(currentSearchQuery, ignoreCase = true) == true
-            }
+        val filteredList = clipboardHistoryManager.clipboardHistory.toList().mapNotNull {
+            evaluateClipboardSearch(it, currentSearchQuery)
         }
 
         LazyVerticalStaggeredGrid(
@@ -476,13 +583,13 @@ fun ClipboardHistoryWindowContent(
                 items = filteredList.reversed(), // Show newest first
                 key = { entry ->
                     // Ensure unique keys, especially if text can be null or identical
-                    (entry.text ?: "") + entry.timestamp.toString()
+                    (entry.entry.text ?: "") + entry.entry.timestamp.toString()
                 }
             ) { entry ->
                 ClipboardEntryView(
                     modifier = Modifier.animateItemPlacement(),
-                    clipboardEntry = entry,
-                    searchQuery = currentSearchQuery, // Pass the search query from manager
+                    clipboardEntry = entry.entry,
+                    highlightRanges = entry.highlightRanges,
                     onPaste = {
                         if (it.uri != null) {
                             manager.typeUri(it.uri, it.mimeTypes)
