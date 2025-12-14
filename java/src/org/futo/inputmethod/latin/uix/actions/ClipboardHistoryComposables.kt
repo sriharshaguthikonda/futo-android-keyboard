@@ -512,23 +512,67 @@ fun ClipboardHistoryWindowContent(
 
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Surface(
-            color = LocalKeyboardScheme.current.keyboardContainer,
-            contentColor = LocalKeyboardScheme.current.onKeyboardContainer,
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier
-                .padding(8.dp)
-                .height(48.dp)
-                .fillMaxWidth()
-        ) {
-            Box(
+        if (keyboardShown) {
+            Row(
                 modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.CenterStart
+                    .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 4.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Automatically focus the search field just like the emoji search bar
-                ActionTextEditor(text = searchText)
+                Text(
+                    text = stringResource(id = R.string.action_clipboard_manager_title),
+                    style = Typography.Body.MediumMl
+                )
+
+                Surface(
+                    color = LocalKeyboardScheme.current.keyboardContainer,
+                    contentColor = LocalKeyboardScheme.current.onKeyboardContainer,
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
+                            .fillMaxSize(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        // Automatically focus the search field just like the emoji search bar
+                        ActionTextEditor(text = searchText)
+                    }
+                }
+
+                IconButton(
+                    onClick = { manager.closeActionWindow() },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        painterResource(id = R.drawable.close),
+                        contentDescription = stringResource(R.string.keyboard_actionbar_close_docked_action_window_talkback)
+                    )
+                }
+            }
+        } else {
+            Surface(
+                color = LocalKeyboardScheme.current.keyboardContainer,
+                contentColor = LocalKeyboardScheme.current.onKeyboardContainer,
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .padding(8.dp)
+                    .height(48.dp)
+                    .fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    // Automatically focus the search field just like the emoji search bar
+                    ActionTextEditor(text = searchText)
+                }
             }
         }
 
