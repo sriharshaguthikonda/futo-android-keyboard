@@ -60,6 +60,49 @@ private fun normalizeString(s: String): String {
     } ?: s).lowercase()
 }
 
+private fun levenshteinDistance(a: String, b: String): Int {
+    if (a.isEmpty()) return b.length
+    if (b.isEmpty()) return a.length
+
+    val previousRow = IntArray(b.length + 1) { it }
+    val currentRow = IntArray(b.length + 1)
+
+    for (i in a.indices) {
+        currentRow[0] = i + 1
+        for (j in b.indices) {
+            val cost = if (a[i] == b[j]) 0 else 1
+            currentRow[j + 1] = minOf(
+                currentRow[j] + 1,
+                previousRow[j + 1] + 1,
+                previousRow[j] + cost
+            )
+        }
+        for (j in currentRow.indices) {
+            previousRow[j] = currentRow[j]
+        }
+    }
+
+    return previousRow.last()
+}
+
+private fun fuzzyMatches(query: String, candidate: String): Boolean {
+    if (candidate.contains(query)) return true
+
+    val distanceThreshold = (query.length / 4).coerceAtLeast(1).coerceAtMost(3)
+    val tokens = candidate.split("\n", " ").filter { it.isNotBlank() }
+
+    return tokens.any { levenshteinDistance(query, it) <= distanceThreshold }
+}
+
+private fun matchesQuery(query: String, searchableParts: List<String>): Boolean {
+    if (query.isBlank()) return false
+
+    val regex = runCatching { query.toRegex() }.getOrNull()
+    if (regex != null && searchableParts.any { regex.containsMatchIn(it) }) return true
+
+    return searchableParts.any { fuzzyMatches(query, it) }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Preview(showBackground = true)
 @Composable
@@ -73,11 +116,12 @@ fun SearchScreen(navController: NavHostController = rememberNavController()) {
             .filter { it.name != 0 }
             .associate {
                 it to run {
-                    normalizeString(context.getString(it.name)) + "\n" +
-                            (it.searchTagList?.joinToString("\n") { normalizeString(context.getString(it)) }
-                                ?: it.searchTags?.let { normalizeString(context.getString(it)) }
-                                ?: "") + "\n" +
-                            (it.subtitle?.let { normalizeString(context.getString(it)) } ?: "")
+                    buildList {
+                        add(normalizeString(context.getString(it.name)))
+                        it.searchTagList?.forEach { tag -> add(normalizeString(context.getString(tag))) }
+                        it.searchTags?.let { tag -> add(normalizeString(context.getString(tag))) }
+                        it.subtitle?.let { subtitle -> add(normalizeString(context.getString(subtitle))) }
+                    }.filter { value -> value.isNotBlank() }
                 }
             }
     }
@@ -87,7 +131,7 @@ fun SearchScreen(navController: NavHostController = rememberNavController()) {
         SettingsMenus.map { menu ->
             menu to menu.settings
                 .filter { it.name != 0 && it.appearsInSearch }
-                .filter { searchTagsByMenu[it]!!.contains(query) }
+                .filter { matchesQuery(query, searchTagsByMenu[it].orEmpty()) }
         }
     }.filter {
         it.first.visibilityCheck?.invoke() != false
