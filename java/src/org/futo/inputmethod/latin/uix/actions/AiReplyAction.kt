@@ -3,6 +3,7 @@ package org.futo.inputmethod.latin.uix.actions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,29 +14,36 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -56,11 +64,20 @@ import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.showToastAboveKeyboard
 import androidx.compose.material3.TextField
-import androidx.compose.runtime.LaunchedEffect
 import org.futo.voiceinput.shared.groq.GroqChatApi
 import android.util.Log
 import org.futo.inputmethod.latin.uix.utils.latestClipboardText
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
+import org.futo.inputmethod.latin.uix.theme.LocalKeyboardScheme
 
 private const val DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant that writes concise replies."
 
@@ -396,7 +413,246 @@ private class AiReplyWindow(
     }
 }
 
+private fun buildAngles(count: Int): List<Float> {
+    if (count <= 1) return listOf(225f)
+
+    val startAngle = 45f
+    val sweep = 270f
+
+    return List(count) { index -> startAngle + sweep * index.toFloat() / (count - 1) }
+}
+
+@Composable
+private fun RadialMenuItem(
+    label: String,
+    offset: IntOffset,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = LocalKeyboardScheme.current
+
+    Box(
+        modifier = Modifier
+            .offset { offset }
+            .size(42.dp)
+            .drawBehind {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(colors.keyboardContainer, colors.keyboardSurfaceDim)
+                    ),
+                    radius = size.minDimension / 2
+                )
+            }
+            .clip(CircleShape)
+            .background(Color.Transparent)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = colors.onKeyboardContainer,
+            maxLines = 2
+        )
+    }
+}
+
+@Composable
+private fun RadialMenu(
+    prompts: List<SystemPrompt>,
+    isGenerating: Boolean,
+    onSelect: (SystemPrompt) -> Unit
+) {
+    val density = LocalDensity.current
+    val radiusPx = with(density) { 110.dp.toPx() }
+
+    val angles = remember(prompts) { buildAngles(prompts.size) }
+
+    Box(
+        modifier = Modifier
+            .size(220.dp)
+            .semantics { testTag = "AiReplyRadialMenu" },
+        contentAlignment = Alignment.Center
+    ) {
+        prompts.forEachIndexed { index, prompt ->
+            val angleRad = angles[index] * PI.toFloat() / 180f
+            val x = cos(angleRad) * radiusPx
+            val y = -sin(angleRad) * radiusPx
+            RadialMenuItem(
+                label = prompt.name,
+                offset = IntOffset(x.roundToInt(), y.roundToInt()),
+                enabled = !isGenerating
+            ) {
+                onSelect(prompt)
+            }
+        }
+
+        val colors = LocalKeyboardScheme.current
+        Box(
+            modifier = Modifier
+                .size(84.dp)
+                .drawBehind {
+                    drawCircle(color = colors.keyboardContainer)
+                }
+                .clip(CircleShape)
+                .background(Color.Transparent),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.text_prediction),
+                contentDescription = stringResource(id = R.string.action_ai_reply_title),
+                tint = colors.onKeyboardContainer
+            )
+        }
+    }
+}
+
+private class AiReplyRadialWindow(
+    private val manager: KeyboardManagerForAction
+) : ActionWindow() {
+    override val showHeaderBar: Boolean = false
+    override val onlyShowAboveKeyboard: Boolean = true
+
+    @Composable
+    override fun windowName(): String = stringResource(R.string.action_ai_reply_title)
+
+    @Composable
+    override fun WindowContents(keyboardShown: Boolean) {
+        val context = LocalContext.current
+        val coroutineScope = rememberCoroutineScope()
+        val snackbarHostState = remember { SnackbarHostState() }
+        val promptItem = useDataStore(AI_REPLY_PROMPT)
+        val systemPromptsItem = useDataStore(AI_REPLY_SYSTEM_PROMPTS)
+        val prompts = remember(systemPromptsItem.value) {
+            SystemPromptManager.parsePrompts(systemPromptsItem.value)
+        }
+        val isGenerating = remember { mutableStateOf(false) }
+        val seedText = remember {
+            mutableStateOf(
+                AiReplyActionHolder.pendingText.takeIf { it.isNotBlank() }
+                    ?: latestClipboardText(context)
+                    ?: ""
+            )
+        }
+
+        LaunchedEffect(Unit) {
+            AiReplyActionHolder.pendingText = ""
+        }
+
+        fun generate(prompt: SystemPrompt) {
+            if (isGenerating.value) return
+
+            val apiKey = context.getSetting(GROQ_REPLY_API_KEY)
+            val model = context.getSetting(GROQ_REPLY_MODEL)
+            val baseText = seedText.value
+
+            if (apiKey.isBlank()) {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(context.getString(R.string.groq_api_key_required))
+                }
+                return
+            }
+
+            if (baseText.isBlank()) {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(context.getString(R.string.ai_reply_prompt_placeholder))
+                }
+                return
+            }
+
+            isGenerating.value = true
+
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val userPrompt = buildString {
+                        if (promptItem.value.isNotBlank()) append(promptItem.value).append('\n')
+                        append(baseText)
+                    }
+
+                    val response = GroqChatApi.chat(
+                        systemPrompt = prompt.prompt,
+                        userPrompt = userPrompt,
+                        apiKey = apiKey,
+                        model = model
+                    )
+
+                    if (response != null) {
+                        withContext(Dispatchers.Main) {
+                            manager.typeText(response)
+                            manager.closeActionWindow()
+                        }
+                    } else {
+                        throw Exception("No response received from Groq API")
+                    }
+                } catch (t: Throwable) {
+                    withContext(Dispatchers.Main) {
+                        val errorMsg = context.getString(
+                            R.string.ai_reply_error,
+                            t.message ?: context.getString(R.string.unknown_error)
+                        )
+                        snackbarHostState.showSnackbar(errorMsg)
+                    }
+                } finally {
+                    withContext(Dispatchers.Main) {
+                        isGenerating.value = false
+                    }
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { manager.closeActionWindow() })
+                }
+                .padding(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .pointerInput(Unit) { detectTapGestures {} },
+                contentAlignment = Alignment.Center
+            ) {
+                RadialMenu(
+                    prompts = prompts,
+                    isGenerating = isGenerating.value,
+                    onSelect = { generate(it) }
+                )
+
+                if (isGenerating.value) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp)
+            )
+        }
+    }
+}
+
 object AiReplyActionHolder { var pendingText: String = "" }
+
+val AiReplyRadialAction = Action(
+    icon = R.drawable.text_prediction,
+    name = R.string.action_ai_reply_title,
+    simplePressImpl = null,
+    windowImpl = { manager, _ ->
+        AiReplyRadialWindow(manager)
+    },
+    shownInEditor = false
+)
 
 val AiReplyAction = Action(
     icon = R.drawable.text_prediction,
@@ -412,5 +668,11 @@ val AiReplyAction = Action(
         }
         AiReplyActionHolder.pendingText = ""
         AiReplyWindow(manager, text)
+    },
+    altPressImpl = { manager, _ ->
+        if (AiReplyActionHolder.pendingText.isBlank()) {
+            AiReplyActionHolder.pendingText = latestClipboardText(manager.getContext()) ?: ""
+        }
+        manager.activateAction(AiReplyRadialAction)
     }
 )
