@@ -7,6 +7,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 ## Features
 
 - Offline-first keyboard with privacy-focused design.
+- Toast messages appear near the top of the screen so they don't cover the keyboard or the text field you're using.
 - Settings search bar integrated into the settings screen with a helpful "Settings search or try typing here." placeholder. The field grows to fit long queries.
 - Most extra features, such as Quick Switch, can be enabled or disabled from the settings.
 - AMOLED friendly dark themes with purple, red, blue, and green accents for battery savings.

@@ -47,20 +47,13 @@ fun String.urlDecode(): String {
 
 fun Context.makeToastAboveKeyboard(text: CharSequence, duration: Int = Toast.LENGTH_SHORT): Toast {
     val toast = Toast.makeText(this, text, duration)
-
     val latinIME = this as? LatinIME ?: return toast
-    val view = latinIME.composeView ?: return toast
-    if (view.height <= 0) return toast
 
-    val location = IntArray(2)
-    view.getLocationOnScreen(location)
-    val imeTop = location[1]
-    if (imeTop <= 0) return toast
+    val statusBarId = resources.getIdentifier("status_bar_height", "dimen", "android")
+    val statusBarHeight = if (statusBarId > 0) resources.getDimensionPixelSize(statusBarId) else 0
+    val yOffset = (statusBarHeight + fromDp(72f)).toInt()
 
-    val screenHeight = resources.displayMetrics.heightPixels
-    val keyboardHeight = screenHeight - imeTop
-    val yOffset = (keyboardHeight + fromDp(48f)).toInt()
-    toast.setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL, 0, yOffset)
+    toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, yOffset)
     return toast
 }
 
