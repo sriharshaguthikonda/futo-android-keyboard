@@ -45,7 +45,7 @@ object GroqWhisperApi {
         return header.array() + pcmData
     }
 
-    fun transcribe(samples: FloatArray, apiKey: String, model: String): String? {
+    fun transcribe(samples: FloatArray, apiKey: String, model: String, systemPrompt: String? = null): String? {
         if(apiKey.isBlank()) return null
         return try {
             DebugLogger.log("Groq transcribe start model=$model, samples=${samples.size}")
@@ -72,6 +72,12 @@ object GroqWhisperApi {
             writeString("--$boundary\r\n")
             writeString("Content-Disposition: form-data; name=\"model\"\r\n\r\n")
             writeString("$model\r\n")
+            if (!systemPrompt.isNullOrBlank()) {
+                writeString("--$boundary\r\n")
+                writeString("Content-Disposition: form-data; name=\"prompt\"\r\n\r\n")
+                writeString("$systemPrompt\r\n")
+            }
+
             writeString("--$boundary--\r\n")
             out.flush()
             out.close()

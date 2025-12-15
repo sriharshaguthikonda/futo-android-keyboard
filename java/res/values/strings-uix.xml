@@ -573,13 +573,15 @@
     <string name="groq_reply_settings_title">Groq Reply API</string>
     <string name="groq_reply_settings_api_key">Groq reply API key</string>
     <string name="groq_reply_settings_model">Groq reply model</string>
-    <string name="groq_voice_settings_title">Groq Voice API</string>
-    <string name="groq_voice_settings_api_key">Groq voice API key</string>
-    <string name="groq_voice_settings_model">Groq voice model</string>
+    <string name="groq_voice_settings_title">Groq Whisper</string>
+    <string name="groq_voice_settings_api_key">API key</string>
+    <string name="groq_voice_settings_model">Model</string>
+    <string name="groq_voice_settings_system_prompt">System prompt</string>
+    <string name="groq_voice_settings_system_prompt_placeholder">Optional context to guide transcription (e.g., names, jargon)</string>
+    <string name="groq_settings_testing">Testing…</string>
     <string name="groq_settings_test">Test connection</string>
-    <string name="groq_settings_testing">Testing...</string>
-    <string name="groq_settings_success">Success</string>
-    <string name="groq_settings_failure">Failed</string>
+    <string name="groq_settings_success">Test successful!</string>
+    <string name="groq_settings_failure">Test failed. Check your API key.</string>
 
     <!-- Prediction menu -->
     <string name="prediction_settings_title">Text Prediction</string>

@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
+import org.futo.inputmethod.latin.uix.GROQ_VOICE_SYSTEM_PROMPT
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
 import org.futo.inputmethod.latin.uix.settings.SettingItem
@@ -27,6 +28,7 @@ fun GroqWhisperConfigScreen(navController: NavHostController = rememberNavContro
     val lifecycleOwner = LocalLifecycleOwner.current
     val apiKeyItem = useDataStore(GROQ_VOICE_API_KEY)
     val modelItem = useDataStore(GROQ_VOICE_MODEL)
+    val systemPromptItem = useDataStore(GROQ_VOICE_SYSTEM_PROMPT)
     val testStatus = remember { mutableStateOf("") }
     val modelOptions = remember { mutableStateOf(listOf("whisper-large-v3")) }
     val modelsLoading = remember { mutableStateOf(false) }
@@ -74,6 +76,12 @@ fun GroqWhisperConfigScreen(navController: NavHostController = rememberNavContro
             title = stringResource(R.string.groq_voice_settings_api_key),
             placeholder = "sk-...",
             field = GROQ_VOICE_API_KEY
+        )
+
+        SettingTextField(
+            title = stringResource(R.string.groq_voice_settings_system_prompt),
+            placeholder = stringResource(R.string.groq_voice_settings_system_prompt_placeholder),
+            field = GROQ_VOICE_SYSTEM_PROMPT
         )
 
         // Models dropdown with loading and error states
