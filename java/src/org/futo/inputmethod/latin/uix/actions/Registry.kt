@@ -45,7 +45,8 @@ val AllActionsMap = mapOf(
     "font_typer" to FontTyperAction,
     "switch_apps" to SwitchAppsAction,
     "ai_reply" to AiReplyAction,
-    "insert_last_screenshot" to InsertLastScreenshotAction
+    "insert_last_screenshot" to InsertLastScreenshotAction,
+    "ai_reply_radial" to AiReplyRadialAction
 )
 
 val ActionToId = AllActionsMap.entries.associate { it.value to it.key }
