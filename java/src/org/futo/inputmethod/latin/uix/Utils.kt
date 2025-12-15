@@ -58,7 +58,8 @@ fun Context.makeToastAboveKeyboard(text: CharSequence, duration: Int = Toast.LEN
     if (imeTop <= 0) return toast
 
     val screenHeight = resources.displayMetrics.heightPixels
-    val yOffset = (screenHeight - imeTop + fromDp(12f)).toInt()
+    val keyboardHeight = screenHeight - imeTop
+    val yOffset = (keyboardHeight + fromDp(48f)).toInt()
     toast.setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL, 0, yOffset)
     return toast
 }
