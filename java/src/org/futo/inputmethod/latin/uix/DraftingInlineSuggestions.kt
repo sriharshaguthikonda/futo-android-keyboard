@@ -1,7 +1,10 @@
 package org.futo.inputmethod.latin.uix
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
+import android.view.inputmethod.InlineSuggestion
+import androidx.annotation.RequiresApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.futo.inputmethod.latin.BuildConfig
@@ -9,7 +12,6 @@ import org.futo.inputmethod.latin.xlm.ModelPaths
 
 class DraftingModelRunner(private val context: Context) {
     companion object {
-        private const val TAG = "DraftingInline"
         private const val DEBUG = BuildConfig.DEBUG
     }
 
@@ -44,5 +46,53 @@ class DraftingModelRunner(private val context: Context) {
         )
         logDebug("Generated stub drafting suggestions: $suggestions")
         return@withContext suggestions
+    }
+}
+
+private const val TAG = "DraftingInline"
+
+class DraftingInlineSuggestionController {
+    @RequiresApi(Build.VERSION_CODES.R)
+    fun onInputEvent(
+        inlineToggleEnabled: Boolean,
+        hasExistingInlineSuggestion: Boolean,
+        textIsBlank: Boolean,
+        cursorContext: CharSequence?,
+        suggestions: List<InlineSuggestion>,
+        onChipCreated: (InlineSuggestion) -> Unit = {},
+        onChipCommitted: (InlineSuggestion) -> Unit = {}
+    ) {
+        Log.d(TAG, "toggle=$inlineToggleEnabled apiOk=${Build.VERSION.SDK_INT >= Build.VERSION_CODES.R}")
+
+        if (!inlineToggleEnabled) {
+            Log.d(TAG, "inline disabled")
+            return
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            Log.d(TAG, "api too low")
+            return
+        }
+
+        if (hasExistingInlineSuggestion) {
+            Log.d(TAG, "existing inline suggestion")
+            return
+        }
+
+        if (textIsBlank) {
+            Log.d(TAG, "blank text")
+            return
+        }
+
+        Log.d(TAG, "cursorContextLen=${cursorContext?.length ?: 0}")
+        Log.d(TAG, "suggestionCount=${suggestions.size}")
+
+        val suggestion = suggestions.firstOrNull() ?: return
+
+        Log.d(TAG, "chipCreated")
+        onChipCreated(suggestion)
+
+        Log.d(TAG, "chipCommitted")
+        onChipCommitted(suggestion)
     }
 }
