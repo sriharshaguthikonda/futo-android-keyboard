@@ -835,9 +835,9 @@ fun ActionBar(
                     if (importantNotice != null) {
                         ImportantNoticeView(importantNotice)
                     } else {
-                        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                            && inlineSuggestions.isNotEmpty()
-                        ) {
+                        val showingInlineSuggestions = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && inlineSuggestions.isNotEmpty()
+
+                        if(showingInlineSuggestions) {
                             InlineSuggestions(inlineSuggestions)
                         } else if(quickClipState != null) {
                             QuickClipView(quickClipState, onQuickClipDismiss)
@@ -862,9 +862,7 @@ fun ActionBar(
                             Spacer(modifier = Modifier.weight(1.0f))
                         }
 
-                        if(inlineSuggestions.isEmpty()) {
-                            PinnedActionItems(onActionActivated, onActionAltActivated)
-                        }
+                        PinnedActionItems(onActionActivated, onActionAltActivated)
                     }
                 }
             }
