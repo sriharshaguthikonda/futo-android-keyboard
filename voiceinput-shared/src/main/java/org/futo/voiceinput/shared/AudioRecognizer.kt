@@ -93,6 +93,7 @@ data class AudioRecognizerSettings(
     val recordingConfiguration: RecordingSettings,
     val groqApiKey: String,
     val groqModel: String,
+    val groqSystemPrompt: String,
     val useGpuOffload: Boolean
 )
 
@@ -593,7 +594,8 @@ class AudioRecognizer(
                     org.futo.voiceinput.shared.groq.GroqWhisperApi.transcribe(
                         floatArray, 
                         settings.groqApiKey, 
-                        settings.groqModel
+                        settings.groqModel,
+                        settings.groqSystemPrompt.ifBlank { null }
                     )
                 }
                 

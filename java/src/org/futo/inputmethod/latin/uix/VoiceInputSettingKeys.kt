@@ -80,6 +80,11 @@ val GROQ_VOICE_MODEL = SettingsKey(
     default = "whisper-large-v3"
 )
 
+val GROQ_VOICE_SYSTEM_PROMPT = SettingsKey(
+    key = stringPreferencesKey("groq_voice_system_prompt"),
+    default = ""
+)
+
 val USE_GPU_OFFLOAD = SettingsKey(
     key = booleanPreferencesKey("use_gpu_offload"),
     default = false
