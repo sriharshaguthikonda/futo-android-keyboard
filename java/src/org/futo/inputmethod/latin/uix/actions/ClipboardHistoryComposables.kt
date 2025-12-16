@@ -531,6 +531,7 @@ fun ClipboardHistoryWindowContent(
     val view = LocalView.current
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
+    val showPinnedOnTopState = useDataStore(ClipboardShowPinnedOnTop, blocking = true)
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Title bar now owns the search field; keep focus reset on close.
