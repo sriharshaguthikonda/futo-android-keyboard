@@ -46,4 +46,11 @@
         android:textColor="@color/key_text_color_lxx_dark"
         android:text="@string/cursor_overlay_horizontal"
         android:visibility="gone" />
+    <View
+        android:id="@+id/cursor_overlay_center"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_gravity="center"
+        android:background="@drawable/cursor_joystick_background"
+        android:visibility="gone" />
 </org.futo.inputmethod.latin.InputView>

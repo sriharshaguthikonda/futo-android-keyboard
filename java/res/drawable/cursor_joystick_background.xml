@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <size android:width="72dp" android:height="72dp" />
+    <solid android:color="@color/gesture_trail_color_lxx_dark" />
+    <stroke android:width="2dp" android:color="@color/key_text_color_lxx_dark" />
+    <padding android:left="12dp" android:top="12dp" android:right="12dp" android:bottom="12dp" />
+</shape>
