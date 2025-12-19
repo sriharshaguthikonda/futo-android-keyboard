@@ -224,6 +224,8 @@ private class VoiceInputActionWindow(
 
     private var recognizerView: MutableState<RecognizerView?> = mutableStateOf(null)
     private var modelException: MutableState<ModelDoesNotExistException?> = mutableStateOf(null)
+    private var isListening = false
+    private var closeAfterFinish = false
 
     private val initJob = manager.getLifecycleScope().launch {
         yield()
@@ -288,6 +290,11 @@ private class VoiceInputActionWindow(
     }
 
     override fun close(): CloseResult {
+        if (isListening) {
+            closeAfterFinish = true
+            recognizerView.value?.finish()
+            return CloseResult.PreventClosing
+        }
         inputTransaction.cancel()
         runBlocking { initJob.cancelAndJoin() }
         recognizerView.value?.cancel()
@@ -305,12 +312,19 @@ private class VoiceInputActionWindow(
             }
             inputTransaction.cancel()
         }
+        isListening = false
+        if (closeAfterFinish) {
+            closeAfterFinish = false
+            manager.closeActionWindow()
+            manager.getLatinIMEForDebug().requestHideSelf(0)
+        }
     }
 
     override fun recordingStarted(device: MicrophoneDeviceState) {
         if (shouldPlaySounds) {
             state.soundPlayer.playStartSound()
         }
+        isListening = true
 
         // Only set the setting if bluetooth is available, else it would reset the setting
         // every time it's used without a bluetooth device connected.
@@ -325,6 +339,7 @@ private class VoiceInputActionWindow(
         wasFinished = true
 
         manager.getLifecycleScope().launch(Dispatchers.Main) {
+            isListening = false
             val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
             inputTransaction.commit(sanitized)
             val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -332,6 +347,10 @@ private class VoiceInputActionWindow(
             clipboardManager.setPrimaryClip(clipData)
             manager.announce(result)
             manager.closeActionWindow()
+            if (closeAfterFinish) {
+                closeAfterFinish = false
+                manager.getLatinIMEForDebug().requestHideSelf(0)
+            }
         }
     }
 
@@ -442,6 +461,7 @@ private class VoiceInputBottomBarWindow(
 
     private var recognizerView: MutableState<RecognizerView?> = mutableStateOf(null)
     private var modelException: MutableState<ModelDoesNotExistException?> = mutableStateOf(null)
+    private var closeAfterFinish = false
 
     private val initJob = manager.getLifecycleScope().launch {
         yield()
@@ -806,6 +826,12 @@ private class VoiceInputBottomBarWindow(
     }
 
     override fun close(): CloseResult {
+        if (isListening.value) {
+            closeAfterFinish = true
+            statusText.value = "Stopping…"
+            recognizerView.value?.finish()
+            return CloseResult.PreventClosing
+        }
         inputTransaction?.cancel()
         inputTransaction = null
         runBlocking { initJob.cancelAndJoin() }
@@ -827,6 +853,11 @@ private class VoiceInputBottomBarWindow(
         }
         isListening.value = false
         statusText.value = "Cancelled"
+        if (closeAfterFinish) {
+            closeAfterFinish = false
+            manager.closeActionWindow()
+            manager.getLatinIMEForDebug().requestHideSelf(0)
+        }
     }
 
     override fun recordingStarted(device: MicrophoneDeviceState) {
@@ -866,6 +897,11 @@ private class VoiceInputBottomBarWindow(
         val clipData = ClipData.newPlainText(context.getString(R.string.action_voice_input_title), sanitized)
         clipboardManager.setPrimaryClip(clipData)
         manager.announce(result)
+        if (closeAfterFinish) {
+            closeAfterFinish = false
+            manager.closeActionWindow()
+            manager.getLatinIMEForDebug().requestHideSelf(0)
+        }
     }
 
     override fun partialResult(result: String) {
