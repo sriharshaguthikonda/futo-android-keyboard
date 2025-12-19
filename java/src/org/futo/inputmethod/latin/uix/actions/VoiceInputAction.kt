@@ -226,6 +226,7 @@ private class VoiceInputActionWindow(
     private var modelException: MutableState<ModelDoesNotExistException?> = mutableStateOf(null)
     private var isListening = false
     private var closeAfterFinish = false
+    private var finishRequested = false
 
     private val initJob = manager.getLifecycleScope().launch {
         yield()
@@ -291,6 +292,14 @@ private class VoiceInputActionWindow(
 
     override fun close(): CloseResult {
         if (isListening) {
+            if (finishRequested) {
+                finishRequested = false
+                closeAfterFinish = false
+                recognizerView.value?.cancel()
+                isListening = false
+                return CloseResult.Default
+            }
+            finishRequested = true
             closeAfterFinish = true
             recognizerView.value?.finish()
             return CloseResult.PreventClosing
@@ -313,10 +322,14 @@ private class VoiceInputActionWindow(
             inputTransaction.cancel()
         }
         isListening = false
+        finishRequested = false
         if (closeAfterFinish) {
             closeAfterFinish = false
             manager.closeActionWindow()
-            manager.getLatinIMEForDebug().requestHideSelf(0)
+            manager.getLifecycleScope().launch(Dispatchers.Main) {
+                delay(50)
+                manager.getLatinIMEForDebug().requestHideSelf(0)
+            }
         }
     }
 
@@ -340,6 +353,7 @@ private class VoiceInputActionWindow(
 
         manager.getLifecycleScope().launch(Dispatchers.Main) {
             isListening = false
+            finishRequested = false
             val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
             inputTransaction.commit(sanitized)
             val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -349,6 +363,7 @@ private class VoiceInputActionWindow(
             manager.closeActionWindow()
             if (closeAfterFinish) {
                 closeAfterFinish = false
+                delay(50)
                 manager.getLatinIMEForDebug().requestHideSelf(0)
             }
         }
@@ -462,6 +477,7 @@ private class VoiceInputBottomBarWindow(
     private var recognizerView: MutableState<RecognizerView?> = mutableStateOf(null)
     private var modelException: MutableState<ModelDoesNotExistException?> = mutableStateOf(null)
     private var closeAfterFinish = false
+    private var finishRequested = false
 
     private val initJob = manager.getLifecycleScope().launch {
         yield()
@@ -827,6 +843,15 @@ private class VoiceInputBottomBarWindow(
 
     override fun close(): CloseResult {
         if (isListening.value) {
+            if (finishRequested) {
+                finishRequested = false
+                closeAfterFinish = false
+                recognizerView.value?.cancel()
+                isListening.value = false
+                statusText.value = "Cancelled"
+                return CloseResult.Default
+            }
+            finishRequested = true
             closeAfterFinish = true
             statusText.value = "Stopping…"
             recognizerView.value?.finish()
@@ -853,10 +878,14 @@ private class VoiceInputBottomBarWindow(
         }
         isListening.value = false
         statusText.value = "Cancelled"
+        finishRequested = false
         if (closeAfterFinish) {
             closeAfterFinish = false
-            manager.closeActionWindow()
-            manager.getLatinIMEForDebug().requestHideSelf(0)
+            manager.getLifecycleScope().launch(Dispatchers.Main) {
+                manager.closeActionWindow()
+                delay(50)
+                manager.getLatinIMEForDebug().requestHideSelf(0)
+            }
         }
     }
 
@@ -882,25 +911,29 @@ private class VoiceInputBottomBarWindow(
 
     override fun finished(result: String) {
         wasFinished = true
-        isListening.value = false
-        statusText.value = "Done"
+        manager.getLifecycleScope().launch(Dispatchers.Main) {
+            isListening.value = false
+            statusText.value = "Done"
+            finishRequested = false
 
-        val transaction = inputTransaction ?: run {
-            val t = manager.createInputTransaction()
-            inputTransaction = t
-            t
-        }
-        val sanitized = ModelOutputSanitizer.sanitize(result, transaction.textContext, manager.isCapsLocked())
-        transaction.commit(sanitized)
-        inputTransaction = null
-        val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clipData = ClipData.newPlainText(context.getString(R.string.action_voice_input_title), sanitized)
-        clipboardManager.setPrimaryClip(clipData)
-        manager.announce(result)
-        if (closeAfterFinish) {
-            closeAfterFinish = false
-            manager.closeActionWindow()
-            manager.getLatinIMEForDebug().requestHideSelf(0)
+            val transaction = inputTransaction ?: run {
+                val t = manager.createInputTransaction()
+                inputTransaction = t
+                t
+            }
+            val sanitized = ModelOutputSanitizer.sanitize(result, transaction.textContext, manager.isCapsLocked())
+            transaction.commit(sanitized)
+            inputTransaction = null
+            val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clipData = ClipData.newPlainText(context.getString(R.string.action_voice_input_title), sanitized)
+            clipboardManager.setPrimaryClip(clipData)
+            manager.announce(result)
+            if (closeAfterFinish) {
+                closeAfterFinish = false
+                manager.closeActionWindow()
+                delay(50)
+                manager.getLatinIMEForDebug().requestHideSelf(0)
+            }
         }
     }
 
