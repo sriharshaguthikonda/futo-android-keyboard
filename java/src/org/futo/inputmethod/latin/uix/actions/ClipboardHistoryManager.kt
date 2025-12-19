@@ -78,10 +78,17 @@ class ClipboardHistoryManager(val context: Context, val coroutineScope: Lifecycl
 
             // TODO: Support images and other non-text media
             if ((!isSensitive || canSaveSensitive) && (text != null || uri != null)) {
-                val hasDuplicate = clipboardHistory.any {
+                val duplicateIndex = clipboardHistory.indexOfFirst {
                     it.text == text && it.uri == uri && it.mimeTypes == mimeTypes
                 }
-                if (hasDuplicate) return
+                if (duplicateIndex != -1) {
+                    val existing = clipboardHistory.removeAt(duplicateIndex)
+                    clipboardHistory.add(
+                        existing.copy(timestamp = timestamp)
+                    )
+                    saveClipboard()
+                    return
+                }
 
                 val isAlreadyPinned = clipboardHistory.firstOrNull {
                     ((it.text != null && it.text == text) || (it.uri != null && it.uri == uri)) && it.pinned
