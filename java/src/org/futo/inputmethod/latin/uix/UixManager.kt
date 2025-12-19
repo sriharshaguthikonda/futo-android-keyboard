@@ -102,6 +102,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.futo.inputmethod.accessibility.AccessibilityUtils
 import org.futo.inputmethod.event.Event
 import org.futo.inputmethod.latin.AudioAndHapticFeedbackManager
@@ -122,6 +123,7 @@ import org.futo.inputmethod.latin.uix.actions.ActionRegistry
 import org.futo.inputmethod.latin.uix.actions.AllActions
 import org.futo.inputmethod.latin.uix.actions.KeyboardModeAction
 import org.futo.inputmethod.latin.uix.actions.PersistentEmojiState
+import org.futo.inputmethod.latin.uix.actions.VoiceInputAction
 import org.futo.inputmethod.latin.uix.actions.keyCode
 import org.futo.inputmethod.latin.uix.actions.keyCodeAlt
 import org.futo.inputmethod.latin.uix.resizing.KeyboardResizers
@@ -1650,6 +1652,20 @@ class UixManager(private val latinIME: LatinIME) {
         }
 
         quickClipState.value = QuickClip.getCurrentState(latinIME)
+    }
+
+    fun maybeAutoStartVoiceInput(restarting: Boolean) {
+        if (restarting) return
+        if (!latinIME.getSetting(START_VOICE_ON_OPEN)) return
+        if (currWindowAction.value != null || currWindowActionWindow.value != null) return
+        if (isShowingActionEditor.value) return
+
+        latinIME.lifecycleScope.launch(Dispatchers.Main) {
+            yield()
+            if (currWindowAction.value == null && currWindowActionWindow.value == null) {
+                onActionActivated(VoiceInputAction)
+            }
+        }
     }
 
     fun onInputFinishing() {
