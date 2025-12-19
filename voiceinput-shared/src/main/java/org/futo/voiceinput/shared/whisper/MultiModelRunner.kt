@@ -23,7 +23,8 @@ data class MultiModelRunConfiguration(
 data class DecodingConfiguration(
     val glossary: List<String>,
     val languages: Set<Language>,
-    val suppressSymbols: Boolean
+    val suppressSymbols: Boolean,
+    val systemPrompt: String = ""
 )
 
 class MultiModelRunner(
@@ -65,12 +66,16 @@ class MultiModelRunner(
         } else {
             ""
         }
+        val systemPrompt = decodingConfiguration.systemPrompt.trim()
+        val prompt = listOf(glossary, systemPrompt)
+            .filter { it.isNotBlank() }
+            .joinToString(separator = "\n")
 
         val result = try {
             callback.updateStatus(InferenceState.Encoding)
             primaryModel.infer(
                 samples = samples,
-                prompt = glossary,
+                prompt = prompt,
                 languages = allowedLanguages,
                 bailLanguages = bailLanguages,
                 decodingMode = DecodingMode.BeamSearch5,
@@ -88,7 +93,7 @@ class MultiModelRunner(
 
             specificModel.infer(
                 samples = samples,
-                prompt = glossary,
+                prompt = prompt,
                 languages = arrayOf(e.language),
                 bailLanguages = arrayOf(),
                 decodingMode = DecodingMode.BeamSearch5,
