@@ -396,6 +396,9 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
         currentMode = if(it.prefersSplit) KeyboardMode.Split else KeyboardMode.Regular
     ) }
 
+    /// Allows empty ranges, may be less than min if max is smaller than min
+    private fun Int.coerceInLoosely(min: Int, max: Int) = coerceAtLeast(min).coerceAtMost(max)
+
     fun calculate(layoutName: String, settings: SettingsValues): ComputedKeyboardSize? {
         val savedSettings = getSavedSettings()
 
@@ -409,7 +412,14 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
         val effectiveRowCount = effectiveRows.size
 
         val displayMetrics = context.resources.displayMetrics
-        if(displayMetrics.widthPixels == 0) return null // Unable to calculate yet
+        var displayWidth = displayMetrics.widthPixels
+        var displayHeight = displayMetrics.heightPixels
+        if(displayWidth == 0 || displayHeight == 0) {
+            // Just assume something so we don't have to return null
+            // TODO: Maybe better handling
+            displayWidth = 720
+            displayHeight = 1280
+        }
 
         val heightAddition = when(savedSettings.currentMode) {
             KeyboardMode.Regular -> dp(savedSettings.heightAdditionDp)
@@ -470,7 +480,7 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                     && foldState != null
                     && foldState.state == FoldingFeature.State.HALF_OPENED
                     && foldState.orientation == FoldingFeature.Orientation.HORIZONTAL -> {
-                val totalHeight = displayMetrics.heightPixels / 2 - (displayMetrics.density * 80.0f).toInt()
+                val totalHeight = displayHeight / 2 - (displayMetrics.density * 80.0f).toInt()
                 val singleRowHeight = totalHeight / numRows
                 SplitKeyboardSize(
                     width = width,
@@ -482,7 +492,7 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                         (displayMetrics.density * 44.0f).roundToInt(),
                         (displayMetrics.density * 12.0f).roundToInt(),
                     ),
-                    splitLayoutWidth = displayMetrics.widthPixels * 3 / 5
+                    splitLayoutWidth = displayWidth * 3 / 5
                 )
             }
 
@@ -492,8 +502,8 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                     height = recommendedHeight.roundToInt(),
                     singleRowHeight = singularRowHeight.roundToInt(),
                     padding = padding,
-                    splitLayoutWidth = (displayMetrics.widthPixels * savedSettings.splitWidthFraction).toInt()
-                        .coerceIn(dp(48), displayMetrics.widthPixels * 9 / 10)
+                    splitLayoutWidth = (displayWidth * savedSettings.splitWidthFraction).toInt()
+                        .coerceInLoosely(dp(48), displayWidth * 9 / 10)
                 )
 
             savedSettings.currentMode == KeyboardMode.OneHanded ->
@@ -503,7 +513,7 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                     singleRowHeight = singularRowHeight.roundToInt(),
                     padding = padding,
                     layoutWidth = dp(savedSettings.oneHandedRectDp.width)
-                        .coerceIn(dp(48), displayMetrics.widthPixels * 9 / 10),
+                        .coerceInLoosely(dp(48), displayWidth * 9 / 10),
                     direction = savedSettings.oneHandedDirection
                 )
 
@@ -515,8 +525,8 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
                         dp(savedSettings.floatingBottomOriginDp.first),
                         dp(savedSettings.floatingBottomOriginDp.second)
                     ),
-                    width = dp(savedSettings.floatingWidthDp).coerceIn(dp(48), displayMetrics.widthPixels),
-                    height = recommendedHeightFloat.toInt().coerceIn(dp(88), displayMetrics.heightPixels),
+                    width = dp(savedSettings.floatingWidthDp).coerceInLoosely(dp(48), displayWidth),
+                    height = recommendedHeightFloat.toInt().coerceInLoosely(dp(88), displayHeight),
                     singleRowHeight = singularRowHeightFloat.roundToInt(),
                     padding = padding
                 )
@@ -532,7 +542,7 @@ class KeyboardSizingCalculator(val context: Context, val uixManager: UixManager)
 
             else ->
                 RegularKeyboardSize(
-                    width = width.coerceIn(dp(48), displayMetrics.widthPixels),
+                    width = width.coerceInLoosely(dp(48), displayWidth),
                     height = recommendedHeight.roundToInt(),
                     singleRowHeight = singularRowHeight.roundToInt(),
                     padding = padding,

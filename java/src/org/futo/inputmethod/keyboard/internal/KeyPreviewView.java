@@ -27,6 +27,8 @@ import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
 
+import androidx.annotation.Nullable;
+
 import org.futo.inputmethod.keyboard.Key;
 import org.futo.inputmethod.latin.R;
 import org.futo.inputmethod.latin.uix.DynamicThemeProvider;
@@ -63,23 +65,30 @@ public class KeyPreviewView extends androidx.appcompat.widget.AppCompatTextView 
         mDrawableProvider = DynamicThemeProvider.obtainFromContext(context);
     }
 
+    @Nullable
+    private Drawable mIcon;
+
     private Key currKey;
     public void setPreviewVisual(final Key key, final KeyboardIconsSet iconsSet,
-            final KeyDrawParams drawParams) {
+                                 final KeyDrawParams drawParams, int foregroundColor) {
         // What we show as preview should match what we show on a key top in onDraw().
         final String iconId = key.getIconId();
-        if (!Objects.equals(iconId, KeyboardIconsSet.ICON_UNDEFINED)) {
+        if (!Objects.equals(iconId, KeyboardIconsSet.ICON_UNDEFINED) && key.getFlickDirection() == null) {
             setCompoundDrawables(null, null, null, key.getPreviewIcon(iconsSet));
+            mIcon = key.getPreviewIcon(iconsSet);
+            currKey = key;
             setText(null);
             return;
         }
 
+        mIcon = null;
         setCompoundDrawables(null, null, null, null);
-        setTextColor(drawParams.mPreviewTextColor);
+        setTextColor(foregroundColor);
         setTextSize(TypedValue.COMPLEX_UNIT_PX, key.selectTextSize(drawParams));
         setTypeface(mDrawableProvider.selectKeyTypeface(key.selectPreviewTypeface(drawParams)));
         // TODO Should take care of temporaryShiftLabel here.
         setTextAndScaleX(key.getWidth(), key.getPreviewLabel());
+
         currKey = key;
     }
 
@@ -120,20 +129,46 @@ public class KeyPreviewView extends androidx.appcompat.widget.AppCompatTextView 
 
         paint.setTextSize(dim * 0.485f);
 
-        canvas.drawText(
-                currKey.getPreviewLabel(),
-                cx,
-                (int)(height / 2 + paint.getTextSize() / yp),
-                paint
-        );
+        if(mIcon != null) {
+            /*int iconWidth = mIcon.getIntrinsicWidth();
+            if(iconWidth > width) iconWidth = width;
+            iconWidth = iconWidth * 8 / 10;
+
+            mIcon.setBounds(
+                    cx - iconWidth / 2,
+                    height / 2 - iconWidth / 2,
+                    cx + iconWidth / 2,
+                    height / 2 + iconWidth / 2
+            );
+            mIcon.draw(canvas);*/
+        } else {
+            canvas.drawText(
+                    currKey.getPreviewLabel(),
+                    cx,
+                    (int) (height / 2 + paint.getTextSize() / yp),
+                    paint
+            );
+        }
 
         return true;
     }
 
+
+    private Drawable mBackground = null;
+    @Override
+    public void setBackground(Drawable background) {
+        mBackground = background;
+        background.getPadding(mBackgroundPadding);
+    }
+
     @Override
     protected void onDraw(final Canvas canvas) {
-        if(!drawFlickKeys(canvas)) super.onDraw(canvas);
+        mBackground.setBounds(0, 0, getWidth(), getHeight());
+        mBackground.draw(canvas);
 
+        if(!drawFlickKeys(canvas)) {
+            super.onDraw(canvas);
+        }
     }
 
     private void setTextAndScaleX(int maxWidth, final String text) {
@@ -142,13 +177,7 @@ public class KeyPreviewView extends androidx.appcompat.widget.AppCompatTextView 
         if (sNoScaleXTextSet.contains(text)) {
             return;
         }
-        // TODO: Override {@link #setBackground(Drawable)} that is supported from API 16 and
-        // calculate maximum text width.
-        final Drawable background = getBackground();
-        if (background == null) {
-            return;
-        }
-        background.getPadding(mBackgroundPadding);
+
         final float width = getTextWidth(text, getPaint());
         if (width <= maxWidth) {
             sNoScaleXTextSet.add(text);
@@ -194,11 +223,11 @@ public class KeyPreviewView extends androidx.appcompat.widget.AppCompatTextView 
     private static final int STATE_HAS_MOREKEYS = 1;
 
     public void setPreviewBackground(final boolean hasMoreKeys, final int position) {
-        final Drawable background = getBackground();
-        if (background == null) {
-            return;
-        }
-        final int hasMoreKeysState = hasMoreKeys ? STATE_HAS_MOREKEYS : STATE_NORMAL;
-        background.setState(KEY_PREVIEW_BACKGROUND_STATE_TABLE[position][hasMoreKeysState]);
+        //final Drawable background = getBackground();
+        //if (background == null) {
+        //    return;
+        //}
+        //final int hasMoreKeysState = hasMoreKeys ? STATE_HAS_MOREKEYS : STATE_NORMAL;
+        //background.setState(KEY_PREVIEW_BACKGROUND_STATE_TABLE[position][hasMoreKeysState]);
     }
 }

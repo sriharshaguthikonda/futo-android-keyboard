@@ -1,13 +1,19 @@
 package org.futo.inputmethod.engine.general
 
+import android.util.Log
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+
 import org.futo.inputmethod.annotations.UsedForTesting
 import org.futo.inputmethod.engine.GlobalIMEMessage
 import org.futo.inputmethod.engine.IMEHelper
@@ -16,6 +22,7 @@ import org.futo.inputmethod.engine.IMEMessage
 import org.futo.inputmethod.event.Event
 import org.futo.inputmethod.event.InputTransaction
 import org.futo.inputmethod.keyboard.KeyboardSwitcher
+import org.futo.inputmethod.latin.BuildConfig
 import org.futo.inputmethod.latin.DictionaryFacilitator
 import org.futo.inputmethod.latin.DictionaryFacilitatorProvider
 import org.futo.inputmethod.latin.NgramContext
@@ -31,10 +38,13 @@ import org.futo.inputmethod.latin.inputlogic.InputLogic
 import org.futo.inputmethod.latin.settings.Settings
 import org.futo.inputmethod.latin.suggestions.SuggestionStripViewAccessor
 import org.futo.inputmethod.latin.uix.SettingsKey
+import org.futo.inputmethod.latin.uix.actions.throwIfDebug
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.isDirectBootUnlocked
+import org.futo.inputmethod.latin.utils.AsyncResultHolder
 import org.futo.inputmethod.latin.xlm.LanguageModelFacilitator
 import org.futo.inputmethod.v2keyboard.KeyboardLayoutSetV2
+import java.util.concurrent.atomic.AtomicInteger
 
 interface WordLearner {
     fun addToHistory(
@@ -364,8 +374,6 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
 
     override fun onEvent(event: Event) = onEventInternal(event)
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val dictionaryScope = Dispatchers.Default.limitedParallelism(1)
 
 
     override fun onGetSuggestedWords(
@@ -373,6 +381,9 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         inputStyle: Int,
         sequenceNumber: Int
     ) {
+        if(sequenceNumber < sequenceId.get() && inputStyle != SuggestedWords.INPUT_STYLE_TAIL_BATCH) {
+            return
+        }
         val words = when {
             suggestedWords.isEmpty && (inputStyle == SuggestedWords.INPUT_STYLE_TAIL_BATCH ||
                     inputStyle == SuggestedWords.INPUT_STYLE_UPDATE_BATCH
@@ -394,19 +405,79 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
     }
 
     var updateSuggestionJob: Job? = null
-    private fun updateSuggestionsDictionaryInternal(inputStyle: Int) {
-        val sequenceNumber = SuggestedWords.NOT_A_SEQUENCE_NUMBER
-        inputLogic.getSuggestedWords(
-            settings.current,
-            helper.keyboardSwitcher.keyboard ?: return,
-            helper.keyboardShiftMode,
-            inputStyle,
-            sequenceNumber
-        ) { suggestedWords ->
-            onGetSuggestedWords(suggestedWords, inputStyle, sequenceNumber)
+    var lmUpdateJob: Job? = null
+    private fun updateSuggestionsDictionaryInternal(inputStyle: Int, sequenceNumber: Int) {
+        // This method returns null for us if LM is disabled
+        val predictionInputValues = languageModelFacilitator.makePredictionInputValues(inputStyle)
+
+        var dictResult: SuggestedWords? = null
+        var lmResult: ArrayList<SuggestedWordInfo>? = null
+        if(predictionInputValues != null) {
+            // This runs asynchronously
+            val lmResultHolder = AsyncResultHolder<ArrayList<SuggestedWordInfo>?>("LMSuggest")
+            lmUpdateJob?.cancel()
+            lmUpdateJob = helper.lifecycleScope.launch(languageModelFacilitator.languageModelScope) {
+                val result = languageModelFacilitator.getLanguageModelSuggestions(predictionInputValues)
+                lmResultHolder.set(result ?: arrayListOf())
+            }
+
+            // This runs synchronously
+            inputLogic.getSuggestedWords(
+                settings.current,
+                helper.keyboardSwitcher.keyboard ?: return,
+                helper.keyboardShiftMode,
+                inputStyle,
+                sequenceNumber
+            ) { suggestedWords -> dictResult = suggestedWords }
+
+            // Wait for LM to report result
+            lmResult = lmResultHolder.get(null, 350L)
+            if(lmResult == null) languageModelFacilitator.reportTimeout()
+        } else {
+            inputLogic.getSuggestedWords(
+                settings.current,
+                helper.keyboardSwitcher.keyboard ?: return,
+                helper.keyboardShiftMode,
+                inputStyle,
+                sequenceNumber
+            ) { suggestedWords -> dictResult = suggestedWords }
+        }
+
+        @Suppress("KotlinConstantConditions")
+        when {
+            !lmResult.isNullOrEmpty() && dictResult != null && predictionInputValues != null -> {
+                val processed = languageModelFacilitator.processAndMergeSuggestions(
+                    predictionInputValues,
+                    dictResult,
+                    lmResult
+                )
+                if(processed != null) {
+                    onGetSuggestedWords(processed, inputStyle, sequenceNumber)
+                } else {
+                    throwIfDebug(IllegalStateException(
+                        "The processAndMergeSuggestions method should not typically return null"
+                    ))
+
+                    onGetSuggestedWords(dictResult, inputStyle, sequenceNumber)
+                }
+            }
+
+            dictResult != null -> {
+                onGetSuggestedWords(dictResult, inputStyle, sequenceNumber)
+            }
+
+            // Note: we don't support LM results but not dict
+            else -> {
+                setNeutralSuggestionStrip()
+            }
         }
     }
 
+
+    private var sequenceId = AtomicInteger(0)
+    private val sequenceIdCompleted = AtomicInteger(0)
+    private val computationMutex = Mutex()
+    private var timeTakenToUpdate = 40L
     fun updateSuggestions(inputStyle: Int) {
         if(!settings.current.needsToLookupSuggestions()
             && inputStyle != SuggestedWords.INPUT_STYLE_TAIL_BATCH
@@ -417,38 +488,63 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
             return
         }
 
-        if(!languageModelFacilitator.shouldPassThroughToLegacy()) {
-            languageModelFacilitator.updateSuggestionStripAsync(inputStyle)
-        } else {
-            updateSuggestionJob?.cancel()
-            updateSuggestionJob = helper.lifecycleScope.launch {
-                when(inputStyle) {
-                    SuggestedWords.INPUT_STYLE_TYPING -> delay(40L)
-                }
-                withContext(dictionaryScope) {
-                    updateSuggestionsDictionaryInternal(inputStyle)
+        updateSuggestionJob?.cancel()
+        val seqId = sequenceId.incrementAndGet()
+
+        val delayTime = when {
+            // With transformer off keep 40ms static delay for legacy reasons (less battery use)
+            languageModelFacilitator.shouldPassThroughToLegacy() -> 40L
+
+            // On fast devices, prefer to wait less to improve responsiveness
+            else -> 40L.coerceAtMost(timeTakenToUpdate / 2).coerceAtLeast(16L)
+        }
+
+        updateSuggestionJob = helper.lifecycleScope.launch {
+            when(inputStyle) {
+                SuggestedWords.INPUT_STYLE_TYPING -> delay(delayTime)
+            }
+            withContext(NonCancellable + dictionaryScope) {
+                computationMutex.withLock {
+                    // double check in case sequence id incremented after we acquired scope
+                    if (sequenceId.get() > seqId) return@withContext
+
+                    val t0 = System.currentTimeMillis()
+                    updateSuggestionsDictionaryInternal(inputStyle, seqId)
+                    val t1 = System.currentTimeMillis()
+                    timeTakenToUpdate = (timeTakenToUpdate + (t1 - t0)) / 2
+
+                    if(BuildConfig.DEBUG) Log.d(TAG, "Time taken for suggestions update = ${t1-t0} ms (avg $timeTakenToUpdate ms)")
+
+                    sequenceIdCompleted.set(seqId)
                 }
             }
         }
     }
 
     fun ensureSuggestionsCompleted(): Boolean {
-        if(!languageModelFacilitator.shouldPassThroughToLegacy()) {
-            if(languageModelFacilitator.hasPendingUpdate()) {
-                return languageModelFacilitator.blockUntilComplete()
-            } else {
-                // no pending updates
-                return true
-            }
-        } else {
-            if(updateSuggestionJob?.isActive == true) {
-                updateSuggestionJob?.cancel()
-                runBlocking(dictionaryScope) {
-                    updateSuggestionsDictionaryInternal(SuggestedWords.INPUT_STYLE_TYPING)
+        val currJob = updateSuggestionJob
+
+        val seqId = sequenceId.get()
+        if(sequenceIdCompleted.get() < seqId) {
+            currJob?.cancel()
+
+            val newJob = helper.lifecycleScope.launch(NonCancellable + dictionaryScope) {
+                if(sequenceIdCompleted.get() < seqId) {
+                    updateSuggestionsDictionaryInternal(SuggestedWords.INPUT_STYLE_TYPING, seqId)
+                    sequenceIdCompleted.set(seqId)
                 }
             }
-            return true
+
+            updateSuggestionJob = newJob
+
+            return runBlocking {
+                (withTimeoutOrNull(450L) {
+                    newJob.join()
+                    true
+                } == true)
+            }
         }
+        return true
     }
 
     override fun onStartBatchInput() {
@@ -640,5 +736,10 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
     @UsedForTesting
     override fun recycle() {
         inputLogic.recycle()
+    }
+
+    companion object {
+        @OptIn(ExperimentalCoroutinesApi::class)
+        val dictionaryScope = Dispatchers.Default.limitedParallelism(1)
     }
 }

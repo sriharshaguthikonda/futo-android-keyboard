@@ -503,7 +503,7 @@ fun<T> SettingRadio(
 }
 
 @Composable
-private fun<T: Number> SettingSliderForDataStoreItem(
+fun<T: Number> SettingSliderForDataStoreItem(
     title: String,
     item: DataStoreItem<T>,
     default: T,

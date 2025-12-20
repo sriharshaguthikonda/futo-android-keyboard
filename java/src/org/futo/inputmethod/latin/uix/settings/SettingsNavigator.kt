@@ -26,11 +26,13 @@ import org.futo.inputmethod.latin.uix.settings.pages.BlacklistScreen
 import org.futo.inputmethod.latin.uix.settings.pages.BlacklistScreenLite
 import org.futo.inputmethod.latin.uix.settings.pages.CreditsScreen
 import org.futo.inputmethod.latin.uix.settings.pages.CreditsScreenLite
+import org.futo.inputmethod.latin.uix.settings.pages.themes.CustomThemeScreen
 import org.futo.inputmethod.latin.uix.settings.pages.DevEditTextVariationsScreen
 import org.futo.inputmethod.latin.uix.settings.pages.DevKeyboardScreen
 import org.futo.inputmethod.latin.uix.settings.pages.DevLayoutEdit
 import org.futo.inputmethod.latin.uix.settings.pages.DevLayoutEditor
 import org.futo.inputmethod.latin.uix.settings.pages.DevLayoutList
+import org.futo.inputmethod.latin.uix.settings.pages.DevThemeImportScreen
 import org.futo.inputmethod.latin.uix.settings.pages.DeveloperScreen
 import org.futo.inputmethod.latin.uix.settings.pages.HelpMenu
 import org.futo.inputmethod.latin.uix.settings.pages.HomeScreen
@@ -65,6 +67,7 @@ import org.futo.inputmethod.latin.uix.settings.pages.pdict.ConfirmDeleteExtraDic
 import org.futo.inputmethod.latin.uix.settings.pages.pdict.PersonalDictionaryLanguageList
 import org.futo.inputmethod.latin.uix.settings.pages.pdict.PersonalDictionaryLanguageListForLocale
 import org.futo.inputmethod.latin.uix.settings.pages.pdict.WordPopupDialogF
+import org.futo.inputmethod.latin.uix.settings.pages.themes.DeleteCustomThemeDialog
 import org.futo.inputmethod.latin.uix.urlDecode
 import org.futo.inputmethod.latin.uix.urlEncode
 
@@ -154,11 +157,13 @@ fun SettingsNavigator(
             composable("resize") { ResizeScreen(navController) }
             composable("themes") { ThemeScreen(navController) }
             composable("themeGenerator") { ThemeGeneratorScreen(navController) }
+            composable("customTheme/{uri}") { CustomThemeScreen(it.arguments?.getString("uri") ?: "", navController) }
             composable("developer") { DeveloperScreen(navController) }
             composable("devtextedit") { DevEditTextVariationsScreen(navController) }
             composable("devbuggytextedit") { BuggyTextEditVariations(navController) }
             composable("devlayouts") { DevLayoutList(navController) }
             composable("devlayouteditor") { DevLayoutEditor(navController) }
+            composable("devtheme") { DevThemeImportScreen(navController) }
             composable("devkeyboard") { DevKeyboardScreen(navController) }
             composable("devlayoutedit/{i}") {
                 DevLayoutEdit(
@@ -173,6 +178,9 @@ fun SettingsNavigator(
             composable("exportingcfg") { ExportingMenu(navController) }
             composable("groqChat") { GroqChatConfigScreen(navController) }
             composable("groqWhisper") { GroqWhisperConfigScreen(navController) }
+            dialog("deleteTheme/{name}") {
+                DeleteCustomThemeDialog(it.arguments?.getString("name")?.urlDecode() ?: "", navController)
+            }
             composable("credits/thirdparty/{idx}") {
                 ProjectInfoView(
                     it.arguments?.getString("idx")?.toIntOrNull() ?: 0,

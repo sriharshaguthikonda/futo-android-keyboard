@@ -511,12 +511,38 @@
 
     <!-- misc titles -->
     <string name="settings_keyboard_typing_title">Keyboard &amp; Typing</string>
+
     <!-- Theme, as in visual style -->
     <string name="theme_settings_title">Theme</string>
     <string name="theme_settings_key_borders">Key borders</string>
+<<<<<<< HEAD
     <string name="theme_settings_reset_to_default">Reset theme to default</string>
     <string name="theme_settings_reset_to_default_desc">Restore all theme parameters to the default values. Helpful if imported settings caused mismatched colors.</string>
     <string name="theme_settings_reset_to_default_tags">reset theme, theme reset, restore colors, default colors, fix theme, theme defaults</string>
+=======
+    <string name="theme_settings_default_themes">Built-in</string>
+    <string name="theme_settings_seasonal_themes">Seasonal</string>
+    <string name="theme_settings_custom_themes">Your themes</string>
+    <string name="theme_settings_custom_theme_delete_title">Delete custom theme?</string>
+    <string name="theme_settings_custom_theme_delete_body">Theme: %s</string>
+    <string name="theme_settings_custom_theme_delete_confirm">Delete</string>
+    <string name="theme_settings_custom_theme_delete_cancel">Cancel</string>
+
+    <!-- Theme customizer -->
+    <string name="theme_customizer_select_background_image_button">Select image</string>
+    <string name="theme_customizer_adjust_background_image_hint">Drag or pinch to adjust image</string>
+    <string name="theme_customizer_transparency_slider_name">Transparency</string>
+    <string name="theme_customizer_blur_slider_name">Blur</string>
+    <string name="theme_customizer_color_sliders_name">Color</string>
+    <string name="theme_customizer_dark_mode_toggle">Dark mode</string>
+    <string name="theme_customizer_light_mode_toggle">Light mode</string>
+    <string name="theme_customizer_finish_theme_adjustment">Finish</string>
+    <string name="theme_customizer_load_custom_theme_file">Load from ZIP</string>
+    <string name="theme_customizer_import_custom_theme_menu_title">Import custom theme</string>
+    <string name="theme_customizer_import_custom_theme_name_text">Theme name: %s</string>
+    <string name="theme_customizer_import_custom_theme_author_text">Author: %s</string>
+
+>>>>>>> upstream/master
     <string name="dev_settings_title">Developer Settings</string>
 
     <!-- Voice input settings menu -->
@@ -658,7 +684,7 @@
     <string name="credits_menu_team_translators_title">Translators</string>
     <string name="credits_menu_team_keyboard_layouts_title">Layout contributors</string>
     <string name="credits_menu_team_code_title">Code contributors</string>
-    <string name="credits_menu_team_third_party_libraries_title">Third-party code</string>
+    <string name="credits_menu_team_third_party_libraries_title2">3rd-party code &amp; assets</string>
     <string name="credits_menu_nonaffiliation_notice">The authors listed above are not affiliated with us, and may not necessarily endorse or promote us. Listing does not imply affiliation or endorsement.</string>
     <string name="credits_menu_contribute_translations_button">Help translate the app</string>
     <string name="credits_menu_contribute_keyboard_layouts_button">Contribute layouts</string>
