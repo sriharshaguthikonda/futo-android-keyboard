@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"java.configuration.updateBuildConfiguration": "automatic",
+		"terminal.integrated.accessibleViewFocusOnCommandExecution": false,
+		"java.format.settings.url": ".vscode/java-formatter.xml"
+	}
+}

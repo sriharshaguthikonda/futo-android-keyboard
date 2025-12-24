@@ -51,6 +51,7 @@ import org.futo.inputmethod.latin.uix.DialogRequestItem
 import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
 import org.futo.inputmethod.latin.uix.getSetting
+import org.futo.inputmethod.latin.uix.actions.ClipboardShowPinnedOnTop
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.pages.ParagraphText
 import org.futo.inputmethod.latin.uix.settings.pages.PaymentSurface
@@ -419,6 +420,7 @@ fun ClipboardHistoryWindowTitleBar(
 ) {
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
+    val showPinnedOnTopState = useDataStore(ClipboardShowPinnedOnTop, blocking = true)
 
     // Keep the search query state in sync with the manager so the text editor
     // can live in the title bar.
@@ -529,6 +531,7 @@ fun ClipboardHistoryWindowContent(
     val view = LocalView.current
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
+    val showPinnedOnTopState = useDataStore(ClipboardShowPinnedOnTop, blocking = true)
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Title bar now owns the search field; keep focus reset on close.
@@ -619,13 +622,18 @@ fun ClipboardHistoryWindowContent(
         }
     } else {
         val currentSearchQuery = manager.getClipboardSearchQuery()
+        val sortComparator = if (showPinnedOnTopState.value) {
+            compareByDescending<ClipboardSearchResult> { it.score }
+                .thenByDescending { it.entry.pinned }
+                .thenByDescending { it.entry.timestamp }
+        } else {
+            compareByDescending<ClipboardSearchResult> { it.score }
+                .thenByDescending { it.entry.timestamp }
+        }
+
         val filteredList = clipboardHistoryManager.clipboardHistory.toList()
             .mapNotNull { evaluateClipboardSearch(it, currentSearchQuery) }
-            .sortedWith(
-                compareByDescending<ClipboardSearchResult> { it.score }
-                    .thenByDescending { it.entry.pinned }
-                    .thenByDescending { it.entry.timestamp }
-            )
+            .sortedWith(sortComparator)
 
         LazyVerticalStaggeredGrid(
             modifier = Modifier.fillMaxWidth(),
