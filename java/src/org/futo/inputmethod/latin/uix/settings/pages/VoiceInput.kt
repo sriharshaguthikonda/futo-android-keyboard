@@ -1,7 +1,7 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
-import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.AUDIO_FOCUS
 import org.futo.inputmethod.latin.uix.CAN_EXPAND_SPACE
@@ -17,14 +17,26 @@ import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.START_VOICE_ON_OPEN
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
+import org.futo.inputmethod.latin.uix.USE_CHANNEL_NOISE_CANCELLATION
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_NEAR_CHANNEL
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_FAR_CHANNEL
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
+import org.futo.inputmethod.latin.uix.settings.UserSetting
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
+import org.futo.inputmethod.latin.uix.settings.DropDownPickerSettingItem
+import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.uix.settings.userSettingNavigationItem
 import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
+import org.futo.voiceinput.shared.types.AudioInputChannel
 
 private val visibilityCheckNotSystemVoiceInput = @Composable {
     useDataStoreValue(USE_SYSTEM_VOICE_INPUT) == false
+}
+
+private val visibilityCheckChannelNoiseCancellation = @Composable {
+    useDataStoreValue(USE_SYSTEM_VOICE_INPUT) == false &&
+        useDataStoreValue(USE_CHANNEL_NOISE_CANCELLATION)
 }
 
 val VoiceInputMenu = UserSettingsMenu(
@@ -86,6 +98,52 @@ val VoiceInputMenu = UserSettingsMenu(
             subtitle = R.string.voice_input_settings_autostop_vad_subtitle,
             setting = USE_VAD_AUTOSTOP
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingToggleDataStore(
+            title = R.string.voice_input_settings_channel_noise_cancellation,
+            subtitle = R.string.voice_input_settings_channel_noise_cancellation_subtitle,
+            setting = USE_CHANNEL_NOISE_CANCELLATION
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        UserSetting(
+            name = R.string.voice_input_settings_near_channel,
+            component = {
+                val nearChannelSetting = useDataStore(VOICE_INPUT_NEAR_CHANNEL)
+                val selection = AudioInputChannel.fromPreference(nearChannelSetting.value)
+                DropDownPickerSettingItem(
+                    label = stringResource(R.string.voice_input_settings_near_channel),
+                    options = AudioInputChannel.entries,
+                    selection = selection,
+                    onSet = { nearChannelSetting.setValue(it.preferenceValue) },
+                    getDisplayName = { channel ->
+                        when (channel) {
+                            AudioInputChannel.LEFT -> stringResource(R.string.voice_input_settings_channel_left)
+                            AudioInputChannel.RIGHT -> stringResource(R.string.voice_input_settings_channel_right)
+                        }
+                    }
+                )
+            }
+        ).copy(visibilityCheck = visibilityCheckChannelNoiseCancellation),
+
+        UserSetting(
+            name = R.string.voice_input_settings_far_channel,
+            component = {
+                val farChannelSetting = useDataStore(VOICE_INPUT_FAR_CHANNEL)
+                val selection = AudioInputChannel.fromPreference(farChannelSetting.value)
+                DropDownPickerSettingItem(
+                    label = stringResource(R.string.voice_input_settings_far_channel),
+                    options = AudioInputChannel.entries,
+                    selection = selection,
+                    onSet = { farChannelSetting.setValue(it.preferenceValue) },
+                    getDisplayName = { channel ->
+                        when (channel) {
+                            AudioInputChannel.LEFT -> stringResource(R.string.voice_input_settings_channel_left)
+                            AudioInputChannel.RIGHT -> stringResource(R.string.voice_input_settings_channel_right)
+                        }
+                    }
+                )
+            }
+        ).copy(visibilityCheck = visibilityCheckChannelNoiseCancellation),
 
         userSettingToggleDataStore(
             title = R.string.voice_input_settings_gpu_offload,

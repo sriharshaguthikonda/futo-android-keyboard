@@ -50,6 +50,21 @@ val USE_VAD_AUTOSTOP = SettingsKey(
     default = true
 )
 
+val USE_CHANNEL_NOISE_CANCELLATION = SettingsKey(
+    key = booleanPreferencesKey("voice_input_channel_noise_cancellation"),
+    default = false
+)
+
+val VOICE_INPUT_NEAR_CHANNEL = SettingsKey(
+    key = intPreferencesKey("voice_input_near_channel"),
+    default = 0
+)
+
+val VOICE_INPUT_FAR_CHANNEL = SettingsKey(
+    key = intPreferencesKey("voice_input_far_channel"),
+    default = 1
+)
+
 val ENGLISH_MODEL_INDEX = SettingsKey(
     key = intPreferencesKey("english_model_index"),
     default = 0

@@ -79,6 +79,7 @@ import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.PersistentActionState
 import org.futo.inputmethod.latin.uix.ResourceHelper
+import org.futo.inputmethod.latin.uix.USE_CHANNEL_NOISE_CANCELLATION
 import org.futo.inputmethod.latin.uix.USE_PERSONAL_DICT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
@@ -87,7 +88,9 @@ import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_SYSTEM_PROMPT
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_FAR_CHANNEL
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_NEAR_CHANNEL
 import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.setSetting
@@ -102,6 +105,7 @@ import org.futo.voiceinput.shared.RecognizerViewSettings
 import org.futo.voiceinput.shared.RecordingSettings
 import org.futo.voiceinput.shared.SoundPlayer
 import org.futo.voiceinput.shared.types.Language
+import org.futo.voiceinput.shared.types.AudioInputChannel
 import org.futo.voiceinput.shared.types.ModelLoader
 import org.futo.voiceinput.shared.types.getLanguageFromWhisperString
 import org.futo.voiceinput.shared.ui.MicrophoneDeviceState
@@ -177,6 +181,9 @@ private class VoiceInputActionWindow(
         val requestAudioFocus = context.getSetting(AUDIO_FOCUS)
         val canExpandSpace = context.getSetting(CAN_EXPAND_SPACE)
         val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
+        val useChannelNoiseCancellation = context.getSetting(USE_CHANNEL_NOISE_CANCELLATION)
+        val nearChannel = AudioInputChannel.fromPreference(context.getSetting(VOICE_INPUT_NEAR_CHANNEL))
+        val farChannel = AudioInputChannel.fromPreference(context.getSetting(VOICE_INPUT_FAR_CHANNEL))
         val usePersonalDict = context.getSetting(USE_PERSONAL_DICT)
         val useGroq = context.getSetting(USE_GROQ_WHISPER)
         val groqKey = context.getSetting(GROQ_VOICE_API_KEY)
@@ -214,7 +221,10 @@ private class VoiceInputActionWindow(
                 preferBluetoothMic = useBluetoothAudio,
                 requestAudioFocus = requestAudioFocus,
                 canExpandSpace = canExpandSpace,
-                useVADAutoStop = useVAD
+                useVADAutoStop = useVAD,
+                enableChannelNoiseCancellation = useChannelNoiseCancellation,
+                nearChannel = nearChannel,
+                farChannel = farChannel
             ),
             groqApiKey = if(useGroq) groqKey else "",
             groqModel = groqModel,
@@ -401,6 +411,9 @@ private class VoiceInputBottomBarWindow(
         val requestAudioFocus = context.getSetting(AUDIO_FOCUS)
         val canExpandSpace = context.getSetting(CAN_EXPAND_SPACE)
         val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
+        val useChannelNoiseCancellation = context.getSetting(USE_CHANNEL_NOISE_CANCELLATION)
+        val nearChannel = AudioInputChannel.fromPreference(context.getSetting(VOICE_INPUT_NEAR_CHANNEL))
+        val farChannel = AudioInputChannel.fromPreference(context.getSetting(VOICE_INPUT_FAR_CHANNEL))
         val useGroq = context.getSetting(USE_GROQ_WHISPER)
         val groqKey = context.getSetting(GROQ_VOICE_API_KEY)
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
@@ -433,7 +446,10 @@ private class VoiceInputBottomBarWindow(
                 preferBluetoothMic = useBluetoothAudio,
                 requestAudioFocus = requestAudioFocus,
                 canExpandSpace = canExpandSpace,
-                useVADAutoStop = useVAD
+                useVADAutoStop = useVAD,
+                enableChannelNoiseCancellation = useChannelNoiseCancellation,
+                nearChannel = nearChannel,
+                farChannel = farChannel
             ),
             groqApiKey = if(useGroq) groqKey else "",
             groqModel = groqModel,
