@@ -110,16 +110,17 @@ val VoiceInputMenu = UserSettingsMenu(
             component = {
                 val nearChannelSetting = useDataStore(VOICE_INPUT_NEAR_CHANNEL)
                 val selection = AudioInputChannel.fromPreference(nearChannelSetting.value)
+                val channelNames = mapOf(
+                    AudioInputChannel.LEFT to stringResource(R.string.voice_input_settings_channel_left),
+                    AudioInputChannel.RIGHT to stringResource(R.string.voice_input_settings_channel_right),
+                )
                 DropDownPickerSettingItem(
                     label = stringResource(R.string.voice_input_settings_near_channel),
                     options = AudioInputChannel.entries,
                     selection = selection,
                     onSet = { nearChannelSetting.setValue(it.preferenceValue) },
                     getDisplayName = { channel ->
-                        when (channel) {
-                            AudioInputChannel.LEFT -> stringResource(R.string.voice_input_settings_channel_left)
-                            AudioInputChannel.RIGHT -> stringResource(R.string.voice_input_settings_channel_right)
-                        }
+                        channelNames[channel] ?: "?"
                     }
                 )
             }
@@ -130,16 +131,17 @@ val VoiceInputMenu = UserSettingsMenu(
             component = {
                 val farChannelSetting = useDataStore(VOICE_INPUT_FAR_CHANNEL)
                 val selection = AudioInputChannel.fromPreference(farChannelSetting.value)
+                val channelNames = mapOf(
+                    AudioInputChannel.LEFT to stringResource(R.string.voice_input_settings_channel_left),
+                    AudioInputChannel.RIGHT to stringResource(R.string.voice_input_settings_channel_right),
+                )
                 DropDownPickerSettingItem(
                     label = stringResource(R.string.voice_input_settings_far_channel),
                     options = AudioInputChannel.entries,
                     selection = selection,
                     onSet = { farChannelSetting.setValue(it.preferenceValue) },
                     getDisplayName = { channel ->
-                        when (channel) {
-                            AudioInputChannel.LEFT -> stringResource(R.string.voice_input_settings_channel_left)
-                            AudioInputChannel.RIGHT -> stringResource(R.string.voice_input_settings_channel_right)
-                        }
+                        channelNames[channel] ?: "?"
                     }
                 )
             }
