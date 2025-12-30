@@ -557,6 +557,35 @@
     <string name="voice_input_settings_use_groq">Use Groq Whisper</string>
     <string name="voice_input_settings_groq_config">Groq Voice API Settings</string>
     <string name="voice_input_settings_groq_config_subtitle">Configure Groq voice API key and test</string>
+    <string name="voice_input_settings_deep_filter_net">Deep Filter Net</string>
+    <string name="voice_input_settings_deep_filter_net_subtitle">Noise reduction, recording tests, and playback tools</string>
+
+    <string name="deep_filter_net_settings_title">Deep Filter Net</string>
+    <string name="deep_filter_net_enable">Enable Deep Filter Net</string>
+    <string name="deep_filter_net_enable_subtitle">Apply noise reduction to voice input when supported by the device</string>
+    <string name="deep_filter_net_status_title">Device support</string>
+    <string name="deep_filter_net_status_available">Noise reduction is supported on this device.</string>
+    <string name="deep_filter_net_status_unavailable">Noise reduction is not supported on this device.</string>
+    <string name="deep_filter_net_record_sample">Record sample</string>
+    <string name="deep_filter_net_record_sample_subtitle">Capture raw audio for temporary playback</string>
+    <string name="deep_filter_net_record_filtered_sample">Record noise-reduced sample</string>
+    <string name="deep_filter_net_record_filtered_sample_subtitle">Capture audio with Deep Filter Net enabled</string>
+    <string name="deep_filter_net_stop_recording">Stop recording</string>
+    <string name="deep_filter_net_stop_recording_subtitle">Finish the current recording</string>
+    <string name="deep_filter_net_play_sample">Play sample</string>
+    <string name="deep_filter_net_play_sample_subtitle">Play back the most recent recording</string>
+    <string name="deep_filter_net_play_filtered_sample">Play noise-reduced sample</string>
+    <string name="deep_filter_net_play_filtered_sample_subtitle">Play back the most recent noise-reduced recording</string>
+    <string name="deep_filter_net_clear_samples">Clear recordings</string>
+    <string name="deep_filter_net_clear_samples_subtitle">Remove temporary audio samples</string>
+    <string name="deep_filter_net_status_label">Status</string>
+    <string name="deep_filter_net_status_idle">Ready to record.</string>
+    <string name="deep_filter_net_status_recording">Recording…</string>
+    <string name="deep_filter_net_status_recorded">Recording ready for playback.</string>
+    <string name="deep_filter_net_status_playing">Playing back…</string>
+    <string name="deep_filter_net_status_no_sample">No recording available yet.</string>
+    <string name="deep_filter_net_status_permission_needed">Microphone permission required.</string>
+    <string name="deep_filter_net_status_recording_failed">Recording failed.</string>
 
     <!-- AI Reply menu -->
     <string name="ai_reply_settings_title">AI Reply</string>

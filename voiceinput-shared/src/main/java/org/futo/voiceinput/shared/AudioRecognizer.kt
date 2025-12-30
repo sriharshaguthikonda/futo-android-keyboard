@@ -12,6 +12,7 @@ import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.MicrophoneDirection
+import android.media.audiofx.NoiseSuppressor
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -84,7 +85,8 @@ data class RecordingSettings(
     val preferBluetoothMic: Boolean,
     val requestAudioFocus: Boolean,
     val canExpandSpace: Boolean,
-    val useVADAutoStop: Boolean
+    val useVADAutoStop: Boolean,
+    val useNoiseSuppression: Boolean
 )
 
 data class AudioRecognizerSettings(
@@ -118,11 +120,13 @@ class AudioRecognizer(
 
     private val canExpandSpace = settings.recordingConfiguration.canExpandSpace
     private val useVAD = settings.recordingConfiguration.useVADAutoStop
+    private val useNoiseSuppression = settings.recordingConfiguration.useNoiseSuppression
 
     private var floatSamples: FloatBuffer = FloatBuffer.allocate(16000 * 30)
     private var recorderJob: Job? = null
     private var modelJob: Job? = null
     private var loadModelJob: Job? = null
+    private var noiseSuppressor: NoiseSuppressor? = null
 
     private var focusRequest: AudioFocusRequest? = null
 
@@ -235,6 +239,9 @@ class AudioRecognizer(
         loadModelJob?.cancel()
         loadModelJob = null
 
+        noiseSuppressor?.release()
+        noiseSuppressor = null
+
         recorder?.release()
         recorder = null
 
@@ -302,6 +309,11 @@ class AudioRecognizer(
         )
 
         this.recorder = recorder
+        noiseSuppressor?.release()
+        noiseSuppressor = null
+        if (useNoiseSuppression && NoiseSuppressor.isAvailable()) {
+            noiseSuppressor = NoiseSuppressor.create(recorder.audioSessionId)?.apply { enabled = true }
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             recorder.setPreferredMicrophoneDirection(MicrophoneDirection.MIC_DIRECTION_TOWARDS_USER)
@@ -482,6 +494,8 @@ class AudioRecognizer(
         val bluetoothInfo = setCommunicationDevice(preferBluetoothMic)
 
         val task = {
+            noiseSuppressor?.release()
+            noiseSuppressor = null
             recorder?.release()
 
             val recorder = createAudioRecorder()
@@ -654,6 +668,8 @@ class AudioRecognizer(
 
         isRecording = false
         recorder?.stop()
+        noiseSuppressor?.release()
+        noiseSuppressor = null
 
         listener.processing()
 

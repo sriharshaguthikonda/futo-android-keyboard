@@ -79,6 +79,7 @@ import org.futo.inputmethod.latin.uix.KeyboardManagerForAction
 import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.PersistentActionState
 import org.futo.inputmethod.latin.uix.ResourceHelper
+import org.futo.inputmethod.latin.uix.USE_DEEP_FILTER_NET
 import org.futo.inputmethod.latin.uix.USE_PERSONAL_DICT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
@@ -179,6 +180,7 @@ private class VoiceInputActionWindow(
         val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
         val usePersonalDict = context.getSetting(USE_PERSONAL_DICT)
         val useGroq = context.getSetting(USE_GROQ_WHISPER)
+        val useDeepFilterNet = context.getSetting(USE_DEEP_FILTER_NET)
         val groqKey = context.getSetting(GROQ_VOICE_API_KEY)
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
@@ -214,7 +216,8 @@ private class VoiceInputActionWindow(
                 preferBluetoothMic = useBluetoothAudio,
                 requestAudioFocus = requestAudioFocus,
                 canExpandSpace = canExpandSpace,
-                useVADAutoStop = useVAD
+                useVADAutoStop = useVAD,
+                useNoiseSuppression = useDeepFilterNet
             ),
             groqApiKey = if(useGroq) groqKey else "",
             groqModel = groqModel,
@@ -402,6 +405,7 @@ private class VoiceInputBottomBarWindow(
         val canExpandSpace = context.getSetting(CAN_EXPAND_SPACE)
         val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
         val useGroq = context.getSetting(USE_GROQ_WHISPER)
+        val useDeepFilterNet = context.getSetting(USE_DEEP_FILTER_NET)
         val groqKey = context.getSetting(GROQ_VOICE_API_KEY)
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
@@ -433,7 +437,8 @@ private class VoiceInputBottomBarWindow(
                 preferBluetoothMic = useBluetoothAudio,
                 requestAudioFocus = requestAudioFocus,
                 canExpandSpace = canExpandSpace,
-                useVADAutoStop = useVAD
+                useVADAutoStop = useVAD,
+                useNoiseSuppression = useDeepFilterNet
             ),
             groqApiKey = if(useGroq) groqKey else "",
             groqModel = groqModel,

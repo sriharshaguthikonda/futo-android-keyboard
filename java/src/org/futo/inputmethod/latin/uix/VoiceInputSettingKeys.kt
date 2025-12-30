@@ -50,6 +50,11 @@ val USE_VAD_AUTOSTOP = SettingsKey(
     default = true
 )
 
+val USE_DEEP_FILTER_NET = SettingsKey(
+    key = booleanPreferencesKey("use_deep_filter_net"),
+    default = false
+)
+
 val ENGLISH_MODEL_INDEX = SettingsKey(
     key = intPreferencesKey("english_model_index"),
     default = 0
