@@ -29,6 +29,7 @@ Check out the [FUTO Keyboard website](https://keyboard.futo.org/) for downloads 
 - Long voice recordings are transcribed in 30 second chunks so earlier audio isn't overwritten.
 - Groq Voice API settings under Voice Input show only Whisper models.
 - The voice input spinner turns orange when using Groq and green for local recognition.
+- Deep Filter Net noise reduction toggle with a built-in record/test/playback tool in Voice Input settings.
 - New settings search button at the bottom of the settings screen highlights itself with a smooth repeating border animation for easier discovery.
 - AI Reply menu for configuring Groq-powered quick replies.
 - AI reply generation now streams responses using coroutines for smoother updates.

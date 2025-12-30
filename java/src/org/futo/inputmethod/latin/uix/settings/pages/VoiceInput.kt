@@ -111,6 +111,13 @@ val VoiceInputMenu = UserSettingsMenu(
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingNavigationItem(
+            title = R.string.voice_input_settings_deep_filter_net,
+            subtitle = R.string.voice_input_settings_deep_filter_net_subtitle,
+            style = NavigationItemStyle.Misc,
+            navigateTo = "deepFilterNet"
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingNavigationItem(
             title = R.string.voice_input_settings_groq_config,
             subtitle = R.string.voice_input_settings_groq_config_subtitle,
             style = NavigationItemStyle.Misc,

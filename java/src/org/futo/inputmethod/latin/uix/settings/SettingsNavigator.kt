@@ -31,6 +31,7 @@ import org.futo.inputmethod.latin.uix.settings.pages.DevKeyboardScreen
 import org.futo.inputmethod.latin.uix.settings.pages.DevLayoutEdit
 import org.futo.inputmethod.latin.uix.settings.pages.DevLayoutEditor
 import org.futo.inputmethod.latin.uix.settings.pages.DevLayoutList
+import org.futo.inputmethod.latin.uix.settings.pages.DeepFilterNetScreen
 import org.futo.inputmethod.latin.uix.settings.pages.DeveloperScreen
 import org.futo.inputmethod.latin.uix.settings.pages.HelpMenu
 import org.futo.inputmethod.latin.uix.settings.pages.HomeScreen
@@ -171,6 +172,7 @@ fun SettingsNavigator(
             composable("paid") { PaymentThankYouScreen { navController.navigateUp() } }
             composable("credits") { CreditsScreen(navController) }
             composable("exportingcfg") { ExportingMenu(navController) }
+            composable("deepFilterNet") { DeepFilterNetScreen(navController) }
             composable("groqChat") { GroqChatConfigScreen(navController) }
             composable("groqWhisper") { GroqWhisperConfigScreen(navController) }
             composable("credits/thirdparty/{idx}") {
