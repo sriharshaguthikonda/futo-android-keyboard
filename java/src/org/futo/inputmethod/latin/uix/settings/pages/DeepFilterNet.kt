@@ -77,7 +77,7 @@ fun DeepFilterNetScreen(navController: NavHostController = rememberNavController
     fun startRecording(target: RecordingTarget, useNoiseSuppression: Boolean) {
         if (recordJob.value != null) return
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            updateStatus(stringResource(R.string.deep_filter_net_status_permission_needed))
+            updateStatus(context.getString(R.string.deep_filter_net_status_permission_needed))
             requestMicPermission()
             return
         }
@@ -94,13 +94,13 @@ fun DeepFilterNetScreen(navController: NavHostController = rememberNavController
 
             withContext(Dispatchers.Main) {
                 if (result == null) {
-                    updateStatus(stringResource(R.string.deep_filter_net_status_recording_failed))
+                    updateStatus(context.getString(R.string.deep_filter_net_status_recording_failed))
                 } else {
                     when (target) {
                         RecordingTarget.Raw -> rawSamples.value = result
                         RecordingTarget.Filtered -> filteredSamples.value = result
                     }
-                    updateStatus(stringResource(R.string.deep_filter_net_status_recorded))
+                    updateStatus(context.getString(R.string.deep_filter_net_status_recorded))
                 }
                 recordingTarget.value = null
                 recordJob.value = null
@@ -120,7 +120,7 @@ fun DeepFilterNetScreen(navController: NavHostController = rememberNavController
             return
         }
         isPlaying.value = true
-        statusState.value = stringResource(R.string.deep_filter_net_status_playing)
+        statusState.value = context.getString(R.string.deep_filter_net_status_playing)
         scope.launch(Dispatchers.IO) {
             playSamples(samples)
             withContext(Dispatchers.Main) {
