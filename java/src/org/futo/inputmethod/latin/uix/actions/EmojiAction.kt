@@ -1026,7 +1026,7 @@ val EmojiAction = Action(
                                 modifier = Modifier.padding(8.dp),
                                 contentAlignment = Alignment.CenterStart
                             ) {
-                                ActionTextEditor(text = searchText)
+                                ActionTextEditor(text = searchText, clipboardSearchFocus = true)
                             }
                         }
                     }
