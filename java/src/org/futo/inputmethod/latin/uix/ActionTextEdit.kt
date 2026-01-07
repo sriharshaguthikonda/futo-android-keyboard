@@ -309,7 +309,8 @@ fun ActionTextEditor(
     textSize: TextUnit = 16.sp,
     typeface: Typeface? = null,
     autocorrect: Boolean = false,
-    autofocus: Boolean = true
+    autofocus: Boolean = true,
+    clipboardSearchFocus: Boolean = false
 ) {
     val manager = if(!LocalInspectionMode.current) LocalManager.current else null
     GenericEditTextCompose(
@@ -322,11 +323,15 @@ fun ActionTextEditor(
         modifier = Modifier.fillMaxSize(),
         onOverride = { ic, ed ->
             manager!!.overrideInputConnection(ic, ed)
-            manager.setClipboardSearchFocus(true)
+            if (clipboardSearchFocus) {
+                manager.setClipboardSearchFocus(true)
+            }
         },
         onUnoverride = {
             manager!!.unsetInputConnection()
-            manager.setClipboardSearchFocus(false)
+            if (clipboardSearchFocus) {
+                manager.setClipboardSearchFocus(false)
+            }
         },
         autofocus = autofocus,
         isInsideIme = true
