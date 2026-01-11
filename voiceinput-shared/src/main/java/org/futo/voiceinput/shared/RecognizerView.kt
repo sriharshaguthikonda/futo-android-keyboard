@@ -276,4 +276,8 @@ class RecognizerView(
     fun start() {
         recognizer.start()
     }
+
+    fun startPrebuffering() {
+        recognizer.startPrebuffering()
+    }
 }

@@ -87,6 +87,13 @@ val VoiceInputMenu = UserSettingsMenu(
             setting = USE_VAD_AUTOSTOP
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
+        userSettingNavigationItem(
+            title = R.string.voice_input_settings_prebuffer_duration,
+            subtitle = R.string.voice_input_settings_prebuffer_duration_subtitle,
+            style = NavigationItemStyle.Misc,
+            navigateTo = "voiceInputPrebuffer"
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
         userSettingToggleDataStore(
             title = R.string.voice_input_settings_gpu_offload,
             subtitle = R.string.voice_input_settings_gpu_offload_subtitle,
