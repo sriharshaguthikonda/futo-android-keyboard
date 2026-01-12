@@ -277,6 +277,10 @@ class RecognizerView(
         recognizer.start()
     }
 
+    fun setPendingPrebuffer(samples: FloatArray) {
+        recognizer.setPendingPrebuffer(samples)
+    }
+
     fun startPrebuffering() {
         recognizer.startPrebuffering()
     }

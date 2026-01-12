@@ -301,6 +301,10 @@ class AudioRecognizer(
         }
     }
 
+    fun setPendingPrebuffer(samples: FloatArray) {
+        pendingPrebuffer = samples
+    }
+
     fun startPrebuffering() {
         if (prebufferSampleCount <= 0 || isPrebuffering || isRecording) return
 
@@ -628,7 +632,17 @@ class AudioRecognizer(
         loadModelJob = null
         modelRunner.cancelAll()
         isRecording = false
-        pendingPrebuffer = stopPrebufferingAndSnapshot()
+        val localPrebuffer = stopPrebufferingAndSnapshot()
+        pendingPrebuffer = when {
+            pendingPrebuffer.isNotEmpty() && localPrebuffer.isNotEmpty() -> {
+                val combined = FloatArray(pendingPrebuffer.size + localPrebuffer.size)
+                System.arraycopy(pendingPrebuffer, 0, combined, 0, pendingPrebuffer.size)
+                System.arraycopy(localPrebuffer, 0, combined, pendingPrebuffer.size, localPrebuffer.size)
+                combined
+            }
+            pendingPrebuffer.isNotEmpty() -> pendingPrebuffer
+            else -> localPrebuffer
+        }
         floatSamples = FloatBuffer.allocate(SampleRateHz * 30)
         val device = try {
             createRecorderAndJob(settings.recordingConfiguration.preferBluetoothMic)

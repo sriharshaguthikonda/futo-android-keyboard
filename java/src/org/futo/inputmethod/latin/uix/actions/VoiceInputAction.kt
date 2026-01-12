@@ -249,10 +249,10 @@ private class VoiceInputActionWindow(
 
         this@VoiceInputActionWindow.recognizerView.value = recognizerView
 
-        //yield()
+        val prebufferSnapshot = manager.getVoiceInputPrebufferSnapshot()
+        manager.stopVoiceInputPrebuffering()
         recognizerView.reset()
-
-        //yield()
+        recognizerView.setPendingPrebuffer(prebufferSnapshot)
         recognizerView.start()
     }
 
@@ -296,6 +296,7 @@ private class VoiceInputActionWindow(
         runBlocking { initJob.cancelAndJoin() }
         recognizerView.value?.cancel()
         state.modelManager.cancelAll()
+        manager.startVoiceInputPrebuffering()
         return CloseResult.Default
     }
 
@@ -469,7 +470,10 @@ private class VoiceInputBottomBarWindow(
         }
 
         this@VoiceInputBottomBarWindow.recognizerView.value = recognizerView
+        val prebufferSnapshot = manager.getVoiceInputPrebufferSnapshot()
+        manager.stopVoiceInputPrebuffering()
         recognizerView.reset()
+        recognizerView.setPendingPrebuffer(prebufferSnapshot)
         recognizerView.startPrebuffering()
     }
 
@@ -817,6 +821,7 @@ private class VoiceInputBottomBarWindow(
         runBlocking { initJob.cancelAndJoin() }
         recognizerView.value?.cancel()
         state.modelManager.cancelAll()
+        manager.startVoiceInputPrebuffering()
         return CloseResult.Default
     }
 

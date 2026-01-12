@@ -114,6 +114,10 @@ interface KeyboardManagerForAction {
 
     fun copyToClipboard(cut: Boolean = false)
     fun pasteFromClipboard()
+
+    fun startVoiceInputPrebuffering()
+    fun stopVoiceInputPrebuffering()
+    fun getVoiceInputPrebufferSnapshot(): FloatArray
 }
 
 enum class CloseResult {
