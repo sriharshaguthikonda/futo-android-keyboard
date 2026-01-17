@@ -80,11 +80,25 @@ private fun getRecordingDeviceKind(type: Int): String {
     }
 }
 
+enum class RecordingChannel(val id: Int, val channelCount: Int) {
+    MONO(0, 1),
+    LEFT(1, 2),
+    RIGHT(2, 2),
+    STEREO_MIX(3, 2);
+
+    companion object {
+        fun fromId(id: Int): RecordingChannel {
+            return entries.firstOrNull { it.id == id } ?: MONO
+        }
+    }
+}
+
 data class RecordingSettings(
     val preferBluetoothMic: Boolean,
     val requestAudioFocus: Boolean,
     val canExpandSpace: Boolean,
-    val useVADAutoStop: Boolean
+    val useVADAutoStop: Boolean,
+    val recordingChannel: RecordingChannel
 )
 
 data class AudioRecognizerSettings(
@@ -118,6 +132,8 @@ class AudioRecognizer(
 
     private val canExpandSpace = settings.recordingConfiguration.canExpandSpace
     private val useVAD = settings.recordingConfiguration.useVADAutoStop
+    private val recordingChannel = settings.recordingConfiguration.recordingChannel
+    private val inputChannelCount = recordingChannel.channelCount
 
     private var floatSamples: FloatBuffer = FloatBuffer.allocate(16000 * 30)
     private var recorderJob: Job? = null
@@ -127,6 +143,52 @@ class AudioRecognizer(
     private var focusRequest: AudioFocusRequest? = null
 
     private var communicationDevice = "unknown"
+
+    private fun getInputChannelConfig(): Int {
+        return if (recordingChannel == RecordingChannel.MONO) {
+            AudioFormat.CHANNEL_IN_MONO
+        } else {
+            AudioFormat.CHANNEL_IN_STEREO
+        }
+    }
+
+    private fun extractMonoSamples(
+        source: ShortArray,
+        nRead: Int,
+        destination: ShortArray
+    ): Int {
+        return if (inputChannelCount == 1) {
+            System.arraycopy(source, 0, destination, 0, nRead)
+            nRead
+        } else {
+            val frames = nRead / inputChannelCount
+            when (recordingChannel) {
+                RecordingChannel.LEFT -> {
+                    for (i in 0 until frames) {
+                        destination[i] = source[i * 2]
+                    }
+                }
+                RecordingChannel.RIGHT -> {
+                    for (i in 0 until frames) {
+                        destination[i] = source[i * 2 + 1]
+                    }
+                }
+                RecordingChannel.STEREO_MIX -> {
+                    for (i in 0 until frames) {
+                        val left = source[i * 2].toInt()
+                        val right = source[i * 2 + 1].toInt()
+                        destination[i] = ((left + right) / 2).toShort()
+                    }
+                }
+                RecordingChannel.MONO -> {
+                    for (i in 0 until frames) {
+                        destination[i] = source[i * 2]
+                    }
+                }
+            }
+            frames
+        }
+    }
 
     private fun focusAudio() {
         unfocusAudio()
@@ -296,9 +358,9 @@ class AudioRecognizer(
         val recorder = AudioRecord(
             MediaRecorder.AudioSource.VOICE_RECOGNITION,
             16000,
-            AudioFormat.CHANNEL_IN_MONO,
+            getInputChannelConfig(),
             AudioFormat.ENCODING_PCM_16BIT,
-            16000 * 2 * 5
+            16000 * 2 * 5 * inputChannelCount
         )
 
         this.recorder = recorder
@@ -343,15 +405,19 @@ class AudioRecognizer(
         var numConsecutiveNonSpeech = 0
         var numConsecutiveSpeech = 0
 
-        val samples = ShortArray(1600)
+        val frameSamples = 1600
+        val readSamples = frameSamples * inputChannelCount
+        val samples = ShortArray(readSamples)
+        val monoSamples = ShortArray(frameSamples)
 
         while (isRecording) {
             yield()
-            val nRead = recorder.read(samples, 0, 1600, AudioRecord.READ_BLOCKING)
+            val nRead = recorder.read(samples, 0, readSamples, AudioRecord.READ_BLOCKING)
             if (nRead <= 0) break
             yield()
 
-            var isRunningOutOfSpace = (floatSamples.remaining() < nRead.coerceAtLeast(1600)) && !expandSpaceIfAllowed()
+            val monoRead = extractMonoSamples(samples, nRead, monoSamples)
+            var isRunningOutOfSpace = (floatSamples.remaining() < monoRead.coerceAtLeast(frameSamples)) && !expandSpaceIfAllowed()
 
             val hasNotTalkedRecently = hasTalked && (numConsecutiveNonSpeech > 66) && useVAD
             if (isRunningOutOfSpace || hasNotTalkedRecently) {
@@ -364,7 +430,7 @@ class AudioRecognizer(
 
             // Run VAD
             if(useVAD && vad != null) {
-                var remainingSamples = nRead
+                var remainingSamples = monoRead
                 var offset = 0
                 while (remainingSamples > 0) {
                     if (!vadSampleBuffer.hasRemaining()) {
@@ -384,7 +450,7 @@ class AudioRecognizer(
                     val samplesToRead = min(min(remainingSamples, 480), vadSampleBuffer.remaining())
                     for (i in 0 until samplesToRead) {
                         vadSampleBuffer.put(
-                            samples[offset]
+                            monoSamples[offset]
                         )
                         offset += 1
                         remainingSamples -= 1
@@ -392,7 +458,7 @@ class AudioRecognizer(
                 }
             }
 
-            floatSamples.put(samples.sliceArray(0 until nRead).map { it.toFloat() / Short.MAX_VALUE.toFloat() }.toFloatArray())
+            floatSamples.put(monoSamples.sliceArray(0 until monoRead).map { it.toFloat() / Short.MAX_VALUE.toFloat() }.toFloatArray())
             if(floatSamples.position() >= 16000 * 60) {
                 yield()
                 withContext(Dispatchers.Main) { finish() }
@@ -407,7 +473,12 @@ class AudioRecognizer(
                 numConsecutiveNonSpeech = 0
             }
 
-            val rms = sqrt(samples.sumOf { (it.toFloat() / Short.MAX_VALUE.toFloat()).pow(2).toDouble() } / samples.size).toFloat()
+            var sumSquares = 0.0
+            for (i in 0 until monoRead) {
+                val sample = monoSamples[i].toFloat() / Short.MAX_VALUE.toFloat()
+                sumSquares += (sample * sample).toDouble()
+            }
+            val rms = sqrt(sumSquares / monoRead).toFloat()
 
             if (startSoundPassed && ((rms > 0.01) || (numConsecutiveSpeech > 8))) {
                 hasTalked = true
@@ -444,17 +515,18 @@ class AudioRecognizer(
             while (true) {
                 yield()
                 val nRead2 = recorder.read(
-                    samples, 0, 1600, AudioRecord.READ_NON_BLOCKING
+                    samples, 0, readSamples, AudioRecord.READ_NON_BLOCKING
                 )
                 if (nRead2 > 0) {
-                    if (floatSamples.remaining() < nRead2 && !expandSpaceIfAllowed()) {
+                    val monoRead2 = extractMonoSamples(samples, nRead2, monoSamples)
+                    if (floatSamples.remaining() < monoRead2 && !expandSpaceIfAllowed()) {
                         yield()
                         withContext(Dispatchers.Main) {
                             finish()
                         }
                         break
                     }
-                    floatSamples.put(samples.sliceArray(0 until nRead2).map { it.toFloat() / Short.MAX_VALUE.toFloat() }.toFloatArray())
+                    floatSamples.put(monoSamples.sliceArray(0 until monoRead2).map { it.toFloat() / Short.MAX_VALUE.toFloat() }.toFloatArray())
                     if(floatSamples.position() >= 16000 * 60) {
                         yield()
                         withContext(Dispatchers.Main) { finish() }

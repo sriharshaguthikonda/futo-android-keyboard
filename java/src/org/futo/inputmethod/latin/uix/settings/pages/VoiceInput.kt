@@ -1,7 +1,7 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
-import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.AUDIO_FOCUS
 import org.futo.inputmethod.latin.uix.CAN_EXPAND_SPACE
@@ -11,17 +11,22 @@ import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.USE_PERSONAL_DICT
 import org.futo.inputmethod.latin.uix.USE_SYSTEM_VOICE_INPUT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
-import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
 import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.START_VOICE_ON_OPEN
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_RECORDING_CHANNEL
+import org.futo.inputmethod.latin.uix.settings.DropDownPicker
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
+import org.futo.inputmethod.latin.uix.settings.SettingItem
+import org.futo.inputmethod.latin.uix.settings.UserSetting
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
+import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.uix.settings.userSettingNavigationItem
 import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
+import org.futo.voiceinput.shared.RecordingChannel
 
 private val visibilityCheckNotSystemVoiceInput = @Composable {
     useDataStoreValue(USE_SYSTEM_VOICE_INPUT) == false
@@ -62,6 +67,40 @@ val VoiceInputMenu = UserSettingsMenu(
             title = R.string.voice_input_settings_use_bluetooth_mic,
             subtitle = R.string.voice_input_settings_use_bluetooth_mic_subtitle,
             setting = PREFER_BLUETOOTH
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        UserSetting(
+            name = R.string.voice_input_settings_recording_channel,
+            subtitle = R.string.voice_input_settings_recording_channel_subtitle,
+            component = {
+                val recordingChannelSetting = useDataStore(VOICE_INPUT_RECORDING_CHANNEL)
+                val selectedChannel = RecordingChannel.fromId(recordingChannelSetting.value)
+                val channelOptions = listOf(
+                    RecordingChannel.MONO,
+                    RecordingChannel.LEFT,
+                    RecordingChannel.RIGHT,
+                    RecordingChannel.STEREO_MIX
+                )
+                SettingItem(
+                    title = stringResource(R.string.voice_input_settings_recording_channel),
+                    subtitle = stringResource(R.string.voice_input_settings_recording_channel_subtitle),
+                    subcontent = {
+                        DropDownPicker(
+                            options = channelOptions,
+                            selection = selectedChannel,
+                            onSet = { channel -> recordingChannelSetting.setValue(channel.id) },
+                            getDisplayName = { channel ->
+                                when (channel) {
+                                    RecordingChannel.MONO -> stringResource(R.string.voice_input_settings_recording_channel_mono)
+                                    RecordingChannel.LEFT -> stringResource(R.string.voice_input_settings_recording_channel_left)
+                                    RecordingChannel.RIGHT -> stringResource(R.string.voice_input_settings_recording_channel_right)
+                                    RecordingChannel.STEREO_MIX -> stringResource(R.string.voice_input_settings_recording_channel_stereo_mix)
+                                }
+                            }
+                        )
+                    }
+                ) {}
+            }
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingToggleDataStore(

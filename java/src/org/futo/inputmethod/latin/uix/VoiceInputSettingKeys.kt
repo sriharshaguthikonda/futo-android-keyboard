@@ -35,6 +35,11 @@ val PREFER_BLUETOOTH = SettingsKey(
     default = false
 )
 
+val VOICE_INPUT_RECORDING_CHANNEL = SettingsKey(
+    key = intPreferencesKey("voice_input_recording_channel"),
+    default = 0
+)
+
 val CAN_EXPAND_SPACE = SettingsKey(
     key = booleanPreferencesKey("can_expand_space"),
     default = true

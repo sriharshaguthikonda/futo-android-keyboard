@@ -535,6 +535,12 @@
     <string name="voice_input_settings_use_personal_dict_subtitle">Whether or not to use the personal dictionary for voice input</string>
     <string name="voice_input_settings_use_bluetooth_mic">Prefer Bluetooth Mic</string>
     <string name="voice_input_settings_use_bluetooth_mic_subtitle">There may be extra delay to recording starting as Bluetooth SCO connection must be negotiated</string>
+    <string name="voice_input_settings_recording_channel">Recording channel</string>
+    <string name="voice_input_settings_recording_channel_subtitle">Choose which audio channel to send for voice recognition</string>
+    <string name="voice_input_settings_recording_channel_mono">Mono (default)</string>
+    <string name="voice_input_settings_recording_channel_left">Left channel</string>
+    <string name="voice_input_settings_recording_channel_right">Right channel</string>
+    <string name="voice_input_settings_recording_channel_stereo_mix">Stereo mix</string>
     <string name="voice_input_settings_audio_focus">Audio Focus</string>
     <string name="voice_input_settings_audio_focus_subtitle">Pause videos/music when voice input is activated</string>
     <string name="voice_input_settings_suppress_symbols">Suppress symbols</string>
