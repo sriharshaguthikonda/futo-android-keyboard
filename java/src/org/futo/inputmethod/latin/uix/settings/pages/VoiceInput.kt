@@ -1,6 +1,7 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.AUDIO_FOCUS
@@ -73,6 +74,7 @@ val VoiceInputMenu = UserSettingsMenu(
             name = R.string.voice_input_settings_recording_channel,
             subtitle = R.string.voice_input_settings_recording_channel_subtitle,
             component = {
+                val context = LocalContext.current
                 val recordingChannelSetting = useDataStore(VOICE_INPUT_RECORDING_CHANNEL)
                 val selectedChannel = RecordingChannel.fromId(recordingChannelSetting.value)
                 val channelOptions = listOf(
@@ -80,6 +82,12 @@ val VoiceInputMenu = UserSettingsMenu(
                     RecordingChannel.LEFT,
                     RecordingChannel.RIGHT,
                     RecordingChannel.STEREO_MIX
+                )
+                val channelLabels = mapOf(
+                    RecordingChannel.MONO to R.string.voice_input_settings_recording_channel_mono,
+                    RecordingChannel.LEFT to R.string.voice_input_settings_recording_channel_left,
+                    RecordingChannel.RIGHT to R.string.voice_input_settings_recording_channel_right,
+                    RecordingChannel.STEREO_MIX to R.string.voice_input_settings_recording_channel_stereo_mix
                 )
                 SettingItem(
                     title = stringResource(R.string.voice_input_settings_recording_channel),
@@ -90,12 +98,7 @@ val VoiceInputMenu = UserSettingsMenu(
                             selection = selectedChannel,
                             onSet = { channel -> recordingChannelSetting.setValue(channel.id) },
                             getDisplayName = { channel ->
-                                when (channel) {
-                                    RecordingChannel.MONO -> stringResource(R.string.voice_input_settings_recording_channel_mono)
-                                    RecordingChannel.LEFT -> stringResource(R.string.voice_input_settings_recording_channel_left)
-                                    RecordingChannel.RIGHT -> stringResource(R.string.voice_input_settings_recording_channel_right)
-                                    RecordingChannel.STEREO_MIX -> stringResource(R.string.voice_input_settings_recording_channel_stereo_mix)
-                                }
+                                channelLabels[channel]?.let(context::getString) ?: channel.name
                             }
                         )
                     }
