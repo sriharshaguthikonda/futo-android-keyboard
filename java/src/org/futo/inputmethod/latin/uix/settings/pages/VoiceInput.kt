@@ -1,8 +1,13 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.Text
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.AUDIO_FOCUS
 import org.futo.inputmethod.latin.uix.CAN_EXPAND_SPACE
@@ -21,6 +26,7 @@ import org.futo.inputmethod.latin.uix.VOICE_INPUT_RECORDING_CHANNEL
 import org.futo.inputmethod.latin.uix.settings.DropDownPicker
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.SettingItem
+import org.futo.inputmethod.latin.uix.settings.Typography
 import org.futo.inputmethod.latin.uix.settings.UserSetting
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.useDataStore
@@ -91,8 +97,12 @@ val VoiceInputMenu = UserSettingsMenu(
                 )
                 SettingItem(
                     title = stringResource(R.string.voice_input_settings_recording_channel),
-                    subtitle = stringResource(R.string.voice_input_settings_recording_channel_subtitle),
                     subcontent = {
+                        Text(
+                            text = stringResource(R.string.voice_input_settings_recording_channel_subtitle),
+                            style = Typography.SmallMl
+                        )
+                        Spacer(Modifier.height(6.dp))
                         DropDownPicker(
                             options = channelOptions,
                             selection = selectedChannel,
