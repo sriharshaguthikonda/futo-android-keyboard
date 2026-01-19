@@ -86,6 +86,7 @@ import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_SYSTEM_PROMPT
+import org.futo.inputmethod.latin.uix.LOCAL_VOICE_SYSTEM_PROMPT
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
 import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
@@ -183,6 +184,7 @@ private class VoiceInputActionWindow(
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
+        val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
 
         state.modelManager.useGpu = useGpu
 
@@ -208,7 +210,7 @@ private class VoiceInputActionWindow(
                 glossary = glossary,
                 languages = allowedLanguages,
                 suppressSymbols = disallowSymbols,
-                systemPrompt = groqSystemPrompt
+                systemPrompt = localSystemPrompt
             ),
             recordingConfiguration = RecordingSettings(
                 preferBluetoothMic = useBluetoothAudio,
@@ -406,6 +408,7 @@ private class VoiceInputBottomBarWindow(
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
+        val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
 
         state.modelManager.useGpu = useGpu
 
@@ -427,7 +430,7 @@ private class VoiceInputBottomBarWindow(
                 glossary = state.userDictionaryObserver.getWords(locales).map { it.word },
                 languages = allowedLanguages,
                 suppressSymbols = disallowSymbols,
-                systemPrompt = groqSystemPrompt
+                systemPrompt = localSystemPrompt
             ),
             recordingConfiguration = RecordingSettings(
                 preferBluetoothMic = useBluetoothAudio,

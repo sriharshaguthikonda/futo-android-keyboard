@@ -85,6 +85,11 @@ val GROQ_VOICE_SYSTEM_PROMPT = SettingsKey(
     default = ""
 )
 
+val LOCAL_VOICE_SYSTEM_PROMPT = SettingsKey(
+    key = stringPreferencesKey("local_voice_system_prompt"),
+    default = ""
+)
+
 val USE_GPU_OFFLOAD = SettingsKey(
     key = booleanPreferencesKey("use_gpu_offload"),
     default = false
