@@ -37,6 +37,11 @@ fun ModelNavigationItem(navController: NavHostController, name: String, isPrimar
     NavigationItem(
         title = name,
         style = style,
+        subtitle = if (isPrimary) {
+            stringResource(R.string.prediction_settings_transformer_model_in_use)
+        } else {
+            null
+        },
         navigate = {
             navController.navigate("model/${URLEncoder.encode(path, "utf-8")}")
         },
