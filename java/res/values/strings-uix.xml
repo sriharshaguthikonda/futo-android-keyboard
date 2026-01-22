@@ -551,6 +551,10 @@
     <string name="voice_input_settings_long_form_subtitle">If disabled, voice input will auto-stop after 30 seconds.</string>
     <string name="voice_input_settings_autostop_vad">Auto-stop on silence</string>
     <string name="voice_input_settings_autostop_vad_subtitle">Automatically stop when silence is detected. You may need to manually stop regardless if there\'s too much background noise.</string>
+    <string name="voice_input_settings_prebuffer_duration">Prebuffer duration</string>
+    <string name="voice_input_settings_prebuffer_duration_subtitle">Capture audio just before you tap the mic</string>
+    <string name="voice_input_settings_prebuffer_duration_off">Off</string>
+    <string name="voice_input_settings_prebuffer_duration_seconds">%1$d s</string>
     <string name="voice_input_settings_change_models">Models</string>
     <string name="voice_input_settings_change_models_subtitle">To change the models, visit Languages &amp; Models menu</string>
 
