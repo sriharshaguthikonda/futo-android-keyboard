@@ -863,20 +863,19 @@ class AudioRecognizer(
             ).trim()
         }
 
-        val recordedSamples = floatSamples.array().sliceArray(0 until floatSamples.position())
-        val floatArray = if (pendingPrebuffer.isNotEmpty()) {
-            val combined = FloatArray(pendingPrebuffer.size + recordedSamples.size)
+        val primaryArray = floatSamplesPrimary.array().sliceArray(0 until floatSamplesPrimary.position())
+        val primaryArrayWithPrebuffer = if (pendingPrebuffer.isNotEmpty()) {
+            val combined = FloatArray(pendingPrebuffer.size + primaryArray.size)
             System.arraycopy(pendingPrebuffer, 0, combined, 0, pendingPrebuffer.size)
-            System.arraycopy(recordedSamples, 0, combined, pendingPrebuffer.size, recordedSamples.size)
+            System.arraycopy(primaryArray, 0, combined, pendingPrebuffer.size, primaryArray.size)
             combined
         } else {
-            recordedSamples
+            primaryArray
         }
         pendingPrebuffer = FloatArray(0)
 
-        val primaryArray = floatSamplesPrimary.array().sliceArray(0 until floatSamplesPrimary.position())
         val primaryText = try {
-            transcribe(primaryArray)
+            transcribe(primaryArrayWithPrebuffer)
         } catch (e: InferenceCancelledException) {
             yield()
             return
