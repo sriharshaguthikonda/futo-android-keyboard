@@ -799,7 +799,16 @@ fun SettingTextField(title: String, placeholder: String, field: SettingsKey<Stri
         placeholder = { Text(placeholder) },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp, 4.dp),
+            .padding(8.dp, 4.dp)
+            .heightIn(min = 120.dp),
+        maxLines = 5,
+        singleLine = false,
+        colors = TextFieldDefaults.colors(
+            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        )
     )
 }
 
