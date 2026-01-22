@@ -836,7 +836,7 @@ class AudioRecognizer(
                     
                     if (!groqResult.isNullOrBlank()) {
                         // Groq succeeded, return its result
-                        if (currentSessionId != sessionId.get()) return
+                        if (currentSessionId != sessionId.get()) return groqResult
                         yield()
                         lifecycleScope.launch {
                             withContext(Dispatchers.Main) {
