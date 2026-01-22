@@ -109,3 +109,8 @@ val USE_PERSONAL_DICT = SettingsKey(
     key = booleanPreferencesKey("use_personal_dict_voice_input"),
     default = true
 )
+
+val VOICE_INPUT_CHANNEL_MODE = SettingsKey(
+    key = intPreferencesKey("voice_input_channel_mode"),
+    default = 0
+)

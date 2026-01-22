@@ -89,6 +89,7 @@ import org.futo.inputmethod.latin.uix.GROQ_VOICE_SYSTEM_PROMPT
 import org.futo.inputmethod.latin.uix.LOCAL_VOICE_SYSTEM_PROMPT
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_CHANNEL_MODE
 import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.setSetting
@@ -104,6 +105,7 @@ import org.futo.voiceinput.shared.RecordingSettings
 import org.futo.voiceinput.shared.SoundPlayer
 import org.futo.voiceinput.shared.types.Language
 import org.futo.voiceinput.shared.types.ModelLoader
+import org.futo.voiceinput.shared.types.RecordingChannelMode
 import org.futo.voiceinput.shared.types.getLanguageFromWhisperString
 import org.futo.voiceinput.shared.ui.MicrophoneDeviceState
 import org.futo.voiceinput.shared.whisper.DecodingConfiguration
@@ -185,6 +187,7 @@ private class VoiceInputActionWindow(
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
         val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
+        val channelMode = RecordingChannelMode.fromSetting(context.getSetting(VOICE_INPUT_CHANNEL_MODE))
 
         state.modelManager.useGpu = useGpu
 
@@ -216,7 +219,8 @@ private class VoiceInputActionWindow(
                 preferBluetoothMic = useBluetoothAudio,
                 requestAudioFocus = requestAudioFocus,
                 canExpandSpace = canExpandSpace,
-                useVADAutoStop = useVAD
+                useVADAutoStop = useVAD,
+                channelMode = channelMode
             ),
             groqApiKey = if(useGroq) groqKey else "",
             groqModel = groqModel,
@@ -409,6 +413,7 @@ private class VoiceInputBottomBarWindow(
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
         val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
+        val channelMode = RecordingChannelMode.fromSetting(context.getSetting(VOICE_INPUT_CHANNEL_MODE))
 
         state.modelManager.useGpu = useGpu
 
@@ -436,7 +441,8 @@ private class VoiceInputBottomBarWindow(
                 preferBluetoothMic = useBluetoothAudio,
                 requestAudioFocus = requestAudioFocus,
                 canExpandSpace = canExpandSpace,
-                useVADAutoStop = useVAD
+                useVADAutoStop = useVAD,
+                channelMode = channelMode
             ),
             groqApiKey = if(useGroq) groqKey else "",
             groqModel = groqModel,
