@@ -35,6 +35,9 @@ import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.isDirectBootUnlocked
 import org.futo.inputmethod.latin.xlm.LanguageModelFacilitator
 import org.futo.inputmethod.v2keyboard.KeyboardLayoutSetV2
+import org.futo.inline.InlineSuggestionConfig
+import org.futo.inline.InlineSuggestionController
+import org.futo.inline.RuleBasedProvider
 
 interface WordLearner {
     fun addToHistory(
@@ -108,6 +111,14 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
         lifecycleScope = helper.lifecycleScope,
         suggestionBlacklist = suggestionBlacklist,
         suggestedWordsCallback = this
+    )
+
+    private val inlineSuggestionController = InlineSuggestionController(
+        provider = RuleBasedProvider(),
+        scope = helper.lifecycleScope,
+        config = InlineSuggestionConfig(),
+        inputConnectionProvider = { helper.getCurrentInputConnection() },
+        editorInfoProvider = { helper.getCurrentEditorInfo() }
     )
 
     override fun addToHistory(
@@ -224,6 +235,7 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
 
         resetDictionaryFacilitator()
         setNeutralSuggestionStrip()
+        inlineSuggestionController.onStartInput()
         dictionaryFacilitator.onStartInput()
         languageModelFacilitator.onStartInput()
         inputLogic.startInput(
@@ -261,6 +273,7 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
     override fun onFinishInput() {
         inputLogic.finishInput()
         dictionaryFacilitator.onFinishInput(context)
+        inlineSuggestionController.onFinishInput()
         updateSuggestionJob?.cancel()
         delayedSync()
     }
@@ -279,6 +292,14 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
             composingSpanStart, composingSpanEnd,
             Settings.getInstance().current
         )
+        inlineSuggestionController.onUpdateSelection(
+            oldSelStart,
+            oldSelEnd,
+            newSelStart,
+            newSelEnd,
+            composingSpanStart,
+            composingSpanEnd
+        )
     }
 
     override fun isGestureHandlingAvailable(): Boolean =
@@ -286,6 +307,20 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
 
     private fun onEventInternal(event: Event, ignoreSuggestionUpdate: Boolean = false) {
         helper.requestCursorUpdate()
+
+        if (eventShouldAcceptInlineSuggestion(event)) {
+            if (inlineSuggestionController.acceptInlineSuggestion()) {
+                return
+            }
+        }
+
+        if (eventIsBackspace(event)) {
+            if (inlineSuggestionController.onBackspace()) {
+                return
+            }
+        } else {
+            inlineSuggestionController.onUserTypedNonAcceptKey()
+        }
 
         val inputTransaction = when (event.eventType) {
             Event.EVENT_TYPE_INPUT_KEYPRESS,
@@ -360,6 +395,28 @@ class GeneralIME(val helper: IMEHelper) : IMEInterface, WordLearner, SuggestionS
 
             updateSuggestions(inputStyle)
         }
+
+        if (eventShouldScheduleInlineSuggestion(event)) {
+            inlineSuggestionController.scheduleInlineSuggestion()
+        }
+    }
+
+    private fun eventIsBackspace(event: Event): Boolean {
+        return event.mKeyCode == Constants.CODE_DELETE
+    }
+
+    private fun eventShouldAcceptInlineSuggestion(event: Event): Boolean {
+        return event.mKeyCode == Constants.CODE_TAB || event.mCodePoint == Constants.CODE_TAB
+    }
+
+    private fun eventShouldScheduleInlineSuggestion(event: Event): Boolean {
+        val char = when {
+            event.mCodePoint > 0 -> event.mCodePoint.toChar()
+            !event.mText.isNullOrEmpty() -> event.mText.last()
+            else -> null
+        } ?: return false
+
+        return char.isWhitespace() || char in charArrayOf('.', ',', '!', '?', ';', ':', ')', '"', '\'', '\n')
     }
 
     override fun onEvent(event: Event) = onEventInternal(event)
