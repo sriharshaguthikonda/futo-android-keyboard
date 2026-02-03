@@ -138,7 +138,8 @@ private fun buildLocalVoiceSystemPrompt(
     screenText: String
 ): String {
     val basePrompt = systemPrompt.trim()
-    val trimmedBase = basePrompt.take(LOCAL_VOICE_SYSTEM_PROMPT_MAX_LENGTH)
+    val maxLength = max(LOCAL_VOICE_SYSTEM_PROMPT_MAX_LENGTH, basePrompt.length)
+    val trimmedBase = basePrompt.take(maxLength)
     val trimmedScreenText = screenText.trim()
     if (trimmedScreenText.isBlank()) {
         return trimmedBase
@@ -150,7 +151,7 @@ private fun buildLocalVoiceSystemPrompt(
     }
 
     val separator = "\n\n"
-    val remaining = LOCAL_VOICE_SYSTEM_PROMPT_MAX_LENGTH -
+    val remaining = maxLength -
         trimmedBase.length -
         separator.length
     if (remaining <= 0) {
