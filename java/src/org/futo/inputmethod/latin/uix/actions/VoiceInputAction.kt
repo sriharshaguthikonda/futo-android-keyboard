@@ -86,7 +86,9 @@ import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_SYSTEM_PROMPT
+import org.futo.inputmethod.latin.uix.GROQ_VOICE_TWO_PASS
 import org.futo.inputmethod.latin.uix.LOCAL_VOICE_SYSTEM_PROMPT
+import org.futo.inputmethod.latin.uix.LOCAL_VOICE_TWO_PASS
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_CHANNEL_MODE
@@ -188,7 +190,9 @@ private class VoiceInputActionWindow(
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
+        val groqTwoPass = context.getSetting(GROQ_VOICE_TWO_PASS)
         val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
+        val localTwoPass = context.getSetting(LOCAL_VOICE_TWO_PASS)
         val channelMode = RecordingChannelMode.fromSetting(context.getSetting(VOICE_INPUT_CHANNEL_MODE))
 
         state.modelManager.useGpu = useGpu
@@ -228,6 +232,8 @@ private class VoiceInputActionWindow(
             groqApiKey = if(useGroq) groqKey else "",
             groqModel = groqModel,
             groqSystemPrompt = groqSystemPrompt,
+            groqTwoPass = groqTwoPass,
+            localTwoPass = localTwoPass,
             useGpuOffload = useGpu
         )
     }
@@ -416,7 +422,9 @@ private class VoiceInputBottomBarWindow(
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
+        val groqTwoPass = context.getSetting(GROQ_VOICE_TWO_PASS)
         val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
+        val localTwoPass = context.getSetting(LOCAL_VOICE_TWO_PASS)
         val channelMode = RecordingChannelMode.fromSetting(context.getSetting(VOICE_INPUT_CHANNEL_MODE))
         val prebufferSeconds = context.getSetting(VOICE_INPUT_PREBUFFER_SECONDS)
 
@@ -453,6 +461,8 @@ private class VoiceInputBottomBarWindow(
             groqApiKey = if(useGroq) groqKey else "",
             groqModel = groqModel,
             groqSystemPrompt = groqSystemPrompt,
+            groqTwoPass = groqTwoPass,
+            localTwoPass = localTwoPass,
             useGpuOffload = useGpu
         )
     }
