@@ -54,6 +54,7 @@ import org.futo.inputmethod.latin.Subtypes
 import org.futo.inputmethod.latin.SubtypesSetting
 import org.futo.inputmethod.latin.uix.FileKind
 import org.futo.inputmethod.latin.uix.LOCAL_VOICE_SYSTEM_PROMPT
+import org.futo.inputmethod.latin.uix.LOCAL_VOICE_TWO_PASS
 import org.futo.inputmethod.latin.uix.ResourceHelper
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.icon
@@ -62,6 +63,7 @@ import org.futo.inputmethod.latin.uix.namePreferenceKeyFor
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
 import org.futo.inputmethod.latin.uix.settings.SettingTextField
+import org.futo.inputmethod.latin.uix.settings.SettingToggleDataStore
 import org.futo.inputmethod.latin.uix.settings.Tip
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.pages.modelmanager.openModelImporter
@@ -516,6 +518,13 @@ val LanguageSettingsBottom = listOf(
             title = stringResource(R.string.language_settings_local_model_system_prompt),
             placeholder = stringResource(R.string.language_settings_local_model_system_prompt_placeholder),
             field = LOCAL_VOICE_SYSTEM_PROMPT
+        )
+    },
+    userSettingDecorationOnly {
+        SettingToggleDataStore(
+            title = stringResource(R.string.language_settings_local_model_two_pass_title),
+            subtitle = stringResource(R.string.language_settings_local_model_two_pass_subtitle),
+            setting = LOCAL_VOICE_TWO_PASS
         )
     },
     userSettingNavigationItem(

@@ -100,6 +100,8 @@ data class AudioRecognizerSettings(
     val groqApiKey: String,
     val groqModel: String,
     val groqSystemPrompt: String,
+    val groqTwoPass: Boolean,
+    val localTwoPass: Boolean,
     val useGpuOffload: Boolean
 )
 
@@ -812,6 +814,18 @@ class AudioRecognizer(
             }
         }
 
+        fun buildSecondPassPrompt(basePrompt: String, firstPass: String): String {
+            val trimmedFirst = firstPass.trim()
+            val trimmedBase = basePrompt.trim()
+            if (trimmedFirst.isBlank()) {
+                return trimmedBase
+            }
+            val contextPrompt = "First pass transcription:\n$trimmedFirst"
+            return listOf(trimmedBase, contextPrompt)
+                .filter { it.isNotBlank() }
+                .joinToString(separator = "\n\n")
+        }
+
         loadModelJob?.let {
             if (it.isActive) {
                 println("Model was not finished loading...")
@@ -835,13 +849,31 @@ class AudioRecognizer(
                     }
                     
                     if (!groqResult.isNullOrBlank()) {
-                        // Groq succeeded, return its result
-                        if (currentSessionId != sessionId.get()) return groqResult
-                        yield()
-                        lifecycleScope.launch {
-                            withContext(Dispatchers.Main) {
-                                if (currentSessionId != sessionId.get()) return@withContext
-                                listener.finished(normalizeTranscription(groqResult))
+                        if (settings.groqTwoPass) {
+                            val secondPassPrompt = buildSecondPassPrompt(
+                                settings.groqSystemPrompt,
+                                groqResult
+                            )
+                            val secondResult = withContext(Dispatchers.IO) {
+                                org.futo.voiceinput.shared.groq.GroqWhisperApi.transcribe(
+                                    floatArray,
+                                    settings.groqApiKey,
+                                    settings.groqModel,
+                                    secondPassPrompt.ifBlank { null }
+                                )
+                            }
+                            if (!secondResult.isNullOrBlank()) {
+                                return secondResult
+                            }
+                        } else {
+                            // Groq succeeded, return its result
+                            if (currentSessionId != sessionId.get()) return groqResult
+                            yield()
+                            lifecycleScope.launch {
+                                withContext(Dispatchers.Main) {
+                                    if (currentSessionId != sessionId.get()) return@withContext
+                                    listener.finished(normalizeTranscription(groqResult))
+                                }
                             }
                         }
                     }
@@ -855,12 +887,25 @@ class AudioRecognizer(
             }
 
             // Either Groq is not configured or it failed, use local model
-            return modelRunner.run(
+            val firstPassResult = modelRunner.run(
                 floatArray,
                 settings.modelRunConfiguration,
                 settings.decodingConfiguration,
                 runnerCallback
             ).trim()
+            if (settings.localTwoPass && firstPassResult.isNotBlank()) {
+                val secondPassPrompt = buildSecondPassPrompt(
+                    settings.decodingConfiguration.systemPrompt,
+                    firstPassResult
+                )
+                return modelRunner.run(
+                    floatArray,
+                    settings.modelRunConfiguration,
+                    settings.decodingConfiguration.copy(systemPrompt = secondPassPrompt),
+                    runnerCallback
+                ).trim()
+            }
+            return firstPassResult
         }
 
         val primaryArray = floatSamplesPrimary.array().sliceArray(0 until floatSamplesPrimary.position())
