@@ -31,6 +31,9 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
@@ -47,6 +50,14 @@ import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.voiceinput.shared.ENGLISH_MODELS
 import org.futo.voiceinput.shared.MULTILINGUAL_MODELS
 import org.futo.voiceinput.shared.AudioPrebufferRecorder
+import org.futo.voiceinput.shared.groq.GroqWhisperApi
+import org.futo.voiceinput.shared.types.InferenceState
+import org.futo.voiceinput.shared.types.Language
+import org.futo.voiceinput.shared.types.ModelInferenceCallback
+import org.futo.voiceinput.shared.whisper.DecodingConfiguration
+import org.futo.voiceinput.shared.whisper.ModelManager
+import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
+import org.futo.voiceinput.shared.whisper.MultiModelRunner
 import kotlin.math.roundToInt
 
 private const val TestingArenaRecordingSeconds = 10
@@ -55,12 +66,36 @@ private val TestingArenaAudioPath = SettingsKey(stringPreferencesKey("testingAre
 private val TestingArenaReferenceTranscript = SettingsKey(stringPreferencesKey("testingArenaReferenceTranscript"), "")
 private val TestingArenaSelectedModels = SettingsKey(stringSetPreferencesKey("testingArenaSelectedModels"), setOf())
 
+private fun wordErrorRate(reference: String, hypothesis: String): Double {
+    val refTokens = reference.trim().lowercase().split(Regex("\\s+")).filter { it.isNotBlank() }
+    val hypTokens = hypothesis.trim().lowercase().split(Regex("\\s+")).filter { it.isNotBlank() }
+    if (refTokens.isEmpty()) return 0.0
+
+    val dp = Array(refTokens.size + 1) { IntArray(hypTokens.size + 1) }
+    for (i in 0..refTokens.size) dp[i][0] = i
+    for (j in 0..hypTokens.size) dp[0][j] = j
+
+    for (i in 1..refTokens.size) {
+        for (j in 1..hypTokens.size) {
+            val cost = if (refTokens[i - 1] == hypTokens[j - 1]) 0 else 1
+            dp[i][j] = minOf(
+                dp[i - 1][j] + 1,
+                dp[i][j - 1] + 1,
+                dp[i - 1][j - 1] + cost
+            )
+        }
+    }
+
+    return dp[refTokens.size][hypTokens.size].toDouble() / refTokens.size.toDouble()
+}
+
 @Preview(showBackground = true)
 @Composable
 fun TestingArenaScreen(navController: NavHostController = rememberNavController()) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val results = remember { mutableStateMapOf<String, String>() }
+    val transcripts = remember { mutableStateMapOf<String, String>() }
     var metricsSummary by remember { mutableStateOf(context.getString(R.string.testing_arena_metrics_empty)) }
     val remoteEnabled = useDataStoreValue(TestingArenaRemote)
     val selectedModels = useDataStore(TestingArenaSelectedModels)
@@ -74,6 +109,9 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
         (ENGLISH_MODELS + MULTILINGUAL_MODELS).distinctBy { it.key(context) }
     }
 
+    val modelManager = remember { ModelManager(context) }
+    val modelRunner = remember { MultiModelRunner(modelManager) }
+
     var recorder by remember { mutableStateOf<AudioPrebufferRecorder?>(null) }
     var isRecording by remember { mutableStateOf(false) }
     var recordedSamples by remember { mutableStateOf<FloatArray?>(null) }
@@ -84,6 +122,7 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
         onDispose {
             recorder?.stop()
             recorder = null
+            modelRunner.cancelAll()
         }
     }
 
@@ -93,6 +132,9 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     val noticeLabel = stringResource(R.string.testing_arena_results_notice)
     val noModelsLabel = stringResource(R.string.testing_arena_results_no_models)
     val remoteLabel = stringResource(R.string.testing_arena_model_remote)
+    val noAudioLabel = stringResource(R.string.testing_arena_results_no_audio)
+    val transcribingLabel = stringResource(R.string.testing_arena_results_transcribing)
+    val modelMissingLabel = stringResource(R.string.testing_arena_results_model_missing)
 
     ScrollableList {
         ScreenTitle(stringResource(R.string.testing_arena_title), showBack = true, navController)
@@ -272,44 +314,83 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
         ) {
             Button(
                 onClick = {
+                    val audioSamples = if (useRecordedAudio) recordedSamples else null
                     results.clear()
-                    val audioValue = if (useRecordedAudio && recordedSamples != null) {
-                        context.getString(R.string.testing_arena_audio_recorded, recordedDurationSeconds)
-                    } else {
-                        audioPath.value
+                    transcripts.clear()
+                    if (audioSamples == null) {
+                        results[noticeLabel] = noAudioLabel
+                        return@Button
                     }
-                    val localModelLabels = selectedModels.value.mapNotNull { key ->
+                    val localModelsToRun = selectedModels.value.mapNotNull { key ->
                         voiceModels.firstOrNull { it.key(context).toString() == key }
-                    }.map { model ->
-                        context.getString(model.name)
                     }
-                    if (localModelLabels.isEmpty() && !remoteEnabled) {
+                    if (localModelsToRun.isEmpty() && !remoteEnabled) {
                         results[noticeLabel] = noModelsLabel
                         return@Button
                     }
 
-                    localModelLabels.forEach { model ->
-                        results[model] = context.getString(
-                            R.string.testing_arena_results_placeholder,
-                            audioValue.ifBlank { missingAudioLabel },
-                            localReadyLabel
-                        )
+                    localModelsToRun.forEach { model ->
+                        results[context.getString(model.name)] = transcribingLabel
+                    }
+                    if (remoteEnabled) {
+                        results[remoteLabel] = transcribingLabel
                     }
 
-                    if (remoteEnabled) {
-                        val status = if (groqApiKey.value.isBlank()) {
-                            missingGroqKeyLabel
-                        } else {
-                            context.getString(
-                                R.string.testing_arena_results_remote_ready,
-                                groqModel.value
+                    lifecycleOwner.lifecycleScope.launch {
+                        localModelsToRun.forEach { model ->
+                            val modelName = context.getString(model.name)
+                            if (!model.exists(context)) {
+                                results[modelName] = modelMissingLabel
+                                return@forEach
+                            }
+                            val languageSet = if (ENGLISH_MODELS.contains(model)) {
+                                setOf(Language.English)
+                            } else {
+                                Language.values().toSet()
+                            }
+                            val runConfig = MultiModelRunConfiguration(
+                                primaryModel = model,
+                                languageSpecificModels = emptyMap()
                             )
+                            val decodingConfig = DecodingConfiguration(
+                                glossary = emptyList(),
+                                languages = languageSet,
+                                suppressSymbols = false,
+                                systemPrompt = ""
+                            )
+                            val result = withContext(Dispatchers.Default) {
+                                modelRunner.run(
+                                    samples = audioSamples,
+                                    runConfiguration = runConfig,
+                                    decodingConfiguration = decodingConfig,
+                                    callback = object : ModelInferenceCallback {
+                                        override fun updateStatus(state: InferenceState) {}
+                                        override fun languageDetected(language: Language) {}
+                                        override fun partialResult(string: String) {}
+                                    }
+                                )
+                            }
+                            results[modelName] = result
+                            transcripts[modelName] = result
                         }
-                        results[remoteLabel] = context.getString(
-                            R.string.testing_arena_results_placeholder,
-                            audioValue.ifBlank { missingAudioLabel },
-                            status
-                        )
+
+                        if (remoteEnabled) {
+                            val remoteResult = if (groqApiKey.value.isBlank()) {
+                                missingGroqKeyLabel
+                            } else {
+                                withContext(Dispatchers.IO) {
+                                    GroqWhisperApi.transcribe(
+                                        samples = audioSamples,
+                                        apiKey = groqApiKey.value,
+                                        model = groqModel.value
+                                    )
+                                } ?: missingGroqKeyLabel
+                            }
+                            results[remoteLabel] = remoteResult
+                            if (remoteResult != missingGroqKeyLabel) {
+                                transcripts[remoteLabel] = remoteResult
+                            }
+                        }
                     }
                 },
                 modifier = Modifier.weight(1f)
@@ -318,10 +399,22 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
             }
             Button(
                 onClick = {
-                    metricsSummary = if (referenceTranscript.value.isBlank()) {
-                        context.getString(R.string.testing_arena_metrics_missing_reference)
-                    } else {
-                        context.getString(R.string.testing_arena_metrics_placeholder)
+                    metricsSummary = when {
+                        referenceTranscript.value.isBlank() ->
+                            context.getString(R.string.testing_arena_metrics_missing_reference)
+                        transcripts.isEmpty() ->
+                            context.getString(R.string.testing_arena_metrics_no_results)
+                        else -> {
+                            buildString {
+                                transcripts.forEach { (model, transcript) ->
+                                    val wer = wordErrorRate(referenceTranscript.value, transcript) * 100.0
+                                    append(model)
+                                    append(": ")
+                                    append(String.format("%.2f%%", wer))
+                                    append("\n")
+                                }
+                            }.trimEnd()
+                        }
                     }
                 },
                 modifier = Modifier.weight(1f)
