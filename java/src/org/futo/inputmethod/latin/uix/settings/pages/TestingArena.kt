@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -20,81 +21,142 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import org.futo.inputmethod.latin.R
+import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
+import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
+import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.SettingsKey
+import org.futo.inputmethod.latin.uix.settings.NavigationItem
+import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.SettingToggleDataStore
+import org.futo.inputmethod.latin.uix.settings.SettingToggleRaw
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
+import org.futo.inputmethod.latin.xlm.ModelPaths
+import org.futo.voiceinput.shared.AudioPrebufferRecorder
+import kotlin.math.roundToInt
 
-private val TestingArenaLocalSmall = SettingsKey(booleanPreferencesKey("testingArenaLocalSmall"), true)
-private val TestingArenaLocalLarge = SettingsKey(booleanPreferencesKey("testingArenaLocalLarge"), false)
+private const val TestingArenaRecordingSeconds = 10
 private val TestingArenaRemote = SettingsKey(booleanPreferencesKey("testingArenaRemote"), false)
-private val TestingArenaRemoteEndpoint = SettingsKey(stringPreferencesKey("testingArenaRemoteEndpoint"), "")
 private val TestingArenaAudioPath = SettingsKey(stringPreferencesKey("testingArenaAudioPath"), "")
 private val TestingArenaReferenceTranscript = SettingsKey(stringPreferencesKey("testingArenaReferenceTranscript"), "")
+private val TestingArenaSelectedModels = SettingsKey(stringSetPreferencesKey("testingArenaSelectedModels"), setOf())
 
 @Preview(showBackground = true)
 @Composable
 fun TestingArenaScreen(navController: NavHostController = rememberNavController()) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val results = remember { mutableStateMapOf<String, String>() }
     var metricsSummary by remember { mutableStateOf(context.getString(R.string.testing_arena_metrics_empty)) }
-    val localSmallEnabled = useDataStoreValue(TestingArenaLocalSmall)
-    val localLargeEnabled = useDataStoreValue(TestingArenaLocalLarge)
     val remoteEnabled = useDataStoreValue(TestingArenaRemote)
-    val localSmallLabel = stringResource(R.string.testing_arena_model_local_small)
-    val localLargeLabel = stringResource(R.string.testing_arena_model_local_large)
-    val remoteLabel = stringResource(R.string.testing_arena_model_remote)
-    val noticeLabel = stringResource(R.string.testing_arena_results_notice)
-    val noModelsLabel = stringResource(R.string.testing_arena_results_no_models)
-    val missingAudioLabel = stringResource(R.string.testing_arena_results_audio_missing)
-    val missingEndpointLabel = stringResource(R.string.testing_arena_results_missing_endpoint)
+    val selectedModels = useDataStore(TestingArenaSelectedModels)
+    val audioPath = useDataStore(TestingArenaAudioPath)
+    val referenceTranscript = useDataStore(TestingArenaReferenceTranscript)
+    val groqApiKey = useDataStore(GROQ_VOICE_API_KEY)
+    val groqModel = useDataStore(GROQ_VOICE_MODEL)
+    val preferBluetooth = useDataStoreValue(PREFER_BLUETOOTH)
+
+    val localModels = remember {
+        ModelPaths.getModels(context).mapNotNull { it.loadDetails() }
+    }
+
+    var recorder by remember { mutableStateOf<AudioPrebufferRecorder?>(null) }
+    var isRecording by remember { mutableStateOf(false) }
+    var recordedSamples by remember { mutableStateOf<FloatArray?>(null) }
+    var recordedDurationSeconds by remember { mutableStateOf(0) }
+    var useRecordedAudio by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            recorder?.stop()
+            recorder = null
+        }
+    }
+
     val localReadyLabel = stringResource(R.string.testing_arena_results_local_ready)
+    val missingAudioLabel = stringResource(R.string.testing_arena_results_audio_missing)
+    val missingGroqKeyLabel = stringResource(R.string.testing_arena_results_missing_groq_key)
 
     ScrollableList {
         ScreenTitle(stringResource(R.string.testing_arena_title), showBack = true, navController)
 
         ScreenTitle(stringResource(R.string.testing_arena_models_title))
-        SettingToggleDataStore(
-            title = stringResource(R.string.testing_arena_model_local_small),
-            subtitle = stringResource(R.string.testing_arena_model_local_small_subtitle),
-            setting = TestingArenaLocalSmall
+        if (localModels.isEmpty()) {
+            Text(
+                text = stringResource(R.string.testing_arena_no_local_models),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+        } else {
+            localModels.forEach { model ->
+                val label = model.name.trim().ifBlank { model.path }
+                val subtitle = model.languages.joinToString(", ").ifBlank {
+                    stringResource(R.string.testing_arena_model_language_unknown)
+                }
+                val isSelected = selectedModels.value.contains(model.path)
+                SettingToggleRaw(
+                    title = label,
+                    subtitle = subtitle,
+                    enabled = isSelected,
+                    setValue = { enabled ->
+                        val next = selectedModels.value.toMutableSet()
+                        if (enabled) {
+                            next.add(model.path)
+                        } else {
+                            next.remove(model.path)
+                        }
+                        selectedModels.setValue(next)
+                    }
+                )
+            }
+        }
+
+        NavigationItem(
+            title = stringResource(R.string.testing_arena_manage_models_title),
+            subtitle = stringResource(R.string.testing_arena_manage_models_subtitle),
+            style = NavigationItemStyle.Misc,
+            navigate = { navController.navigate("models") }
         )
-        SettingToggleDataStore(
-            title = stringResource(R.string.testing_arena_model_local_large),
-            subtitle = stringResource(R.string.testing_arena_model_local_large_subtitle),
-            setting = TestingArenaLocalLarge
-        )
+
         SettingToggleDataStore(
             title = stringResource(R.string.testing_arena_model_remote),
             subtitle = stringResource(R.string.testing_arena_model_remote_subtitle),
             setting = TestingArenaRemote
         )
 
-        val remoteEndpoint = useDataStore(TestingArenaRemoteEndpoint)
         if (remoteEnabled) {
             ScreenTitle(stringResource(R.string.testing_arena_remote_title))
-            OutlinedTextField(
-                value = remoteEndpoint.value,
-                onValueChange = { remoteEndpoint.setValue(it) },
-                label = { Text(stringResource(R.string.testing_arena_remote_endpoint_label)) },
-                placeholder = { Text(stringResource(R.string.testing_arena_remote_endpoint_placeholder)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
+            val groqStatus = if (groqApiKey.value.isBlank()) {
+                stringResource(R.string.testing_arena_remote_missing_key)
+            } else {
+                stringResource(R.string.testing_arena_remote_ready, groqModel.value)
+            }
+            Text(
+                text = groqStatus,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+            NavigationItem(
+                title = stringResource(R.string.testing_arena_remote_open_settings),
+                subtitle = stringResource(R.string.testing_arena_remote_open_settings_subtitle),
+                style = NavigationItemStyle.Misc,
+                navigate = { navController.navigate("groqWhisper") }
             )
         }
 
-        val audioPath = useDataStore(TestingArenaAudioPath)
         ScreenTitle(stringResource(R.string.testing_arena_audio_title))
         OutlinedTextField(
             value = audioPath.value,
@@ -106,7 +168,78 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                 .padding(horizontal = 12.dp)
         )
 
-        val referenceTranscript = useDataStore(TestingArenaReferenceTranscript)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(
+                onClick = {
+                    if (isRecording) {
+                        val snapshot = recorder?.snapshotAndReset() ?: FloatArray(0)
+                        recorder?.stop()
+                        recorder = null
+                        isRecording = false
+                        if (snapshot.isNotEmpty()) {
+                            recordedSamples = snapshot
+                            recordedDurationSeconds = (snapshot.size / 16000.0f).roundToInt()
+                            useRecordedAudio = true
+                        }
+                    } else {
+                        recordedSamples = null
+                        recordedDurationSeconds = 0
+                        val newRecorder = AudioPrebufferRecorder(
+                            context = context,
+                            lifecycleScope = lifecycleOwner.lifecycleScope,
+                            preferBluetoothMic = preferBluetooth,
+                            prebufferDurationMs = TestingArenaRecordingSeconds * 1000
+                        )
+                        newRecorder.start()
+                        recorder = newRecorder
+                        isRecording = true
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    if (isRecording) {
+                        stringResource(R.string.testing_arena_record_stop)
+                    } else {
+                        stringResource(R.string.testing_arena_record_start)
+                    }
+                )
+            }
+            Button(
+                onClick = {
+                    recorder?.stop()
+                    recorder = null
+                    isRecording = false
+                    recordedSamples = null
+                    recordedDurationSeconds = 0
+                    useRecordedAudio = false
+                },
+                modifier = Modifier.weight(1f),
+                enabled = recordedSamples != null || isRecording
+            ) {
+                Text(stringResource(R.string.testing_arena_record_clear))
+            }
+        }
+
+        if (recordedSamples != null) {
+            Text(
+                text = stringResource(R.string.testing_arena_record_ready, recordedDurationSeconds),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+            SettingToggleRaw(
+                title = stringResource(R.string.testing_arena_use_recorded_audio),
+                enabled = useRecordedAudio,
+                setValue = { useRecordedAudio = it },
+                subtitle = stringResource(R.string.testing_arena_use_recorded_audio_subtitle)
+            )
+        }
+
         ScreenTitle(stringResource(R.string.testing_arena_reference_title))
         OutlinedTextField(
             value = referenceTranscript.value,
@@ -128,37 +261,41 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
             Button(
                 onClick = {
                     results.clear()
-                    val models = buildList {
-                        if (localSmallEnabled) {
-                            add(localSmallLabel)
-                        }
-                        if (localLargeEnabled) {
-                            add(localLargeLabel)
-                        }
-                        if (remoteEnabled) {
-                            add(remoteLabel)
-                        }
-                    }
-                    val audioValue = audioPath.value
-                    val endpointValue = remoteEndpoint.value
-                    if (models.isEmpty()) {
-                        results[noticeLabel] = noModelsLabel
+                    val audioValue = if (useRecordedAudio && recordedSamples != null) {
+                        stringResource(R.string.testing_arena_audio_recorded, recordedDurationSeconds)
                     } else {
-                        models.forEach { model ->
-                            val status = when (model) {
-                                remoteLabel -> if (endpointValue.isBlank()) {
-                                    missingEndpointLabel
-                                } else {
-                                    context.getString(R.string.testing_arena_results_remote_ready, endpointValue)
-                                }
-                                else -> localReadyLabel
-                            }
-                            results[model] = context.getString(
-                                R.string.testing_arena_results_placeholder,
-                                audioValue.ifBlank { missingAudioLabel },
-                                status
+                        audioPath.value
+                    }
+                    val localModelLabels = localModels.filter { selectedModels.value.contains(it.path) }
+                        .map { it.name.trim().ifBlank { it.path } }
+                    if (localModelLabels.isEmpty() && !remoteEnabled) {
+                        results[stringResource(R.string.testing_arena_results_notice)] =
+                            stringResource(R.string.testing_arena_results_no_models)
+                        return@Button
+                    }
+
+                    localModelLabels.forEach { model ->
+                        results[model] = context.getString(
+                            R.string.testing_arena_results_placeholder,
+                            audioValue.ifBlank { missingAudioLabel },
+                            localReadyLabel
+                        )
+                    }
+
+                    if (remoteEnabled) {
+                        val status = if (groqApiKey.value.isBlank()) {
+                            missingGroqKeyLabel
+                        } else {
+                            context.getString(
+                                R.string.testing_arena_results_remote_ready,
+                                groqModel.value
                             )
                         }
+                        results[stringResource(R.string.testing_arena_model_remote)] = context.getString(
+                            R.string.testing_arena_results_placeholder,
+                            audioValue.ifBlank { missingAudioLabel },
+                            status
+                        )
                     }
                 },
                 modifier = Modifier.weight(1f)
