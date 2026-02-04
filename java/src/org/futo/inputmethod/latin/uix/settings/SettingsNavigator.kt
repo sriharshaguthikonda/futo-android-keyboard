@@ -51,6 +51,7 @@ import org.futo.inputmethod.latin.uix.settings.pages.ResizeScreen
 import org.futo.inputmethod.latin.uix.settings.pages.SearchScreen
 import org.futo.inputmethod.latin.uix.settings.pages.SelectLanguageScreen
 import org.futo.inputmethod.latin.uix.settings.pages.SelectLayoutsScreen
+import org.futo.inputmethod.latin.uix.settings.pages.TestingArenaScreen
 import org.futo.inputmethod.latin.uix.settings.pages.ThemeSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.pages.ThemeScreen
 import org.futo.inputmethod.latin.uix.settings.pages.ThemeGeneratorScreen
@@ -161,6 +162,7 @@ fun SettingsNavigator(
             composable("devlayouts") { DevLayoutList(navController) }
             composable("devlayouteditor") { DevLayoutEditor(navController) }
             composable("devkeyboard") { DevKeyboardScreen(navController) }
+            composable("testingArena") { TestingArenaScreen(navController) }
             composable("devlayoutedit/{i}") {
                 DevLayoutEdit(
                     navController,
