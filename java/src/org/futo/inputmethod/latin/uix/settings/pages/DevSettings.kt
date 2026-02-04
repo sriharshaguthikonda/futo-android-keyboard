@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -100,6 +101,12 @@ fun DeveloperScreen(navController: NavHostController = rememberNavController()) 
             title = "Custom layouts",
             style = NavigationItemStyle.Misc,
             navigate = { navController.navigate("devlayouteditor") }
+        )
+        NavigationItem(
+            title = stringResource(R.string.testing_arena_title),
+            subtitle = stringResource(R.string.testing_arena_subtitle),
+            style = NavigationItemStyle.Misc,
+            navigate = { navController.navigate("testingArena") }
         )
 
         ScreenTitle("Text input debug")

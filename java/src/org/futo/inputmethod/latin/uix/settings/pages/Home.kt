@@ -160,9 +160,7 @@ val HomeScreenLite = UserSettingsMenu(
             style = NavigationItemStyle.HomeTertiary,
             navigateTo = "developer",
             icon = R.drawable.code
-        ).copy(visibilityCheck = {
-            useDataStoreValue(IS_DEVELOPER) == true || LocalInspectionMode.current
-        }),
+        ),
         //}
 
         userSettingNavigationItem(
