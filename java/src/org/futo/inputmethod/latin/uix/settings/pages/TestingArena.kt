@@ -47,7 +47,7 @@ private val TestingArenaReferenceTranscript = SettingsKey(stringPreferencesKey("
 fun TestingArenaScreen(navController: NavHostController = rememberNavController()) {
     val context = LocalContext.current
     val results = remember { mutableStateMapOf<String, String>() }
-    var metricsSummary by remember { mutableStateOf(stringResource(R.string.testing_arena_metrics_empty)) }
+    var metricsSummary by remember { mutableStateOf(context.getString(R.string.testing_arena_metrics_empty)) }
     val localSmallEnabled = useDataStoreValue(TestingArenaLocalSmall)
     val localLargeEnabled = useDataStoreValue(TestingArenaLocalLarge)
     val remoteEnabled = useDataStoreValue(TestingArenaRemote)
