@@ -135,6 +135,7 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     val noAudioLabel = stringResource(R.string.testing_arena_results_no_audio)
     val transcribingLabel = stringResource(R.string.testing_arena_results_transcribing)
     val modelMissingLabel = stringResource(R.string.testing_arena_results_model_missing)
+    val transcriptionFailedLabel = stringResource(R.string.testing_arena_results_transcription_failed)
 
     ScrollableList {
         ScreenTitle(stringResource(R.string.testing_arena_title), showBack = true, navController)
@@ -358,36 +359,47 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                                 suppressSymbols = false,
                                 systemPrompt = ""
                             )
-                            val result = withContext(Dispatchers.Default) {
-                                modelRunner.run(
-                                    samples = audioSamples,
-                                    runConfiguration = runConfig,
-                                    decodingConfiguration = decodingConfig,
-                                    callback = object : ModelInferenceCallback {
-                                        override fun updateStatus(state: InferenceState) {}
-                                        override fun languageDetected(language: Language) {}
-                                        override fun partialResult(string: String) {}
-                                    }
-                                )
+                            val result = runCatching {
+                                withContext(Dispatchers.Default) {
+                                    modelRunner.run(
+                                        samples = audioSamples,
+                                        runConfiguration = runConfig,
+                                        decodingConfiguration = decodingConfig,
+                                        callback = object : ModelInferenceCallback {
+                                            override fun updateStatus(state: InferenceState) {}
+                                            override fun languageDetected(language: Language) {}
+                                            override fun partialResult(string: String) {}
+                                        }
+                                    )
+                                }
+                            }.getOrElse { error ->
+                                results[modelName] = "$transcriptionFailedLabel ${error.message ?: ""}".trim()
+                                ""
                             }
-                            results[modelName] = result
-                            transcripts[modelName] = result
+                            if (result.isNotBlank()) {
+                                results[modelName] = result
+                                transcripts[modelName] = result
+                            }
                         }
 
                         if (remoteEnabled) {
-                            val remoteResult = if (groqApiKey.value.isBlank()) {
-                                missingGroqKeyLabel
-                            } else {
-                                withContext(Dispatchers.IO) {
-                                    GroqWhisperApi.transcribe(
-                                        samples = audioSamples,
-                                        apiKey = groqApiKey.value,
-                                        model = groqModel.value
-                                    )
-                                } ?: missingGroqKeyLabel
+                            val remoteResult = runCatching {
+                                if (groqApiKey.value.isBlank()) {
+                                    missingGroqKeyLabel
+                                } else {
+                                    withContext(Dispatchers.IO) {
+                                        GroqWhisperApi.transcribe(
+                                            samples = audioSamples,
+                                            apiKey = groqApiKey.value,
+                                            model = groqModel.value
+                                        )
+                                    } ?: transcriptionFailedLabel
+                                }
+                            }.getOrElse { error ->
+                                "$transcriptionFailedLabel ${error.message ?: ""}".trim()
                             }
                             results[remoteLabel] = remoteResult
-                            if (remoteResult != missingGroqKeyLabel) {
+                            if (remoteResult != missingGroqKeyLabel && remoteResult.isNotBlank()) {
                                 transcripts[remoteLabel] = remoteResult
                             }
                         }
