@@ -567,6 +567,8 @@
     <string name="testing_arena_results_local_ready">Local model ready.</string>
     <string name="testing_arena_results_transcribing">Transcribing…</string>
     <string name="testing_arena_results_model_missing">Model not downloaded.</string>
+    <string name="testing_arena_results_invalid_audio">Invalid audio file.</string>
+    <string name="testing_arena_results_unsupported_model">Unsupported local model format. Download voice models.</string>
     <string name="testing_arena_results_transcription_failed">Transcription failed.</string>
     <string name="testing_arena_results_missing_groq_key">Groq API key missing.</string>
     <string name="testing_arena_results_remote_ready">Remote ready: %1$s</string>

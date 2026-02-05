@@ -58,6 +58,9 @@ import org.futo.voiceinput.shared.whisper.DecodingConfiguration
 import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
 import org.futo.voiceinput.shared.whisper.MultiModelRunner
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.roundToInt
 
 private const val TestingArenaRecordingSeconds = 10
@@ -87,6 +90,39 @@ private fun wordErrorRate(reference: String, hypothesis: String): Double {
     }
 
     return dp[refTokens.size][hypTokens.size].toDouble() / refTokens.size.toDouble()
+}
+
+private fun loadWavSamples(path: String): FloatArray {
+    val file = File(path)
+    require(file.exists()) { "File not found" }
+    val data = file.readBytes()
+    require(data.size >= 44) { "Invalid WAV file" }
+    val header = ByteBuffer.wrap(data, 0, 44).order(ByteOrder.LITTLE_ENDIAN)
+    val riff = ByteArray(4)
+    header.get(riff)
+    require(String(riff) == "RIFF") { "Invalid WAV header" }
+    header.position(8)
+    val wave = ByteArray(4)
+    header.get(wave)
+    require(String(wave) == "WAVE") { "Invalid WAV header" }
+    header.position(22)
+    val channels = header.short
+    require(channels.toInt() == 1) { "Only mono WAV is supported" }
+    header.position(24)
+    val sampleRate = header.int
+    require(sampleRate == 16000) { "Sample rate must be 16000 Hz" }
+    header.position(34)
+    val bitsPerSample = header.short
+    require(bitsPerSample.toInt() == 16) { "Only 16-bit PCM WAV is supported" }
+    val pcmOffset = 44
+    val pcmSize = data.size - pcmOffset
+    require(pcmSize > 0 && pcmSize % 2 == 0) { "Invalid PCM data" }
+    val samples = FloatArray(pcmSize / 2)
+    val pcm = ByteBuffer.wrap(data, pcmOffset, pcmSize).order(ByteOrder.LITTLE_ENDIAN)
+    for (i in samples.indices) {
+        samples[i] = pcm.short.toFloat() / Short.MAX_VALUE.toFloat()
+    }
+    return samples
 }
 
 @Preview(showBackground = true)
@@ -136,6 +172,8 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     val transcribingLabel = stringResource(R.string.testing_arena_results_transcribing)
     val modelMissingLabel = stringResource(R.string.testing_arena_results_model_missing)
     val transcriptionFailedLabel = stringResource(R.string.testing_arena_results_transcription_failed)
+    val invalidAudioLabel = stringResource(R.string.testing_arena_results_invalid_audio)
+    val unsupportedModelLabel = stringResource(R.string.testing_arena_results_unsupported_model)
 
     ScrollableList {
         ScreenTitle(stringResource(R.string.testing_arena_title), showBack = true, navController)
@@ -315,11 +353,23 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
         ) {
             Button(
                 onClick = {
-                    val audioSamples = if (useRecordedAudio) recordedSamples else null
                     results.clear()
                     transcripts.clear()
+                    val audioSamples = when {
+                        useRecordedAudio -> recordedSamples
+                        audioPath.value.isNotBlank() -> {
+                            runCatching { loadWavSamples(audioPath.value) }
+                                .getOrElse {
+                                    results[noticeLabel] = "$invalidAudioLabel ${it.message ?: ""}".trim()
+                                    null
+                                }
+                        }
+                        else -> null
+                    }
                     if (audioSamples == null) {
-                        results[noticeLabel] = noAudioLabel
+                        if (results.isEmpty()) {
+                            results[noticeLabel] = noAudioLabel
+                        }
                         return@Button
                     }
                     val localModelsToRun = selectedModels.value.mapNotNull { key ->
@@ -373,7 +423,12 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                                     )
                                 }
                             }.getOrElse { error ->
-                                results[modelName] = "$transcriptionFailedLabel ${error.message ?: ""}".trim()
+                                val message = error.message.orEmpty()
+                                results[modelName] = if (message.contains("tflite", ignoreCase = true)) {
+                                    unsupportedModelLabel
+                                } else {
+                                    "$transcriptionFailedLabel ${message}".trim()
+                                }
                                 ""
                             }
                             if (result.isNotBlank()) {
