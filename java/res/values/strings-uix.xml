@@ -581,10 +581,8 @@
     <string name="testing_arena_charts_placeholder">Charts will render here once the charting pipeline is wired up.</string>
     <string name="testing_arena_voice_model_custom">Custom</string>
     <string name="testing_arena_custom_models_title">Custom voice models</string>
-    <string name="testing_arena_custom_models_subtitle">Add local .bin models from storage to test alongside built-ins.</string>
-    <string name="testing_arena_custom_models_path_label">Model file path</string>
-    <string name="testing_arena_custom_models_path_placeholder">/sdcard/Download/voice_model.bin</string>
-    <string name="testing_arena_custom_models_add">Add model</string>
+    <string name="testing_arena_custom_models_subtitle">Pick local voice model files to test alongside built-ins.</string>
+    <string name="testing_arena_custom_models_add">Choose model file</string>
     <string name="testing_arena_custom_models_remove">Remove</string>
 
     <!-- Voice input settings menu -->

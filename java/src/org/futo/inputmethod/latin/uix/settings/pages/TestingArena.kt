@@ -11,6 +11,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -66,6 +68,7 @@ import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
 import org.futo.voiceinput.shared.whisper.MultiModelRunner
 import java.io.File
+import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.roundToInt
@@ -141,6 +144,26 @@ private fun loadWavSamples(path: String): FloatArray {
     return samples
 }
 
+private fun copyUriToVoiceModelFile(context: Context, uri: android.net.Uri): File {
+    val resolver = context.contentResolver
+    val name = resolver.query(uri, null, null, null, null)?.use { cursor ->
+        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+        if (nameIndex != -1 && cursor.moveToFirst()) {
+            cursor.getString(nameIndex)
+        } else {
+            null
+        }
+    } ?: "voice_model.bin"
+    val targetDir = File(context.filesDir, "voice_models").apply { mkdirs() }
+    val targetFile = File(targetDir, name)
+    resolver.openInputStream(uri)?.use { input ->
+        FileOutputStream(targetFile).use { output ->
+            input.copyTo(output)
+        }
+    }
+    return targetFile
+}
+
 @Preview(showBackground = true)
 @Composable
 fun TestingArenaScreen(navController: NavHostController = rememberNavController()) {
@@ -160,7 +183,19 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     val useGpuOffload = useDataStoreValue(USE_GPU_OFFLOAD)
     val localSystemPrompt = useDataStore(LOCAL_VOICE_SYSTEM_PROMPT)
     val customModelPaths = useDataStore(TestingArenaCustomModelPaths)
-    var newCustomModelPath by remember { mutableStateOf("") }
+    val customModelPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            if (uri != null) {
+                val file = runCatching { copyUriToVoiceModelFile(context, uri) }.getOrNull()
+                if (file != null) {
+                    val next = customModelPaths.value.toMutableSet()
+                    next.add(file.absolutePath)
+                    customModelPaths.setValue(next)
+                }
+            }
+        }
+    )
 
     val voiceModels = remember(customModelPaths.value) {
         val baseModels = (ENGLISH_MODELS + MULTILINGUAL_MODELS).distinctBy { it.key(context) }
@@ -270,15 +305,6 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 12.dp)
         )
-        OutlinedTextField(
-            value = newCustomModelPath,
-            onValueChange = { newCustomModelPath = it },
-            label = { Text(stringResource(R.string.testing_arena_custom_models_path_label)) },
-            placeholder = { Text(stringResource(R.string.testing_arena_custom_models_path_placeholder)) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp)
-        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -287,13 +313,7 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
         ) {
             Button(
                 onClick = {
-                    val trimmed = newCustomModelPath.trim()
-                    if (trimmed.isNotEmpty()) {
-                        val next = customModelPaths.value.toMutableSet()
-                        next.add(trimmed)
-                        customModelPaths.setValue(next)
-                        newCustomModelPath = ""
-                    }
+                    customModelPicker.launch(arrayOf("*/*"))
                 },
                 modifier = Modifier.weight(1f)
             ) {
