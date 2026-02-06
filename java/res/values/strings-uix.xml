@@ -523,8 +523,8 @@
     <string name="theme_settings_reset_to_default_desc">Restore all theme parameters to the default values. Helpful if imported settings caused mismatched colors.</string>
     <string name="theme_settings_reset_to_default_tags">reset theme, theme reset, restore colors, default colors, fix theme, theme defaults</string>
     <string name="dev_settings_title">Developer Settings</string>
-    <string name="testing_arena_title">Testing Arena</string>
-    <string name="testing_arena_subtitle">Run audio across multiple models and remotes.</string>
+    <string name="testing_arena_title">Voice Model Compare</string>
+    <string name="testing_arena_subtitle">Record once, then compare multiple voice models.</string>
     <string name="testing_arena_models_title">Models</string>
     <string name="testing_arena_no_voice_models">No voice models available.</string>
     <string name="testing_arena_voice_model_english">English</string>
