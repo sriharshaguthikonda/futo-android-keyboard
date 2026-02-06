@@ -568,7 +568,7 @@
     <string name="testing_arena_results_transcribing">Transcribing…</string>
     <string name="testing_arena_results_model_missing">Model not downloaded.</string>
     <string name="testing_arena_results_invalid_audio">Invalid audio file.</string>
-    <string name="testing_arena_results_unsupported_model">Unsupported local model format. Download voice models.</string>
+    <string name="testing_arena_results_unsupported_model">Unsupported local model format. Use a compatible voice model.</string>
     <string name="testing_arena_results_transcription_failed">Transcription failed.</string>
     <string name="testing_arena_results_missing_groq_key">Groq API key missing.</string>
     <string name="testing_arena_results_remote_ready">Remote ready: %1$s</string>
@@ -579,6 +579,13 @@
     <string name="testing_arena_metrics_no_results">Run a transcription to calculate WER.</string>
     <string name="testing_arena_metrics_placeholder">WER: 0.00 (stub)\nCER: 0.00 (stub)</string>
     <string name="testing_arena_charts_placeholder">Charts will render here once the charting pipeline is wired up.</string>
+    <string name="testing_arena_voice_model_custom">Custom</string>
+    <string name="testing_arena_custom_models_title">Custom voice models</string>
+    <string name="testing_arena_custom_models_subtitle">Add local .bin models from storage to test alongside built-ins.</string>
+    <string name="testing_arena_custom_models_path_label">Model file path</string>
+    <string name="testing_arena_custom_models_path_placeholder">/sdcard/Download/voice_model.bin</string>
+    <string name="testing_arena_custom_models_add">Add model</string>
+    <string name="testing_arena_custom_models_remove">Remove</string>
 
     <!-- Voice input settings menu -->
     <string name="voice_input_settings_title">Voice Input</string>
