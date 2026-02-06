@@ -35,10 +35,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.futo.inputmethod.latin.R
+import org.futo.inputmethod.latin.uix.DISALLOW_SYMBOLS
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
+import org.futo.inputmethod.latin.uix.LOCAL_VOICE_SYSTEM_PROMPT
 import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.SettingsKey
+import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.settings.NavigationItem
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
@@ -51,9 +54,11 @@ import org.futo.voiceinput.shared.ENGLISH_MODELS
 import org.futo.voiceinput.shared.MULTILINGUAL_MODELS
 import org.futo.voiceinput.shared.AudioPrebufferRecorder
 import org.futo.voiceinput.shared.groq.GroqWhisperApi
+import org.futo.voiceinput.shared.ggml.InvalidModelException
 import org.futo.voiceinput.shared.types.InferenceState
 import org.futo.voiceinput.shared.types.Language
 import org.futo.voiceinput.shared.types.ModelInferenceCallback
+import org.futo.voiceinput.shared.util.normalizeTranscription
 import org.futo.voiceinput.shared.whisper.DecodingConfiguration
 import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
@@ -140,6 +145,9 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     val groqApiKey = useDataStore(GROQ_VOICE_API_KEY)
     val groqModel = useDataStore(GROQ_VOICE_MODEL)
     val preferBluetooth = useDataStoreValue(PREFER_BLUETOOTH)
+    val suppressSymbols = useDataStoreValue(DISALLOW_SYMBOLS)
+    val useGpuOffload = useDataStoreValue(USE_GPU_OFFLOAD)
+    val localSystemPrompt = useDataStore(LOCAL_VOICE_SYSTEM_PROMPT)
 
     val voiceModels = remember {
         (ENGLISH_MODELS + MULTILINGUAL_MODELS).distinctBy { it.key(context) }
@@ -399,6 +407,7 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                             } else {
                                 Language.values().toSet()
                             }
+                            modelManager.useGpu = useGpuOffload
                             val runConfig = MultiModelRunConfiguration(
                                 primaryModel = model,
                                 languageSpecificModels = emptyMap()
@@ -406,8 +415,8 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                             val decodingConfig = DecodingConfiguration(
                                 glossary = emptyList(),
                                 languages = languageSet,
-                                suppressSymbols = false,
-                                systemPrompt = ""
+                                suppressSymbols = suppressSymbols,
+                                systemPrompt = localSystemPrompt.value
                             )
                             val result = runCatching {
                                 withContext(Dispatchers.Default) {
@@ -422,13 +431,16 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                                         }
                                     )
                                 }
-                            }.getOrElse { error ->
-                                val message = error.message.orEmpty()
-                                results[modelName] = if (message.contains("tflite", ignoreCase = true)) {
-                                    unsupportedModelLabel
-                                } else {
-                                    "$transcriptionFailedLabel ${message}".trim()
-                                }
+                            }.map { normalizeTranscription(it) }
+                                .getOrElse { error ->
+                                    val message = error.message.orEmpty()
+                                    results[modelName] = if (error is InvalidModelException ||
+                                        message.contains("tflite", ignoreCase = true)
+                                    ) {
+                                        unsupportedModelLabel
+                                    } else {
+                                        "$transcriptionFailedLabel ${message}".trim()
+                                    }
                                 ""
                             }
                             if (result.isNotBlank()) {
@@ -448,7 +460,7 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                                             apiKey = groqApiKey.value,
                                             model = groqModel.value
                                         )
-                                    } ?: transcriptionFailedLabel
+                                    }?.let { normalizeTranscription(it) } ?: transcriptionFailedLabel
                                 }
                             }.getOrElse { error ->
                                 "$transcriptionFailedLabel ${error.message ?: ""}".trim()
