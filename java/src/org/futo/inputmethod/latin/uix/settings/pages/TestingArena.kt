@@ -81,6 +81,8 @@ private val TestingArenaAudioPath = SettingsKey(stringPreferencesKey("testingAre
 private val TestingArenaReferenceTranscript = SettingsKey(stringPreferencesKey("testingArenaReferenceTranscript"), "")
 private val TestingArenaSelectedModels = SettingsKey(stringSetPreferencesKey("testingArenaSelectedModels"), setOf())
 private val TestingArenaCustomModelPaths = SettingsKey(stringSetPreferencesKey("testingArenaCustomModelPaths"), setOf())
+private val TestingArenaAllowResample = SettingsKey(booleanPreferencesKey("testingArenaAllowResample"), false)
+private val TestingArenaNormalizeAudio = SettingsKey(booleanPreferencesKey("testingArenaNormalizeAudio"), false)
 
 private data class TestingArenaModel(
     val id: String,
@@ -136,7 +138,40 @@ private fun charErrorRate(reference: String, hypothesis: String): Double {
     return dp[refChars.size][hypChars.size].toDouble() / refChars.size.toDouble()
 }
 
-private fun loadWavSamples(path: String): FloatArray {
+private fun resampleTo16k(samples: FloatArray, sampleRate: Int): FloatArray {
+    if (sampleRate == 16000) return samples
+    val ratio = 16000.0 / sampleRate.toDouble()
+    val outSize = (samples.size * ratio).roundToInt().coerceAtLeast(1)
+    val output = FloatArray(outSize)
+    for (i in 0 until outSize) {
+        val srcIndex = i / ratio
+        val i0 = srcIndex.toInt().coerceIn(0, samples.size - 1)
+        val i1 = (i0 + 1).coerceAtMost(samples.size - 1)
+        val t = (srcIndex - i0).toFloat()
+        output[i] = samples[i0] * (1f - t) + samples[i1] * t
+    }
+    return output
+}
+
+private fun normalizeSamples(samples: FloatArray): FloatArray {
+    var maxAbs = 0f
+    for (sample in samples) {
+        val value = kotlin.math.abs(sample)
+        if (value > maxAbs) maxAbs = value
+    }
+    if (maxAbs <= 0f) return samples
+    val scale = 0.95f / maxAbs
+    for (i in samples.indices) {
+        samples[i] *= scale
+    }
+    return samples
+}
+
+private fun loadWavSamples(
+    path: String,
+    allowResample: Boolean,
+    normalize: Boolean
+): FloatArray {
     val file = File(path)
     require(file.exists()) { "File not found" }
     val data = file.readBytes()
@@ -200,7 +235,7 @@ private fun loadWavSamples(path: String): FloatArray {
     require(dataOffset >= 0) { "Missing WAV data chunk" }
     require(audioFormat == 1) { "Only PCM WAV is supported" }
     require(channels == 1) { "Only mono WAV is supported" }
-    require(sampleRate == 16000) { "Sample rate must be 16000 Hz" }
+    require(sampleRate > 0) { "Invalid sample rate" }
     require(bitsPerSample == 16) { "Only 16-bit PCM WAV is supported" }
     require(dataOffset + dataSize <= data.size) { "Invalid WAV data" }
     require(dataSize > 0 && dataSize % 2 == 0) { "Invalid PCM data" }
@@ -210,7 +245,14 @@ private fun loadWavSamples(path: String): FloatArray {
     for (i in samples.indices) {
         samples[i] = pcm.short.toFloat() / Short.MAX_VALUE.toFloat()
     }
-    return samples
+    val resampled = if (sampleRate == 16000) {
+        samples
+    } else if (allowResample) {
+        resampleTo16k(samples, sampleRate)
+    } else {
+        throw IllegalArgumentException("Sample rate must be 16000 Hz (enable resample to convert)")
+    }
+    return if (normalize) normalizeSamples(resampled) else resampled
 }
 
 private fun copyUriToVoiceModelFile(context: Context, uri: android.net.Uri): File {
@@ -250,6 +292,8 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     val preferBluetooth = useDataStoreValue(PREFER_BLUETOOTH)
     val suppressSymbols = useDataStoreValue(DISALLOW_SYMBOLS)
     val useGpuOffload = useDataStoreValue(USE_GPU_OFFLOAD)
+    val allowResample = useDataStoreValue(TestingArenaAllowResample)
+    val normalizeAudio = useDataStoreValue(TestingArenaNormalizeAudio)
     val localSystemPrompt = useDataStore(LOCAL_VOICE_SYSTEM_PROMPT)
     val customModelPaths = useDataStore(TestingArenaCustomModelPaths)
     val customModelPicker = rememberLauncherForActivityResult(
@@ -457,6 +501,17 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                 .padding(horizontal = 12.dp)
         )
 
+        SettingToggleDataStore(
+            title = stringResource(R.string.testing_arena_audio_resample_title),
+            subtitle = stringResource(R.string.testing_arena_audio_resample_subtitle),
+            setting = TestingArenaAllowResample
+        )
+        SettingToggleDataStore(
+            title = stringResource(R.string.testing_arena_audio_normalize_title),
+            subtitle = stringResource(R.string.testing_arena_audio_normalize_subtitle),
+            setting = TestingArenaNormalizeAudio
+        )
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -556,7 +611,13 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                     val audioSamples = when {
                         useRecordedAudio -> recordedSamples
                         audioPath.value.isNotBlank() -> {
-                            runCatching { loadWavSamples(audioPath.value) }
+                            runCatching {
+                                loadWavSamples(
+                                    audioPath.value,
+                                    allowResample = allowResample,
+                                    normalize = normalizeAudio
+                                )
+                            }
                                 .getOrElse {
                                     results[noticeLabel] = "$invalidAudioLabel ${it.message ?: ""}".trim()
                                     null

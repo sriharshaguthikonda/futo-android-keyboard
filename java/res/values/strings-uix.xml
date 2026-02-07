@@ -544,6 +544,10 @@
     <string name="testing_arena_audio_title">Audio input</string>
     <string name="testing_arena_audio_path_label">Audio file path</string>
     <string name="testing_arena_audio_path_placeholder">/sdcard/Download/sample.wav</string>
+    <string name="testing_arena_audio_resample_title">Allow resample to 16 kHz</string>
+    <string name="testing_arena_audio_resample_subtitle">Convert non-16 kHz WAVs before transcription</string>
+    <string name="testing_arena_audio_normalize_title">Normalize audio</string>
+    <string name="testing_arena_audio_normalize_subtitle">Peak-normalize audio before transcription</string>
     <string name="testing_arena_record_start">Record voice</string>
     <string name="testing_arena_record_stop">Stop recording</string>
     <string name="testing_arena_record_clear">Clear recording</string>
