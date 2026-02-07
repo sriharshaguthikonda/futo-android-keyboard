@@ -17,7 +17,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -252,6 +255,8 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     val useGpuOffload = useDataStoreValue(USE_GPU_OFFLOAD)
     val localSystemPrompt = useDataStore(LOCAL_VOICE_SYSTEM_PROMPT)
     val customModelPaths = useDataStore(TestingArenaCustomModelPaths)
+    val modelExistsCache = remember { mutableStateMapOf<String, Boolean>() }
+    val customModelExistsCache = remember { mutableStateMapOf<String, Boolean>() }
     val customModelPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
@@ -266,44 +271,66 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
         }
     )
 
-    val voiceModels = run {
-        val baseModels = (ENGLISH_MODELS + MULTILINGUAL_MODELS).distinctBy { it.key(context) }
-        val baseEntries = baseModels.map { model ->
-            val categoryLabel = if (ENGLISH_MODELS.contains(model)) {
-                context.getString(R.string.testing_arena_voice_model_english)
-            } else {
-                context.getString(R.string.testing_arena_voice_model_multilingual)
-            }
-            TestingArenaModel(
-                id = model.key(context).toString(),
-                label = context.getString(model.name),
-                loader = model,
-                categoryLabel = categoryLabel,
-                downloadedLabel = if (model.exists(context)) {
-                    context.getString(R.string.testing_arena_voice_model_downloaded)
+    val baseModels = remember {
+        (ENGLISH_MODELS + MULTILINGUAL_MODELS).distinctBy { it.key(context) }
+    }
+
+    LaunchedEffect(baseModels) {
+        baseModels.forEach { model ->
+            val modelId = model.key(context).toString()
+            modelExistsCache[modelId] = model.exists(context)
+        }
+    }
+
+    LaunchedEffect(customModelPaths.value) {
+        customModelExistsCache.clear()
+        customModelPaths.value.forEach { path ->
+            customModelExistsCache[path] = File(path).exists()
+        }
+    }
+
+    val voiceModels by remember {
+        derivedStateOf {
+            val baseEntries = baseModels.map { model ->
+                val categoryLabel = if (ENGLISH_MODELS.contains(model)) {
+                    context.getString(R.string.testing_arena_voice_model_english)
                 } else {
-                    context.getString(R.string.testing_arena_voice_model_missing)
+                    context.getString(R.string.testing_arena_voice_model_multilingual)
                 }
-            )
-        }
-        val customEntries = customModelPaths.value.mapNotNull { path ->
-            val file = File(path)
-            if (file.exists()) {
+                val modelId = model.key(context).toString()
+                val exists = modelExistsCache[modelId] ?: false
                 TestingArenaModel(
-                    id = path,
-                    label = file.name,
-                    loader = org.futo.voiceinput.shared.types.ModelFileFile(
-                        R.string.testing_arena_voice_model_custom,
-                        file
-                    ),
-                    categoryLabel = context.getString(R.string.testing_arena_voice_model_custom),
-                    downloadedLabel = context.getString(R.string.testing_arena_voice_model_custom)
+                    id = modelId,
+                    label = context.getString(model.name),
+                    loader = model,
+                    categoryLabel = categoryLabel,
+                    downloadedLabel = if (exists) {
+                        context.getString(R.string.testing_arena_voice_model_downloaded)
+                    } else {
+                        context.getString(R.string.testing_arena_voice_model_missing)
+                    }
                 )
-            } else {
-                null
             }
+            val customEntries = customModelPaths.value.mapNotNull { path ->
+                val exists = customModelExistsCache[path] ?: false
+                if (exists) {
+                    val file = File(path)
+                    TestingArenaModel(
+                        id = path,
+                        label = file.name,
+                        loader = org.futo.voiceinput.shared.types.ModelFileFile(
+                            R.string.testing_arena_voice_model_custom,
+                            file
+                        ),
+                        categoryLabel = context.getString(R.string.testing_arena_voice_model_custom),
+                        downloadedLabel = context.getString(R.string.testing_arena_voice_model_custom)
+                    )
+                } else {
+                    null
+                }
+            }
+            baseEntries + customEntries
         }
-        baseEntries + customEntries
     }
 
     val modelManager = remember { ModelManager(context) }
@@ -352,21 +379,23 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
             )
         } else {
             voiceModels.forEach { model ->
-                val isSelected = selectedModels.value.contains(model.id)
-                SettingToggleRaw(
-                    title = model.label,
-                    subtitle = "${model.categoryLabel} • ${model.downloadedLabel}",
-                    enabled = isSelected,
-                    setValue = { enabled ->
-                        val next = selectedModels.value.toMutableSet()
-                        if (enabled) {
-                            next.add(model.id)
-                        } else {
-                            next.remove(model.id)
+                key(model.id) {
+                    val isSelected = selectedModels.value.contains(model.id)
+                    SettingToggleRaw(
+                        title = model.label,
+                        subtitle = "${model.categoryLabel} • ${model.downloadedLabel}",
+                        enabled = isSelected,
+                        setValue = { enabled ->
+                            val next = selectedModels.value.toMutableSet()
+                            if (enabled) {
+                                next.add(model.id)
+                            } else {
+                                next.remove(model.id)
+                            }
+                            selectedModels.setValue(next)
                         }
-                        selectedModels.setValue(next)
-                    }
-                )
+                    )
+                }
             }
         }
 
@@ -392,23 +421,25 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
             }
         }
         customModelPaths.value.forEach { path ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = path, style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = {
-                    val next = customModelPaths.value.toMutableSet()
-                    next.remove(path)
-                    customModelPaths.setValue(next)
-                    val selected = selectedModels.value.toMutableSet()
-                    selected.remove(path)
-                    selectedModels.setValue(selected)
-                }) {
-                    Text(stringResource(R.string.testing_arena_custom_models_remove))
+            key(path) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = path, style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = {
+                        val next = customModelPaths.value.toMutableSet()
+                        next.remove(path)
+                        customModelPaths.setValue(next)
+                        val selected = selectedModels.value.toMutableSet()
+                        selected.remove(path)
+                        selectedModels.setValue(selected)
+                    }) {
+                        Text(stringResource(R.string.testing_arena_custom_models_remove))
+                    }
                 }
             }
         }
