@@ -60,7 +60,7 @@ Why: Even after reset()/cancelAll(), there can be edge cases where an old corout
 - [ ] **Startup + navigation - cold start** - Reduce work in singletons (models/dictionaries) on cold start
 - [ ] **Voice model pipeline - caching** - Cache logits/intermediate states for multi-model compare
 - [ ] **Voice model pipeline - preprocessing** - Optional downsampling/normalization of WAVs
-- [ ] **Diagnostics - profiling** - Per-model timing + memory/GC snapshots in testing arena
+- [x] **Diagnostics - profiling** - Per-model timing + memory/GC snapshots in testing arena
 - [ ] **Diagnostics - performance mode** - Toggle to reduce animations + verbose logs
 - [ ] **App size** - Remove unused resources; split ABIs; tighten R8/Proguard
 

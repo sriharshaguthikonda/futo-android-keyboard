@@ -1,6 +1,8 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
 import android.content.Context
+import android.os.Debug
+import android.os.SystemClock
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -81,6 +83,7 @@ private val TestingArenaAudioPath = SettingsKey(stringPreferencesKey("testingAre
 private val TestingArenaReferenceTranscript = SettingsKey(stringPreferencesKey("testingArenaReferenceTranscript"), "")
 private val TestingArenaSelectedModels = SettingsKey(stringSetPreferencesKey("testingArenaSelectedModels"), setOf())
 private val TestingArenaCustomModelPaths = SettingsKey(stringSetPreferencesKey("testingArenaCustomModelPaths"), setOf())
+private val TestingArenaShowProfiling = SettingsKey(booleanPreferencesKey("testingArenaShowProfiling"), false)
 
 private data class TestingArenaModel(
     val id: String,
@@ -89,6 +92,37 @@ private data class TestingArenaModel(
     val categoryLabel: String,
     val downloadedLabel: String,
 )
+
+private data class ProfilingSnapshot(
+    val timeMs: Long,
+    val usedMemoryBytes: Long,
+    val gcCount: Long?
+)
+
+private fun captureProfilingSnapshot(): ProfilingSnapshot {
+    val runtime = Runtime.getRuntime()
+    val used = runtime.totalMemory() - runtime.freeMemory()
+    val gcCount = runCatching { Debug.getRuntimeStat("art.gc.gc-count")?.toLongOrNull() }
+        .getOrNull()
+    return ProfilingSnapshot(
+        timeMs = SystemClock.elapsedRealtime(),
+        usedMemoryBytes = used,
+        gcCount = gcCount
+    )
+}
+
+private fun formatProfiling(start: ProfilingSnapshot, end: ProfilingSnapshot): String {
+    val durationMs = end.timeMs - start.timeMs
+    val memDeltaKb = ((end.usedMemoryBytes - start.usedMemoryBytes) / 1024)
+    val memDeltaLabel = if (memDeltaKb >= 0) "+$memDeltaKb" else memDeltaKb.toString()
+    val gcDelta = if (start.gcCount != null && end.gcCount != null) {
+        end.gcCount - start.gcCount
+    } else {
+        null
+    }
+    val gcLabel = gcDelta?.let { "GC +$it" } ?: "GC n/a"
+    return "Time: ${durationMs}ms • Mem Δ: ${memDeltaLabel}KB • $gcLabel"
+}
 
 private fun wordErrorRate(reference: String, hypothesis: String): Double {
     val refTokens = reference.trim().lowercase().split(Regex("\\s+")).filter { it.isNotBlank() }
@@ -250,6 +284,7 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     val preferBluetooth = useDataStoreValue(PREFER_BLUETOOTH)
     val suppressSymbols = useDataStoreValue(DISALLOW_SYMBOLS)
     val useGpuOffload = useDataStoreValue(USE_GPU_OFFLOAD)
+    val showProfiling = useDataStoreValue(TestingArenaShowProfiling)
     val localSystemPrompt = useDataStore(LOCAL_VOICE_SYSTEM_PROMPT)
     val customModelPaths = useDataStore(TestingArenaCustomModelPaths)
     val customModelPicker = rememberLauncherForActivityResult(
@@ -541,6 +576,11 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
         )
 
         ScreenTitle(stringResource(R.string.testing_arena_actions_title))
+        SettingToggleDataStore(
+            title = stringResource(R.string.testing_arena_profiling_title),
+            subtitle = stringResource(R.string.testing_arena_profiling_subtitle),
+            setting = TestingArenaShowProfiling
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -592,6 +632,7 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                                 results[modelName] = modelMissingLabel
                                 return@forEach
                             }
+                            val profileStart = if (showProfiling) captureProfilingSnapshot() else null
                             val languageSet = if (ENGLISH_MODELS.any { it.key(context).toString() == model.id }) {
                                 setOf(Language.English)
                             } else {
@@ -634,12 +675,18 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                                 ""
                             }
                             if (result.isNotBlank()) {
-                                results[modelName] = result
+                                val profileSuffix = if (profileStart != null) {
+                                    "\n\n" + formatProfiling(profileStart, captureProfilingSnapshot())
+                                } else {
+                                    ""
+                                }
+                                results[modelName] = result + profileSuffix
                                 transcripts[modelName] = result
                             }
                         }
 
                         if (remoteEnabled) {
+                            val profileStart = if (showProfiling) captureProfilingSnapshot() else null
                             val remoteResult = runCatching {
                                 if (groqApiKey.value.isBlank()) {
                                     missingGroqKeyLabel
@@ -655,7 +702,12 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                             }.getOrElse { error ->
                                 "$transcriptionFailedLabel ${error.message ?: ""}".trim()
                             }
-                            results[remoteLabel] = remoteResult
+                            val profileSuffix = if (profileStart != null) {
+                                "\n\n" + formatProfiling(profileStart, captureProfilingSnapshot())
+                            } else {
+                                ""
+                            }
+                            results[remoteLabel] = remoteResult + profileSuffix
                             if (remoteResult != missingGroqKeyLabel && remoteResult.isNotBlank()) {
                                 transcripts[remoteLabel] = remoteResult
                             }

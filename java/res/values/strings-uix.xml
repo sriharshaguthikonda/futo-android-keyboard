@@ -555,6 +555,8 @@
     <string name="testing_arena_reference_label">Reference text</string>
     <string name="testing_arena_reference_placeholder">Paste the ground-truth transcript for WER/CER</string>
     <string name="testing_arena_actions_title">Actions</string>
+    <string name="testing_arena_profiling_title">Show profiling details</string>
+    <string name="testing_arena_profiling_subtitle">Include timing, memory delta, and GC count</string>
     <string name="testing_arena_run_button">Run transcription</string>
     <string name="testing_arena_metrics_button">Calculate WER/CER</string>
     <string name="testing_arena_charts_button">Generate charts</string>
