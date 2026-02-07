@@ -1,5 +1,6 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +36,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.futo.inputmethod.latin.R
@@ -111,33 +113,100 @@ private fun wordErrorRate(reference: String, hypothesis: String): Double {
     return dp[refTokens.size][hypTokens.size].toDouble() / refTokens.size.toDouble()
 }
 
+private fun charErrorRate(reference: String, hypothesis: String): Double {
+    val refChars = reference.trim().lowercase().toCharArray()
+    val hypChars = hypothesis.trim().lowercase().toCharArray()
+    if (refChars.isEmpty()) return 0.0
+
+    val dp = Array(refChars.size + 1) { IntArray(hypChars.size + 1) }
+    for (i in 0..refChars.size) dp[i][0] = i
+    for (j in 0..hypChars.size) dp[0][j] = j
+
+    for (i in 1..refChars.size) {
+        for (j in 1..hypChars.size) {
+            val cost = if (refChars[i - 1] == hypChars[j - 1]) 0 else 1
+            dp[i][j] = minOf(
+                dp[i - 1][j] + 1,
+                dp[i][j - 1] + 1,
+                dp[i - 1][j - 1] + cost
+            )
+        }
+    }
+
+    return dp[refChars.size][hypChars.size].toDouble() / refChars.size.toDouble()
+}
+
 private fun loadWavSamples(path: String): FloatArray {
     val file = File(path)
     require(file.exists()) { "File not found" }
     val data = file.readBytes()
-    require(data.size >= 44) { "Invalid WAV file" }
-    val header = ByteBuffer.wrap(data, 0, 44).order(ByteOrder.LITTLE_ENDIAN)
+    require(data.size >= 12) { "Invalid WAV file" }
+
+    val buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
     val riff = ByteArray(4)
-    header.get(riff)
-    require(String(riff) == "RIFF") { "Invalid WAV header" }
-    header.position(8)
+    buffer.get(riff)
+    require(String(riff, Charsets.US_ASCII) == "RIFF") { "Invalid WAV header" }
+    buffer.int
     val wave = ByteArray(4)
-    header.get(wave)
-    require(String(wave) == "WAVE") { "Invalid WAV header" }
-    header.position(22)
-    val channels = header.short
-    require(channels.toInt() == 1) { "Only mono WAV is supported" }
-    header.position(24)
-    val sampleRate = header.int
+    buffer.get(wave)
+    require(String(wave, Charsets.US_ASCII) == "WAVE") { "Invalid WAV header" }
+
+    var fmtFound = false
+    var audioFormat = 0
+    var channels = 0
+    var sampleRate = 0
+    var bitsPerSample = 0
+    var dataOffset = -1
+    var dataSize = 0
+
+    while (buffer.remaining() >= 8) {
+        val chunkIdBytes = ByteArray(4)
+        buffer.get(chunkIdBytes)
+        val chunkId = String(chunkIdBytes, Charsets.US_ASCII)
+        val chunkSize = buffer.int
+        require(chunkSize >= 0 && chunkSize <= buffer.remaining()) { "Invalid WAV chunk" }
+
+        when (chunkId) {
+            "fmt " -> {
+                require(chunkSize >= 16) { "Invalid WAV fmt chunk" }
+                audioFormat = buffer.short.toInt() and 0xFFFF
+                channels = buffer.short.toInt() and 0xFFFF
+                sampleRate = buffer.int
+                buffer.int
+                buffer.short
+                bitsPerSample = buffer.short.toInt() and 0xFFFF
+                val extra = chunkSize - 16
+                if (extra > 0) {
+                    buffer.position(buffer.position() + extra)
+                }
+                fmtFound = true
+            }
+            "data" -> {
+                dataOffset = buffer.position()
+                dataSize = chunkSize
+                buffer.position(buffer.position() + chunkSize)
+            }
+            else -> {
+                buffer.position(buffer.position() + chunkSize)
+            }
+        }
+
+        if (chunkSize % 2 == 1 && buffer.hasRemaining()) {
+            buffer.get()
+        }
+    }
+
+    require(fmtFound) { "Missing WAV fmt chunk" }
+    require(dataOffset >= 0) { "Missing WAV data chunk" }
+    require(audioFormat == 1) { "Only PCM WAV is supported" }
+    require(channels == 1) { "Only mono WAV is supported" }
     require(sampleRate == 16000) { "Sample rate must be 16000 Hz" }
-    header.position(34)
-    val bitsPerSample = header.short
-    require(bitsPerSample.toInt() == 16) { "Only 16-bit PCM WAV is supported" }
-    val pcmOffset = 44
-    val pcmSize = data.size - pcmOffset
-    require(pcmSize > 0 && pcmSize % 2 == 0) { "Invalid PCM data" }
-    val samples = FloatArray(pcmSize / 2)
-    val pcm = ByteBuffer.wrap(data, pcmOffset, pcmSize).order(ByteOrder.LITTLE_ENDIAN)
+    require(bitsPerSample == 16) { "Only 16-bit PCM WAV is supported" }
+    require(dataOffset + dataSize <= data.size) { "Invalid WAV data" }
+    require(dataSize > 0 && dataSize % 2 == 0) { "Invalid PCM data" }
+
+    val samples = FloatArray(dataSize / 2)
+    val pcm = ByteBuffer.wrap(data, dataOffset, dataSize).order(ByteOrder.LITTLE_ENDIAN)
     for (i in samples.indices) {
         samples[i] = pcm.short.toFloat() / Short.MAX_VALUE.toFloat()
     }
@@ -197,7 +266,7 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
         }
     )
 
-    val voiceModels = remember(customModelPaths.value) {
+    val voiceModels = run {
         val baseModels = (ENGLISH_MODELS + MULTILINGUAL_MODELS).distinctBy { it.key(context) }
         val baseEntries = baseModels.map { model ->
             val categoryLabel = if (ENGLISH_MODELS.contains(model)) {
@@ -245,9 +314,11 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     var recordedSamples by remember { mutableStateOf<FloatArray?>(null) }
     var recordedDurationSeconds by remember { mutableStateOf(0) }
     var useRecordedAudio by remember { mutableStateOf(false) }
+    var runJob by remember { mutableStateOf<Job?>(null) }
 
     DisposableEffect(Unit) {
         onDispose {
+            runJob?.cancel()
             recorder?.stop()
             recorder = null
             modelRunner.cancelAll()
@@ -478,6 +549,8 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
         ) {
             Button(
                 onClick = {
+                    runJob?.cancel()
+                    modelRunner.cancelAll()
                     results.clear()
                     transcripts.clear()
                     val audioSamples = when {
@@ -512,7 +585,7 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                         results[remoteLabel] = transcribingLabel
                     }
 
-                    lifecycleOwner.lifecycleScope.launch {
+                    runJob = lifecycleOwner.lifecycleScope.launch {
                         localModelsToRun.forEach { model ->
                             val modelName = model.label
                             if (!model.loader.exists(context)) {
@@ -604,9 +677,12 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                             buildString {
                                 transcripts.forEach { (model, transcript) ->
                                     val wer = wordErrorRate(referenceTranscript.value, transcript) * 100.0
+                                    val cer = charErrorRate(referenceTranscript.value, transcript) * 100.0
                                     append(model)
-                                    append(": ")
+                                    append(": WER ")
                                     append(String.format("%.2f%%", wer))
+                                    append(" • CER ")
+                                    append(String.format("%.2f%%", cer))
                                     append("\n")
                                 }
                             }.trimEnd()

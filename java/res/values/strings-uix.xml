@@ -576,8 +576,8 @@
     <string name="testing_arena_metrics_title">Metrics</string>
     <string name="testing_arena_metrics_empty">Metrics will appear here after calculation.</string>
     <string name="testing_arena_metrics_missing_reference">Add a reference transcript to calculate WER/CER.</string>
-    <string name="testing_arena_metrics_no_results">Run a transcription to calculate WER.</string>
-    <string name="testing_arena_metrics_placeholder">WER: 0.00 (stub)\nCER: 0.00 (stub)</string>
+    <string name="testing_arena_metrics_no_results">Run a transcription to calculate WER/CER.</string>
+    <string name="testing_arena_metrics_placeholder">WER: --% • CER: --%</string>
     <string name="testing_arena_charts_placeholder">Charts will render here once the charting pipeline is wired up.</string>
     <string name="testing_arena_voice_model_custom">Custom</string>
     <string name="testing_arena_custom_models_title">Custom voice models</string>
