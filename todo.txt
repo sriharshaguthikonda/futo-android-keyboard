@@ -49,6 +49,21 @@ Why: Even after reset()/cancelAll(), there can be edge cases where an old corout
 - [ ] **Settings search keyboard functions** - Fix keyboard functions not working in search field
 - [ ] **Theme color selection** - Improve basic theme color picker
 
+## OPTIMIZATION ROADMAP (NEW)
+- [ ] **Runtime performance - voice input** - Reuse model instances; avoid per-run allocations; pin ModelManager to longer-lived scope
+- [ ] **Runtime performance - UI recomposition** - Audit Compose screens; add keys to list items; reduce expensive rebuilds
+- [ ] **Runtime performance - I/O hot paths** - Cache model existence checks; avoid repeated filesystem scans in settings
+- [ ] **Memory + battery - concurrency** - Limit concurrent model runs; add queue/back-pressure
+- [ ] **Memory + battery - streaming** - Use streaming transcription results where possible
+- [ ] **Memory + battery - deferred allocation** - Defer large buffers/model loads until needed
+- [ ] **Startup + navigation - lazy load** - Lazy-load dev/voice settings screens; split destinations if needed
+- [ ] **Startup + navigation - cold start** - Reduce work in singletons (models/dictionaries) on cold start
+- [ ] **Voice model pipeline - caching** - Cache logits/intermediate states for multi-model compare
+- [ ] **Voice model pipeline - preprocessing** - Optional downsampling/normalization of WAVs
+- [ ] **Diagnostics - profiling** - Per-model timing + memory/GC snapshots in testing arena
+- [ ] **Diagnostics - performance mode** - Toggle to reduce animations + verbose logs
+- [ ] **App size** - Remove unused resources; split ABIs; tighten R8/Proguard
+
 ---
 **Build command:** `.\gradlew.bat assemblePlaystoreRelease`
 
