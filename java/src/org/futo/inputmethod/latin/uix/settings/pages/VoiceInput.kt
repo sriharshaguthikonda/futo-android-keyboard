@@ -12,6 +12,7 @@ import org.futo.inputmethod.latin.uix.PREFER_BLUETOOTH
 import org.futo.inputmethod.latin.uix.USE_PERSONAL_DICT
 import org.futo.inputmethod.latin.uix.USE_SYSTEM_VOICE_INPUT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
+import org.futo.inputmethod.latin.uix.USE_DEEPFILTERNET_LOCAL
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
 import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
@@ -114,6 +115,12 @@ val VoiceInputMenu = UserSettingsMenu(
             title = R.string.voice_input_settings_autostop_vad,
             subtitle = R.string.voice_input_settings_autostop_vad_subtitle,
             setting = USE_VAD_AUTOSTOP
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingToggleDataStore(
+            title = R.string.voice_input_settings_use_deepfilternet,
+            subtitle = R.string.voice_input_settings_use_deepfilternet_subtitle,
+            setting = USE_DEEPFILTERNET_LOCAL
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingNavigationItem(

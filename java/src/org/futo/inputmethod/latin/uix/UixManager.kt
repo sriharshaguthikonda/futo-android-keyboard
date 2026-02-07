@@ -1652,6 +1652,7 @@ class UixManager(private val latinIME: LatinIME) {
     private var voiceInputPrebufferRecorder: AudioPrebufferRecorder? = null
     private var voiceInputPrebufferSeconds: Int = 0
     private var voiceInputPrebufferPreferBluetooth: Boolean = false
+    private var voiceInputPrebufferSampleRate: Int = 0
     fun inputStarted(editorInfo: EditorInfo?) {
         try {
             checkIfDictInstalled()
@@ -1712,19 +1713,24 @@ class UixManager(private val latinIME: LatinIME) {
         }
 
         val preferBluetooth = latinIME.getSetting(PREFER_BLUETOOTH)
+        val useDeepFilterNet = latinIME.getSetting(USE_DEEPFILTERNET_LOCAL)
+        val sampleRate = if (useDeepFilterNet) 48000 else 16000
         if (voiceInputPrebufferRecorder == null
             || voiceInputPrebufferSeconds != seconds
             || voiceInputPrebufferPreferBluetooth != preferBluetooth
+            || voiceInputPrebufferSampleRate != sampleRate
         ) {
             voiceInputPrebufferRecorder?.stop()
             voiceInputPrebufferRecorder = AudioPrebufferRecorder(
                 context = latinIME,
                 lifecycleScope = latinIME.lifecycleScope,
                 preferBluetoothMic = preferBluetooth,
-                prebufferDurationMs = seconds * 1000
+                prebufferDurationMs = seconds * 1000,
+                sampleRateHz = sampleRate
             )
             voiceInputPrebufferSeconds = seconds
             voiceInputPrebufferPreferBluetooth = preferBluetooth
+            voiceInputPrebufferSampleRate = sampleRate
         }
         voiceInputPrebufferRecorder?.start()
     }
