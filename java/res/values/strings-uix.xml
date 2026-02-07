@@ -87,6 +87,7 @@
     <!-- Must be fairly short -->
     <string name="action_clipboard_manager_delete_corrupted_clipboard_button">Delete</string>
     <string name="action_clipboard_manager_error_clipboard_history_disabled_title">Clipboard History Inactive</string>
+    <string name="action_clipboard_manager_error_clipboard_history_disabled_text">@string/action_clipboard_manager_error_clipboard_history_disabled_text_v2</string>
     <string name="action_clipboard_manager_error_clipboard_history_disabled_text_v2">To save clipboard items, you can enable clipboard history. This will keep up to <xliff:g id="numItems" example="25">%1$s</xliff:g> items for <xliff:g id="numDays" example="3">%2$s</xliff:g> days (pinned items are exempt). You can configure this in settings.</string>
     <string name="action_clipboard_manager_enable_clipboard_history_button">Enable Clipboard History</string>
     <!-- This message is shown when we're typing in a text field does not support image insertion ("app" refers to the external app that is providing the text field) -->
@@ -417,6 +418,7 @@
 
     <!-- Keyboard's size settings -->
     <string name="size_settings_title">Resize Keyboard</string>
+    <string name="size_settings_subtitle">@string/size_settings_subtitle2</string>
     <string name="size_settings_subtitle2">Change keyboard size, make it one-handed, floating, split</string>
     <string name="size_settings_resize_tip">Tap the \"Resize Keyboard\" button to resize.</string>
     <string name="size_settings_keyboard_modes_tip">You can access this anywhere with the Keyboard Modes action:</string>
@@ -437,6 +439,7 @@
     <string name="morekey_settings_active">Active</string>
     <string name="morekey_settings_inactive">Inactive</string>
     <string name="morekey_settings_reactivate">Reactivate</string>
+    <string name="morekey_settings_enable">Enable</string>
     <string name="morekey_settings_disable">Deactivate</string>
     <string name="morekey_settings_keys">Long-Press Keys</string>
     <string name="morekey_settings_show_hints">Show hints</string>
@@ -485,6 +488,9 @@
 
     <!-- Automatic space insertion -->
     <string name="typing_settings_auto_space_mode">Automatic spaces mode</string>
+    <string name="typing_settings_auto_space_mode_auto">@string/typing_settings_auto_space_mode_auto2</string>
+    <string name="typing_settings_auto_space_mode_suggestions">@string/typing_settings_auto_space_mode_suggestions2</string>
+    <string name="typing_settings_auto_space_mode_legacy">@string/typing_settings_auto_space_mode_legacy2</string>
     <string name="typing_settings_auto_space_mode_auto2">Immediate space after suggestions &amp; punctuation</string>
     <string name="typing_settings_auto_space_mode_suggestions2">Immediate space after suggestions</string>
     <string name="typing_settings_auto_space_mode_legacy2">Delayed space after suggestions (legacy mode)</string>
@@ -739,6 +745,7 @@
 
     <!-- Credits menu -->
     <string name="credits_menu_title">Credits</string>
+    <string name="credits_title">Credits</string>
     <string name="credits_menu_header_text">Thanks to these people for helping make FUTO Keyboard a great app!</string>
     <string name="credits_menu_team_translators_title">Translators</string>
     <string name="credits_menu_team_keyboard_layouts_title">Layout contributors</string>
