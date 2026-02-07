@@ -544,6 +544,15 @@
     <string name="testing_arena_audio_title">Audio input</string>
     <string name="testing_arena_audio_path_label">Audio file path</string>
     <string name="testing_arena_audio_path_placeholder">/sdcard/Download/sample.wav</string>
+    <string name="testing_arena_dfn_title">DeepFilterNet assets</string>
+    <string name="testing_arena_dfn_status_label">Bundled: %1$s • Installed: %2$s</string>
+    <string name="testing_arena_dfn_status_bundled_yes">Yes</string>
+    <string name="testing_arena_dfn_status_bundled_no">No</string>
+    <string name="testing_arena_dfn_status_installed">Installed</string>
+    <string name="testing_arena_dfn_status_not_installed">Not installed</string>
+    <string name="testing_arena_dfn_install_bundled">Install bundled</string>
+    <string name="testing_arena_dfn_download">Download latest</string>
+    <string name="testing_arena_dfn_clear">Remove model</string>
     <string name="testing_arena_record_start">Record voice</string>
     <string name="testing_arena_record_stop">Stop recording</string>
     <string name="testing_arena_record_clear">Clear recording</string>

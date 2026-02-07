@@ -64,6 +64,10 @@ Why: Even after reset()/cancelAll(), there can be edge cases where an old corout
 - [ ] **Diagnostics - performance mode** - Toggle to reduce animations + verbose logs
 - [ ] **App size** - Remove unused resources; split ABIs; tighten R8/Proguard
 
+## DEEPFILTERNET (NEW)
+- [x] **DeepFilterNet assets in Testing Arena** - Download/install/remove DFN model files from dev settings
+- [x] **DeepFilterNet packaged model** - Bundle DFN2 ONNX tarball in app assets
+
 ---
 **Build command:** `.\gradlew.bat assemblePlaystoreRelease`
 

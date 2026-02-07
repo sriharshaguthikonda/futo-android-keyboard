@@ -58,6 +58,7 @@ import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.voiceinput.shared.ENGLISH_MODELS
 import org.futo.voiceinput.shared.MULTILINGUAL_MODELS
 import org.futo.voiceinput.shared.AudioPrebufferRecorder
+import org.futo.voiceinput.shared.deepfilternet.DeepFilterNetAssets
 import org.futo.voiceinput.shared.groq.GroqWhisperApi
 import org.futo.voiceinput.shared.ggml.InvalidModelException
 import org.futo.voiceinput.shared.types.InferenceState
@@ -315,6 +316,10 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     var recordedDurationSeconds by remember { mutableStateOf(0) }
     var useRecordedAudio by remember { mutableStateOf(false) }
     var runJob by remember { mutableStateOf<Job?>(null) }
+    var dfnStatus by remember { mutableStateOf("") }
+    var dfnBusy by remember { mutableStateOf(false) }
+    var dfnInstalled by remember { mutableStateOf(DeepFilterNetAssets.isInstalled(context)) }
+    val dfnBundled = remember { DeepFilterNetAssets.isBundledAvailable(context) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -322,6 +327,16 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
             recorder?.stop()
             recorder = null
             modelRunner.cancelAll()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (dfnStatus.isBlank()) {
+            dfnStatus = if (dfnInstalled) {
+                context.getString(R.string.testing_arena_dfn_status_installed)
+            } else {
+                context.getString(R.string.testing_arena_dfn_status_not_installed)
+            }
         }
     }
 
@@ -456,6 +471,101 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
         )
+
+        ScreenTitle(stringResource(R.string.testing_arena_dfn_title))
+        Text(
+            text = stringResource(
+                R.string.testing_arena_dfn_status_label,
+                if (dfnBundled) {
+                    stringResource(R.string.testing_arena_dfn_status_bundled_yes)
+                } else {
+                    stringResource(R.string.testing_arena_dfn_status_bundled_no)
+                },
+                if (dfnInstalled) {
+                    stringResource(R.string.testing_arena_dfn_status_installed)
+                } else {
+                    stringResource(R.string.testing_arena_dfn_status_not_installed)
+                }
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+        Text(
+            text = dfnStatus,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(
+                onClick = {
+                    if (dfnBusy) return@Button
+                    dfnBusy = true
+                    lifecycleOwner.lifecycleScope.launch {
+                        runCatching {
+                            DeepFilterNetAssets.installFromBundled(context) { dfnStatus = it }
+                        }.onFailure {
+                            dfnStatus = it.message ?: "Failed to install bundled model."
+                        }
+                        dfnInstalled = DeepFilterNetAssets.isInstalled(context)
+                        dfnBusy = false
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                enabled = dfnBundled && !dfnBusy
+            ) {
+                Text(stringResource(R.string.testing_arena_dfn_install_bundled))
+            }
+            Button(
+                onClick = {
+                    if (dfnBusy) return@Button
+                    dfnBusy = true
+                    lifecycleOwner.lifecycleScope.launch {
+                        runCatching {
+                            DeepFilterNetAssets.downloadAndInstall(context) { dfnStatus = it }
+                        }.onFailure {
+                            dfnStatus = it.message ?: "Download failed."
+                        }
+                        dfnInstalled = DeepFilterNetAssets.isInstalled(context)
+                        dfnBusy = false
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                enabled = !dfnBusy
+            ) {
+                Text(stringResource(R.string.testing_arena_dfn_download))
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(
+                onClick = {
+                    if (dfnBusy) return@Button
+                    dfnBusy = true
+                    lifecycleOwner.lifecycleScope.launch {
+                        runCatching {
+                            DeepFilterNetAssets.clearInstalled(context) { dfnStatus = it }
+                        }.onFailure {
+                            dfnStatus = it.message ?: "Failed to remove model."
+                        }
+                        dfnInstalled = DeepFilterNetAssets.isInstalled(context)
+                        dfnBusy = false
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                enabled = dfnInstalled && !dfnBusy
+            ) {
+                Text(stringResource(R.string.testing_arena_dfn_clear))
+            }
+        }
 
         Row(
             modifier = Modifier
