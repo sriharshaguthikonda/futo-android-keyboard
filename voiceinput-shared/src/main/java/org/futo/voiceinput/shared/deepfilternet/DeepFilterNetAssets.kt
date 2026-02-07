@@ -138,7 +138,8 @@ object DeepFilterNetAssets {
             val size = header.decodeString(124, 12).trim { it <= ' ' || it == '\u0000' }
             val fileSize = if (size.isBlank()) 0L else size.toLong(8)
             val typeFlag = header[156].toInt().toChar()
-            val target = safeResolve(rootPath, name) ?: run {
+            val target = safeResolve(rootPath, name)
+            if (target == null) {
                 skipFully(input, fileSize)
                 skipPadding(input, fileSize)
                 continue
