@@ -1713,8 +1713,9 @@ class UixManager(private val latinIME: LatinIME) {
         }
 
         val preferBluetooth = latinIME.getSetting(PREFER_BLUETOOTH)
-        val useDeepFilterNet = latinIME.getSetting(USE_DEEPFILTERNET_LOCAL)
-        val sampleRate = if (useDeepFilterNet) 48000 else 16000
+        val useDeepFilterNetLocal = latinIME.getSetting(USE_DEEPFILTERNET_LOCAL)
+        val useDeepFilterNetGroq = latinIME.getSetting(USE_DEEPFILTERNET_GROQ)
+        val sampleRate = if (useDeepFilterNetLocal || useDeepFilterNetGroq) 48000 else 16000
         if (voiceInputPrebufferRecorder == null
             || voiceInputPrebufferSeconds != seconds
             || voiceInputPrebufferPreferBluetooth != preferBluetooth

@@ -67,7 +67,7 @@ Why: Even after reset()/cancelAll(), there can be edge cases where an old corout
 ## DEEPFILTERNET (NEW)
 - [x] **DeepFilterNet assets in Testing Arena** - Download/install/remove DFN model files from dev settings
 - [x] **DeepFilterNet packaged model** - Bundle DFN2 ONNX tarball in app assets
-- [x] **DeepFilterNet local transcription toggle** - Add setting + 48 kHz record path + downsample hook for Whisper
+- [x] **DeepFilterNet local/remote toggles** - Separate switches for local vs Groq transcription paths
 - [ ] **DeepFilterNet inference pipeline** - Wire ONNX runtime + feature extraction + denoise pass
 
 ---

@@ -93,6 +93,7 @@ data class RecordingSettings(
     val canExpandSpace: Boolean,
     val useVADAutoStop: Boolean,
     val useDeepFilterNet: Boolean,
+    val useDeepFilterNetGroq: Boolean,
     val channelMode: RecordingChannelMode,
     val prebufferDurationMs: Int
 )
@@ -128,9 +129,10 @@ class AudioRecognizer(
 
     private val canExpandSpace = settings.recordingConfiguration.canExpandSpace
     private val useVAD = settings.recordingConfiguration.useVADAutoStop
-    private val useDeepFilterNet = settings.recordingConfiguration.useDeepFilterNet
+    private val useDeepFilterNetLocal = settings.recordingConfiguration.useDeepFilterNet
+    private val useDeepFilterNetGroq = settings.recordingConfiguration.useDeepFilterNetGroq
 
-    private var desiredSampleRateHz = if (useDeepFilterNet) {
+    private var desiredSampleRateHz = if (useDeepFilterNetLocal || useDeepFilterNetGroq) {
         DeepFilterNetSampleRateHz
     } else {
         DefaultRecordingSampleRateHz
@@ -541,8 +543,8 @@ class AudioRecognizer(
         target.put(floats)
     }
 
-    private fun maybeApplyDeepFilterNet(samples: FloatArray): FloatArray {
-        if (!useDeepFilterNet) return samples
+    private fun maybeApplyDeepFilterNet(samples: FloatArray, enabled: Boolean): FloatArray {
+        if (!enabled) return samples
         if (activeSampleRateHz != DeepFilterNetSampleRateHz) return samples
         if (!DeepFilterNetAssets.isInstalled(context)) return samples
         if (!dfnWarned) {
@@ -940,8 +942,12 @@ class AudioRecognizer(
         if (currentSessionId != sessionId.get()) return
 
         suspend fun transcribe(floatArray: FloatArray): String {
-            val processedInput = downsampleToWhisper(
-                maybeApplyDeepFilterNet(floatArray),
+            val remoteInput = downsampleToWhisper(
+                maybeApplyDeepFilterNet(floatArray, useDeepFilterNetGroq),
+                activeSampleRateHz
+            )
+            val localInput = downsampleToWhisper(
+                maybeApplyDeepFilterNet(floatArray, useDeepFilterNetLocal),
                 activeSampleRateHz
             )
             // First try Groq if configured
@@ -949,7 +955,7 @@ class AudioRecognizer(
                 try {
                     val groqResult = withContext(Dispatchers.IO) {
                         org.futo.voiceinput.shared.groq.GroqWhisperApi.transcribe(
-                            processedInput,
+                            remoteInput,
                             settings.groqApiKey,
                             settings.groqModel,
                             settings.groqSystemPrompt.ifBlank { null }
@@ -978,7 +984,7 @@ class AudioRecognizer(
 
             // Either Groq is not configured or it failed, use local model
             return modelRunner.run(
-                processedInput,
+                localInput,
                 settings.modelRunConfiguration,
                 settings.decodingConfiguration,
                 runnerCallback

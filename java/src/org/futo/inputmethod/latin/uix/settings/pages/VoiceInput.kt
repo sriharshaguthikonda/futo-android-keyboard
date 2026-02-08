@@ -13,6 +13,7 @@ import org.futo.inputmethod.latin.uix.USE_PERSONAL_DICT
 import org.futo.inputmethod.latin.uix.USE_SYSTEM_VOICE_INPUT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
 import org.futo.inputmethod.latin.uix.USE_DEEPFILTERNET_LOCAL
+import org.futo.inputmethod.latin.uix.USE_DEEPFILTERNET_GROQ
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
 import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
@@ -118,9 +119,15 @@ val VoiceInputMenu = UserSettingsMenu(
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingToggleDataStore(
-            title = R.string.voice_input_settings_use_deepfilternet,
-            subtitle = R.string.voice_input_settings_use_deepfilternet_subtitle,
+            title = R.string.voice_input_settings_use_deepfilternet_local,
+            subtitle = R.string.voice_input_settings_use_deepfilternet_local_subtitle,
             setting = USE_DEEPFILTERNET_LOCAL
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingToggleDataStore(
+            title = R.string.voice_input_settings_use_deepfilternet_groq,
+            subtitle = R.string.voice_input_settings_use_deepfilternet_groq_subtitle,
+            setting = USE_DEEPFILTERNET_GROQ
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingNavigationItem(

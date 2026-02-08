@@ -82,6 +82,7 @@ import org.futo.inputmethod.latin.uix.ResourceHelper
 import org.futo.inputmethod.latin.uix.USE_PERSONAL_DICT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
 import org.futo.inputmethod.latin.uix.USE_DEEPFILTERNET_LOCAL
+import org.futo.inputmethod.latin.uix.USE_DEEPFILTERNET_GROQ
 import org.futo.inputmethod.latin.uix.VERBOSE_PROGRESS
 import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
@@ -183,6 +184,7 @@ private class VoiceInputActionWindow(
         val canExpandSpace = context.getSetting(CAN_EXPAND_SPACE)
         val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
         val useDeepFilterNet = context.getSetting(USE_DEEPFILTERNET_LOCAL)
+        val useDeepFilterNetGroq = context.getSetting(USE_DEEPFILTERNET_GROQ)
         val prebufferSeconds = context.getSetting(VOICE_INPUT_PREBUFFER_SECONDS)
         val usePersonalDict = context.getSetting(USE_PERSONAL_DICT)
         val useGroq = context.getSetting(USE_GROQ_WHISPER)
@@ -225,6 +227,7 @@ private class VoiceInputActionWindow(
                 canExpandSpace = canExpandSpace,
                 useVADAutoStop = useVAD,
                 useDeepFilterNet = useDeepFilterNet,
+                useDeepFilterNetGroq = useDeepFilterNetGroq,
                 channelMode = channelMode,
                 prebufferDurationMs = prebufferSeconds.coerceAtLeast(0) * 1000
             ),
@@ -415,6 +418,7 @@ private class VoiceInputBottomBarWindow(
         val canExpandSpace = context.getSetting(CAN_EXPAND_SPACE)
         val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
         val useDeepFilterNet = context.getSetting(USE_DEEPFILTERNET_LOCAL)
+        val useDeepFilterNetGroq = context.getSetting(USE_DEEPFILTERNET_GROQ)
         val useGroq = context.getSetting(USE_GROQ_WHISPER)
         val groqKey = context.getSetting(GROQ_VOICE_API_KEY)
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
@@ -452,6 +456,7 @@ private class VoiceInputBottomBarWindow(
                 canExpandSpace = canExpandSpace,
                 useVADAutoStop = useVAD,
                 useDeepFilterNet = useDeepFilterNet,
+                useDeepFilterNetGroq = useDeepFilterNetGroq,
                 channelMode = channelMode,
                 prebufferDurationMs = prebufferSeconds.coerceAtLeast(0) * 1000
             ),

@@ -55,6 +55,11 @@ val USE_DEEPFILTERNET_LOCAL = SettingsKey(
     default = false
 )
 
+val USE_DEEPFILTERNET_GROQ = SettingsKey(
+    key = booleanPreferencesKey("use_deepfilternet_groq"),
+    default = false
+)
+
 val VOICE_INPUT_PREBUFFER_SECONDS = SettingsKey(
     key = intPreferencesKey("voice_input_prebuffer_seconds"),
     default = 1
