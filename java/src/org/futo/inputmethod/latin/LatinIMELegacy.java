@@ -47,6 +47,8 @@ import android.view.ViewGroup.LayoutParams;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.ExtractedText;
+import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodSubtype;
 
@@ -628,12 +630,49 @@ public class LatinIMELegacy implements KeyboardActionListener,
         setNeutralSuggestionStrip();
 
         final InputConnection ic = mInputMethodService.getCurrentInputConnection();
-        if (ic == null) return;
-        
+        if (ic == null || steps == 0) return;
+
+        final EditorInfo editorInfo = mInputMethodService.getCurrentInputEditorInfo();
+        if (editorInfo == null) {
+            return;
+        }
+        final boolean isMultiline = (editorInfo.inputType & InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
+        if (!isMultiline) {
+            return;
+        }
+
+        final ExtractedText extractedText = ic.getExtractedText(new ExtractedTextRequest(), 0);
+        if (extractedText != null && extractedText.text != null) {
+            final CharSequence text = extractedText.text;
+            final int cursor = Math.min(extractedText.selectionStart, extractedText.selectionEnd);
+            if (cursor >= 0 && cursor <= text.length()) {
+                final int requiredLines = Math.abs(steps);
+                int availableLines = 0;
+                if (steps < 0) {
+                    for (int i = cursor - 1; i >= 0; i--) {
+                        if (text.charAt(i) == '\n') {
+                            availableLines++;
+                            if (availableLines >= requiredLines) break;
+                        }
+                    }
+                } else {
+                    for (int i = cursor; i < text.length(); i++) {
+                        if (text.charAt(i) == '\n') {
+                            availableLines++;
+                            if (availableLines >= requiredLines) break;
+                        }
+                    }
+                }
+                if (availableLines < requiredLines) {
+                    return;
+                }
+            }
+        }
+
         ic.beginBatchEdit();
         final int keyCode = steps < 0 ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN;
         final long eventTime = android.os.SystemClock.uptimeMillis();
-        for(int i = 0; i < Math.abs(steps); i++) {
+        for (int i = 0; i < Math.abs(steps); i++) {
             ic.sendKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyCode, 0));
             ic.sendKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0));
         }
