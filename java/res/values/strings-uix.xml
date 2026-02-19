@@ -515,11 +515,9 @@
     <!-- Theme, as in visual style -->
     <string name="theme_settings_title">Theme</string>
     <string name="theme_settings_key_borders">Key borders</string>
-<<<<<<< HEAD
     <string name="theme_settings_reset_to_default">Reset theme to default</string>
     <string name="theme_settings_reset_to_default_desc">Restore all theme parameters to the default values. Helpful if imported settings caused mismatched colors.</string>
     <string name="theme_settings_reset_to_default_tags">reset theme, theme reset, restore colors, default colors, fix theme, theme defaults</string>
-=======
     <string name="theme_settings_default_themes">Built-in</string>
     <string name="theme_settings_seasonal_themes">Seasonal</string>
     <string name="theme_settings_custom_themes">Your themes</string>
@@ -542,7 +540,6 @@
     <string name="theme_customizer_import_custom_theme_name_text">Theme name: %s</string>
     <string name="theme_customizer_import_custom_theme_author_text">Author: %s</string>
 
->>>>>>> upstream/master
     <string name="dev_settings_title">Developer Settings</string>
 
     <!-- Voice input settings menu -->
@@ -694,6 +691,16 @@
 
     <!-- Settings category title -->
     <string name="language_specific_settings_title">Language-specific settings</string>
+
+    <!-- Specific to Chinese input method -->
+    <string name="chinese_settings_title">Chinese Input Settings</string>
+    <string name="chinese_setting_search_tags">chinese, rime</string>
+    <string name="chinese_setting_simplification">Simplification</string>
+    <string name="chinese_setting_simplification_simplify_by_language_country">Default (by country)</string>
+    <string name="chinese_setting_simplification_force_simplified">Simplified</string>
+    <string name="chinese_setting_simplification_force_traditional">Traditional</string>
+    <string name="chinese_setting_pinyin_scheme">Pinyin Scheme</string>
+    <string name="chinese_setting_fuzzy_pinyin">Fuzzy Pinyin</string>
 
     <!-- Specific to Japanese input method -->
     <string name="japanese_settings_title">Japanese Input Settings</string>
