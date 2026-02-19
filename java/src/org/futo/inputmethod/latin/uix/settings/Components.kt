@@ -865,6 +865,46 @@ fun<T> DropDownPicker(
     }
 }*/
 
+@Composable
+fun CollapsibleSection(title: String, modifier: Modifier = Modifier, section: @Composable ColumnScope.() -> Unit) {
+    val context = LocalContext.current
+    var expanded by remember { mutableStateOf(false) }
+
+    Column {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 44.dp).clickable {
+                expanded = !expanded
+            }.padding(16.dp).semantics {
+                stateDescription = context.getString(
+                    if(expanded)
+                        R.string.setting_section_expanded
+                    else
+                        R.string.setting_section_collapsed
+                )
+                role = Role.DropdownList
+            }
+        ) {
+            RotatingChevronIcon(expanded, tint = LocalContentColor.current)
+
+            Spacer(Modifier.width(16.dp))
+
+            Text(
+                text = title,
+                style = Typography.Body.Regular,
+                color = LocalContentColor.current,
+                modifier = Modifier.weight(1.0f)
+            )
+        }
+
+        AnimatedVisibility(expanded, enter = expandVertically(), exit = shrinkVertically()) {
+            Column {
+                section()
+            }
+        }
+    }
+}
+
+
 private val DropDownShape = RoundedCornerShape(12.dp)
 @Composable
 fun<T> DropDownPicker(
@@ -875,8 +915,8 @@ fun<T> DropDownPicker(
     scrollableOptions: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
-
 
     SpacedColumn(4.dp, modifier = modifier.semantics {
         role = Role.DropdownList
@@ -891,8 +931,12 @@ fun<T> DropDownPicker(
             ).heightIn(min = 44.dp).clip(DropDownShape).clickable {
                 expanded = !expanded
             }.padding(16.dp).semantics {
-                // TODO: Localization
-                stateDescription = if(expanded) "Expanded" else "Collapsed"
+                stateDescription = context.getString(
+                    if(expanded)
+                        R.string.setting_section_expanded
+                    else
+                        R.string.setting_section_collapsed
+                )
                 role = Role.DropdownList
             }
         ) {
