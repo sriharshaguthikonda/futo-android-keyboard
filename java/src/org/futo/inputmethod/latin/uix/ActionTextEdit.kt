@@ -214,6 +214,8 @@ private fun GenericEditTextCompose(
 
             setTextChangeCallback { text.value = it }
 
+            if(inputFilters != null) filters = inputFilters
+
             setText(text.value)
             setTextColor(color.toArgb())
             placeholder?.let { setHint(it) }
