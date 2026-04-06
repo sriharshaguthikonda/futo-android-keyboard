@@ -23,9 +23,7 @@ import org.futo.inputmethod.latin.LatinIME;
 import android.graphics.Color;
 import android.os.SystemClock;
 import android.text.SpannableString;
-import android.text.Spanned;
 import android.text.TextUtils;
-import android.text.style.BackgroundColorSpan;
 import android.text.style.SuggestionSpan;
 import android.util.Log;
 import android.view.KeyCharacterMap;
@@ -43,6 +41,7 @@ import org.futo.inputmethod.keyboard.Keyboard;
 import org.futo.inputmethod.keyboard.KeyboardSwitcher;
 import org.futo.inputmethod.keyboard.internal.KeyboardLayoutKind;
 import org.futo.inputmethod.latin.Dictionary;
+import org.futo.inputmethod.latin.BinaryDictionary;
 import org.futo.inputmethod.latin.DictionaryFacilitator;
 import org.futo.inputmethod.latin.LastComposedWord;
 import org.futo.inputmethod.latin.NgramContext;
@@ -288,6 +287,11 @@ public final class InputLogic {
      * Clean up the input logic after input is finished.
      */
     public void finishInput() {
+        rememberCommittedEmail();
+        resetInput();
+    }
+
+    private void resetInput() {
         if (mWordComposer.isComposingWord()) {
             mConnection.finishComposingText();
             StatsUtils.onWordCommitUserTyped(
@@ -1603,7 +1607,7 @@ public final class InputLogic {
                 && settingsValues.isSuggestionsEnabledPerUserSettings()
                 && settingsValues.mSpacingAndPunctuations.mCurrentLanguageHasSpaces) {
             final TextRange range = mConnection.getWordRangeAtCursor(
-                    settingsValues.mSpacingAndPunctuations,
+                    settingsValues,
                     currentKeyboardScriptId, true);
             if (range != null) {
                 return range.mWord.toString();
@@ -2010,7 +2014,7 @@ public final class InputLogic {
         final int currentKeyboardScriptId = mImeHelper.getCurrentKeyboardScriptId();
 
         final TextRange range = mConnection.getWordRangeAtCursor(
-                settingsValues.mSpacingAndPunctuations, currentKeyboardScriptId, useAfter);
+                settingsValues, currentKeyboardScriptId, useAfter);
 
         if (null == range) {
             return false; // Happens if we don't have an input connection at all
@@ -2317,10 +2321,25 @@ public final class InputLogic {
                 && Constants.CODE_DASH != firstCodePoint;
     }
 
+    private void rememberCommittedEmail() {
+        if(!Settings.getInstance().getCurrent().mInputAttributes.mIsEmailField) return;
+        CharSequence cs = mConnection.getTextBeforeCursor(BinaryDictionary.DICTIONARY_MAX_WORD_LENGTH, 0);
+        if(cs == null) return;
+        if(cs.length() >= BinaryDictionary.DICTIONARY_MAX_WORD_LENGTH) return;
+
+        String text = cs.toString();
+        if(text.indexOf(' ') != -1) return;
+
+        if(text.indexOf('@') == -1 || text.indexOf('.') == -1) return;
+
+        mDictionaryFacilitator.onEmailTyped(text);
+    }
+
     /**
      * @param actionId the action to perform
      */
     private void performEditorAction(final int actionId) {
+        rememberCommittedEmail();
         mConnection.performEditorAction(actionId);
     }
 
@@ -2928,7 +2947,7 @@ public final class InputLogic {
 
 
     private void cursorLeftInternal(int steps, boolean stepOverWords, boolean select) {
-        finishInput();
+        resetInput();
 
         if(!mConnection.hasSelection()) isRightSidePointer = true;
 
@@ -2936,7 +2955,7 @@ public final class InputLogic {
     }
 
     private void cursorRightInternal(int steps, boolean stepOverWords, boolean select) {
-        finishInput();
+        resetInput();
 
         if(!mConnection.hasSelection()) isRightSidePointer = false;
 
