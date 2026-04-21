@@ -87,6 +87,7 @@ import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_SYSTEM_PROMPT
 import org.futo.inputmethod.latin.uix.LOCAL_VOICE_SYSTEM_PROMPT
+import org.futo.inputmethod.latin.uix.LOCAL_VOICE_BACKEND
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_CHANNEL_MODE
@@ -104,6 +105,7 @@ import org.futo.voiceinput.shared.RecognizerViewListener
 import org.futo.voiceinput.shared.RecognizerViewSettings
 import org.futo.voiceinput.shared.RecordingSettings
 import org.futo.voiceinput.shared.SoundPlayer
+import org.futo.voiceinput.shared.LocalTranscriptionBackend
 import org.futo.voiceinput.shared.types.Language
 import org.futo.voiceinput.shared.types.ModelLoader
 import org.futo.voiceinput.shared.types.RecordingChannelMode
@@ -189,6 +191,7 @@ private class VoiceInputActionWindow(
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
         val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
+        val localBackend = LocalTranscriptionBackend.fromSetting(context.getSetting(LOCAL_VOICE_BACKEND))
         val channelMode = RecordingChannelMode.fromSetting(context.getSetting(VOICE_INPUT_CHANNEL_MODE))
 
         state.modelManager.useGpu = useGpu
@@ -207,6 +210,7 @@ private class VoiceInputActionWindow(
         return RecognizerViewSettings(
             shouldShowInlinePartialResult = false,
             shouldShowVerboseFeedback = verboseFeedback,
+            localBackend = localBackend,
             modelRunConfiguration = MultiModelRunConfiguration(
                 primaryModel = primaryModel,
                 languageSpecificModels = languageSpecificModels
@@ -417,6 +421,7 @@ private class VoiceInputBottomBarWindow(
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
         val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
+        val localBackend = LocalTranscriptionBackend.fromSetting(context.getSetting(LOCAL_VOICE_BACKEND))
         val channelMode = RecordingChannelMode.fromSetting(context.getSetting(VOICE_INPUT_CHANNEL_MODE))
         val prebufferSeconds = context.getSetting(VOICE_INPUT_PREBUFFER_SECONDS)
 
@@ -432,6 +437,7 @@ private class VoiceInputBottomBarWindow(
         return RecognizerViewSettings(
             shouldShowInlinePartialResult = false,
             shouldShowVerboseFeedback = verboseFeedback,
+            localBackend = localBackend,
             modelRunConfiguration = MultiModelRunConfiguration(
                 primaryModel = primaryModel,
                 languageSpecificModels = languageSpecificModels

@@ -19,6 +19,7 @@ import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.START_VOICE_ON_OPEN
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_CHANNEL_MODE
+import org.futo.inputmethod.latin.uix.LOCAL_VOICE_BACKEND
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.SettingRadio
 import org.futo.inputmethod.latin.uix.settings.UserSetting
@@ -27,6 +28,7 @@ import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.inputmethod.latin.uix.settings.userSettingNavigationItem
 import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
+import org.futo.voiceinput.shared.LocalTranscriptionBackend
 import org.futo.voiceinput.shared.types.RecordingChannelMode
 
 private val visibilityCheckNotSystemVoiceInput = @Composable {
@@ -69,6 +71,22 @@ val VoiceInputMenu = UserSettingsMenu(
             subtitle = R.string.voice_input_settings_use_bluetooth_mic_subtitle,
             setting = PREFER_BLUETOOTH
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        UserSetting(
+            name = R.string.voice_input_settings_local_backend,
+            subtitle = R.string.voice_input_settings_local_backend_subtitle
+        ) {
+            val localBackend = useDataStore(LOCAL_VOICE_BACKEND)
+            SettingRadio(
+                title = stringResource(R.string.voice_input_settings_local_backend),
+                options = LocalTranscriptionBackend.entries.map { it.settingValue },
+                optionNames = listOf(
+                    stringResource(R.string.voice_input_settings_local_backend_whisper),
+                    stringResource(R.string.voice_input_settings_local_backend_moonshine),
+                ),
+                setting = localBackend
+            )
+        }.copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         UserSetting(
             name = R.string.voice_input_settings_audio_channel,

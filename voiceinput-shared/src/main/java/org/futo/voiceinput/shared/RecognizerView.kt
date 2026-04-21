@@ -37,6 +37,7 @@ data class RecognizerViewSettings(
     val shouldShowInlinePartialResult: Boolean,
 
     val useGpuOffload: Boolean,
+    val localBackend: LocalTranscriptionBackend,
 
     val modelRunConfiguration: MultiModelRunConfiguration,
     val decodingConfiguration: DecodingConfiguration,
@@ -265,7 +266,8 @@ class RecognizerView(
             groqApiKey = settings.groqApiKey,
             groqModel = settings.groqModel,
             groqSystemPrompt = settings.groqSystemPrompt,
-            useGpuOffload = settings.useGpuOffload
+            useGpuOffload = settings.useGpuOffload,
+            localBackend = settings.localBackend
         )
     )
 

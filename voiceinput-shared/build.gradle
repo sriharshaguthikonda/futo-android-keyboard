@@ -99,4 +99,5 @@ dependencies {
 
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1'
     implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    implementation 'ai.moonshine:moonshine-voice:0.0.59'
 }

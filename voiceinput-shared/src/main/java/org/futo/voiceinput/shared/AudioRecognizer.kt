@@ -40,6 +40,7 @@ import org.futo.voiceinput.shared.types.ModelInferenceCallback
 import org.futo.voiceinput.shared.types.ModelLoader
 import org.futo.voiceinput.shared.types.RecordingChannelMode
 import org.futo.voiceinput.shared.ui.MicrophoneDeviceState
+import org.futo.voiceinput.shared.moonshine.MoonshineStreamingLocalBackend
 import org.futo.voiceinput.shared.whisper.DecodingConfiguration
 import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
@@ -100,7 +101,8 @@ data class AudioRecognizerSettings(
     val groqApiKey: String,
     val groqModel: String,
     val groqSystemPrompt: String,
-    val useGpuOffload: Boolean
+    val useGpuOffload: Boolean,
+    val localBackend: LocalTranscriptionBackend
 )
 
 class ModelDoesNotExistException(val models: List<ModelLoader>) : Throwable()
@@ -121,6 +123,7 @@ class AudioRecognizer(
     }
 
     private val modelRunner = MultiModelRunner(modelManager)
+    private val moonshineBackend = MoonshineStreamingLocalBackend()
 
     private val canExpandSpace = settings.recordingConfiguration.canExpandSpace
     private val useVAD = settings.recordingConfiguration.useVADAutoStop
@@ -443,7 +446,21 @@ class AudioRecognizer(
     }
 
     private suspend fun preloadModels() {
+        if (shouldUseMoonshineLocalBackend()) {
+            try {
+                moonshineBackend.preload(context)
+                return
+            } catch (t: Throwable) {
+                Log.e("AudioRecognizer", "Moonshine preload failed, falling back to Whisper", t)
+            }
+        }
         modelRunner.preload(settings.modelRunConfiguration)
+    }
+
+    private fun shouldUseMoonshineLocalBackend(): Boolean {
+        if (settings.localBackend != LocalTranscriptionBackend.Moonshine) return false
+        val languages = settings.decodingConfiguration.languages
+        return languages.size == 1 && languages.contains(Language.English)
     }
 
     private fun expandSpaceIfAllowed(): Boolean {
@@ -855,6 +872,16 @@ class AudioRecognizer(
             }
 
             // Either Groq is not configured or it failed, use local model
+            if (shouldUseMoonshineLocalBackend()) {
+                try {
+                    return moonshineBackend
+                        .transcribe(context, floatArray, SampleRateHz)
+                        .trim()
+                } catch (t: Throwable) {
+                    Log.e("AudioRecognizer", "Moonshine transcription failed, falling back to Whisper", t)
+                }
+            }
+
             return modelRunner.run(
                 floatArray,
                 settings.modelRunConfiguration,

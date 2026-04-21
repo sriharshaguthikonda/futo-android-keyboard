@@ -50,6 +50,11 @@ val USE_VAD_AUTOSTOP = SettingsKey(
     default = true
 )
 
+val LOCAL_VOICE_BACKEND = SettingsKey(
+    key = intPreferencesKey("local_voice_backend"),
+    default = 0
+)
+
 val VOICE_INPUT_PREBUFFER_SECONDS = SettingsKey(
     key = intPreferencesKey("voice_input_prebuffer_seconds"),
     default = 1

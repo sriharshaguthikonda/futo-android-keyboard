@@ -61,8 +61,11 @@ import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
 import org.futo.voiceinput.shared.ENGLISH_MODELS
 import org.futo.voiceinput.shared.MULTILINGUAL_MODELS
 import org.futo.voiceinput.shared.AudioPrebufferRecorder
+import org.futo.voiceinput.shared.LocalTranscriptionBackend
 import org.futo.voiceinput.shared.groq.GroqWhisperApi
 import org.futo.voiceinput.shared.ggml.InvalidModelException
+import org.futo.voiceinput.shared.moonshine.MoonshineStreamingAssets
+import org.futo.voiceinput.shared.moonshine.MoonshineStreamingLocalBackend
 import org.futo.voiceinput.shared.types.InferenceState
 import org.futo.voiceinput.shared.types.Language
 import org.futo.voiceinput.shared.types.ModelInferenceCallback
@@ -84,11 +87,14 @@ private val TestingArenaAudioPath = SettingsKey(stringPreferencesKey("testingAre
 private val TestingArenaReferenceTranscript = SettingsKey(stringPreferencesKey("testingArenaReferenceTranscript"), "")
 private val TestingArenaSelectedModels = SettingsKey(stringSetPreferencesKey("testingArenaSelectedModels"), setOf())
 private val TestingArenaCustomModelPaths = SettingsKey(stringSetPreferencesKey("testingArenaCustomModelPaths"), setOf())
+private const val MoonshineTinyStreamingEnModelId = "moonshine:tiny_streaming_en"
 
 private data class TestingArenaModel(
     val id: String,
     val label: String,
-    val loader: ModelLoader,
+    val backend: LocalTranscriptionBackend,
+    val languageSet: Set<Language>,
+    val loader: ModelLoader?,
     val categoryLabel: String,
     val downloadedLabel: String,
 )
@@ -257,6 +263,7 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
     val customModelPaths = useDataStore(TestingArenaCustomModelPaths)
     val modelExistsCache = remember { mutableStateMapOf<String, Boolean>() }
     val customModelExistsCache = remember { mutableStateMapOf<String, Boolean>() }
+    var moonshineAssetsAvailable by remember { mutableStateOf(false) }
     val customModelPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
@@ -289,6 +296,10 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
         }
     }
 
+    LaunchedEffect(Unit) {
+        moonshineAssetsAvailable = MoonshineStreamingAssets.isBundledAvailable(context)
+    }
+
     val voiceModels by remember {
         derivedStateOf {
             val baseEntries = baseModels.map { model ->
@@ -299,9 +310,16 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                 }
                 val modelId = model.key(context).toString()
                 val exists = modelExistsCache[modelId] ?: false
+                val languageSet = if (ENGLISH_MODELS.contains(model)) {
+                    setOf(Language.English)
+                } else {
+                    Language.entries.toSet()
+                }
                 TestingArenaModel(
                     id = modelId,
                     label = context.getString(model.name),
+                    backend = LocalTranscriptionBackend.Whisper,
+                    languageSet = languageSet,
                     loader = model,
                     categoryLabel = categoryLabel,
                     downloadedLabel = if (exists) {
@@ -311,6 +329,21 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                     }
                 )
             }
+            val moonshineEntries = listOf(
+                TestingArenaModel(
+                    id = MoonshineTinyStreamingEnModelId,
+                    label = context.getString(R.string.testing_arena_voice_model_moonshine_tiny_streaming_en),
+                    backend = LocalTranscriptionBackend.Moonshine,
+                    languageSet = setOf(Language.English),
+                    loader = null,
+                    categoryLabel = context.getString(R.string.testing_arena_voice_model_moonshine),
+                    downloadedLabel = if (moonshineAssetsAvailable) {
+                        context.getString(R.string.testing_arena_voice_model_downloaded)
+                    } else {
+                        context.getString(R.string.testing_arena_voice_model_missing)
+                    }
+                )
+            )
             val customEntries = customModelPaths.value.mapNotNull { path ->
                 val exists = customModelExistsCache[path] ?: false
                 if (exists) {
@@ -318,6 +351,8 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                     TestingArenaModel(
                         id = path,
                         label = file.name,
+                        backend = LocalTranscriptionBackend.Whisper,
+                        languageSet = Language.entries.toSet(),
                         loader = org.futo.voiceinput.shared.types.ModelFileFile(
                             R.string.testing_arena_voice_model_custom,
                             file
@@ -329,12 +364,13 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                     null
                 }
             }
-            baseEntries + customEntries
+            baseEntries + moonshineEntries + customEntries
         }
     }
 
     val modelManager = remember { ModelManager(context) }
     val modelRunner = remember { MultiModelRunner(modelManager) }
+    val moonshineBackend = remember { MoonshineStreamingLocalBackend() }
 
     var recorder by remember { mutableStateOf<AudioPrebufferRecorder?>(null) }
     var isRecording by remember { mutableStateOf(false) }
@@ -619,55 +655,87 @@ fun TestingArenaScreen(navController: NavHostController = rememberNavController(
                     runJob = lifecycleOwner.lifecycleScope.launch {
                         localModelsToRun.forEach { model ->
                             val modelName = model.label
-                            if (!model.loader.exists(context)) {
-                                results[modelName] = modelMissingLabel
+                            val result = when (model.backend) {
+                                LocalTranscriptionBackend.Moonshine -> {
+                                    val moonshineReady = MoonshineStreamingAssets.isBundledAvailable(context)
+                                    moonshineAssetsAvailable = moonshineReady
+                                    if (!moonshineReady) {
+                                        results[modelName] = modelMissingLabel
+                                        null
+                                    } else {
+                                        runCatching {
+                                            withContext(Dispatchers.Default) {
+                                                moonshineBackend.transcribe(
+                                                    context = context,
+                                                    samples = audioSamples,
+                                                    sampleRateHz = 16000
+                                                )
+                                            }
+                                        }.map { normalizeTranscription(it) }
+                                            .getOrElse { error ->
+                                                val message = error.message.orEmpty()
+                                                results[modelName] =
+                                                    "$transcriptionFailedLabel ${message}".trim()
+                                                null
+                                            }
+                                    }
+                                }
+                                LocalTranscriptionBackend.Whisper -> {
+                                    val loader = model.loader
+                                    if (loader == null || !loader.exists(context)) {
+                                        results[modelName] = modelMissingLabel
+                                        null
+                                    } else {
+                                        modelManager.useGpu = useGpuOffload
+                                        val runConfig = MultiModelRunConfiguration(
+                                            primaryModel = loader,
+                                            languageSpecificModels = emptyMap()
+                                        )
+                                        val decodingConfig = DecodingConfiguration(
+                                            glossary = emptyList(),
+                                            languages = model.languageSet,
+                                            suppressSymbols = suppressSymbols,
+                                            systemPrompt = localSystemPrompt.value
+                                        )
+                                        runCatching {
+                                            withContext(Dispatchers.Default) {
+                                                modelRunner.run(
+                                                    samples = audioSamples,
+                                                    runConfiguration = runConfig,
+                                                    decodingConfiguration = decodingConfig,
+                                                    callback = object : ModelInferenceCallback {
+                                                        override fun updateStatus(state: InferenceState) {}
+                                                        override fun languageDetected(language: Language) {}
+                                                        override fun partialResult(string: String) {}
+                                                    }
+                                                )
+                                            }
+                                        }.map { normalizeTranscription(it) }
+                                            .getOrElse { error ->
+                                                val message = error.message.orEmpty()
+                                                results[modelName] = if (
+                                                    error is InvalidModelException ||
+                                                    message.contains("tflite", ignoreCase = true)
+                                                ) {
+                                                    unsupportedModelLabel
+                                                } else {
+                                                    "$transcriptionFailedLabel ${message}".trim()
+                                                }
+                                                null
+                                            }
+                                    }
+                                }
+                            }
+
+                            if (result.isNullOrBlank()) {
+                                if (results[modelName] == transcribingLabel) {
+                                    results[modelName] = transcriptionFailedLabel
+                                }
                                 return@forEach
                             }
-                            val languageSet = if (ENGLISH_MODELS.any { it.key(context).toString() == model.id }) {
-                                setOf(Language.English)
-                            } else {
-                                Language.values().toSet()
-                            }
-                            modelManager.useGpu = useGpuOffload
-                            val runConfig = MultiModelRunConfiguration(
-                                primaryModel = model.loader,
-                                languageSpecificModels = emptyMap()
-                            )
-                            val decodingConfig = DecodingConfiguration(
-                                glossary = emptyList(),
-                                languages = languageSet,
-                                suppressSymbols = suppressSymbols,
-                                systemPrompt = localSystemPrompt.value
-                            )
-                            val result = runCatching {
-                                withContext(Dispatchers.Default) {
-                                    modelRunner.run(
-                                        samples = audioSamples,
-                                        runConfiguration = runConfig,
-                                        decodingConfiguration = decodingConfig,
-                                        callback = object : ModelInferenceCallback {
-                                            override fun updateStatus(state: InferenceState) {}
-                                            override fun languageDetected(language: Language) {}
-                                            override fun partialResult(string: String) {}
-                                        }
-                                    )
-                                }
-                            }.map { normalizeTranscription(it) }
-                                .getOrElse { error ->
-                                    val message = error.message.orEmpty()
-                                    results[modelName] = if (error is InvalidModelException ||
-                                        message.contains("tflite", ignoreCase = true)
-                                    ) {
-                                        unsupportedModelLabel
-                                    } else {
-                                        "$transcriptionFailedLabel ${message}".trim()
-                                    }
-                                ""
-                            }
-                            if (result.isNotBlank()) {
-                                results[modelName] = result
-                                transcripts[modelName] = result
-                            }
+
+                            results[modelName] = result
+                            transcripts[modelName] = result
                         }
 
                         if (remoteEnabled) {

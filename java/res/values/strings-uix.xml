@@ -529,9 +529,11 @@
     <string name="testing_arena_no_voice_models">No voice models available.</string>
     <string name="testing_arena_voice_model_english">English</string>
     <string name="testing_arena_voice_model_multilingual">Multilingual</string>
+    <string name="testing_arena_voice_model_moonshine">Moonshine</string>
     <string name="testing_arena_voice_model_unknown">Unknown</string>
     <string name="testing_arena_voice_model_downloaded">Downloaded</string>
     <string name="testing_arena_voice_model_missing">Not downloaded</string>
+    <string name="testing_arena_voice_model_moonshine_tiny_streaming_en">Moonshine Tiny Streaming (English)</string>
     <string name="testing_arena_manage_voice_models_title">Manage voice models</string>
     <string name="testing_arena_manage_voice_models_subtitle">Open Voice Input settings to download models.</string>
     <string name="testing_arena_model_remote">Remote model</string>
@@ -598,6 +600,10 @@
     <string name="voice_input_settings_use_personal_dict_subtitle">Whether or not to use the personal dictionary for voice input</string>
     <string name="voice_input_settings_use_bluetooth_mic">Prefer Bluetooth Mic</string>
     <string name="voice_input_settings_use_bluetooth_mic_subtitle">There may be extra delay to recording starting as Bluetooth SCO connection must be negotiated</string>
+    <string name="voice_input_settings_local_backend">Local transcription backend</string>
+    <string name="voice_input_settings_local_backend_subtitle">Choose the on-device speech engine. Moonshine currently supports English-only sessions.</string>
+    <string name="voice_input_settings_local_backend_whisper">Whisper</string>
+    <string name="voice_input_settings_local_backend_moonshine">Moonshine (streaming)</string>
     <string name="voice_input_settings_audio_channel">Audio recording channel</string>
     <string name="voice_input_settings_audio_channel_subtitle">Choose which audio channel to use for voice input recording</string>
     <string name="voice_input_settings_audio_channel_default">Default (mono)</string>
