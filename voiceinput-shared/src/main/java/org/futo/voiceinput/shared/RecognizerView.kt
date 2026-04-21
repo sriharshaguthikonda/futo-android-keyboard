@@ -185,7 +185,7 @@ class RecognizerView(
         }
 
         override fun languageDetected(language: Language) {
-            // TODO
+            // Intentionally no-op; parent listener does not surface language detection.
         }
 
         override fun modelLoadingFailed() {

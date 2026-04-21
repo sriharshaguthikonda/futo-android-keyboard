@@ -156,7 +156,11 @@ class AudioRecognizer(
     private var loadModelJob: Job? = null
 
     private var vadDownsampleBuffer: ShortArray = ShortArray(0)
-    private var dfnWarned = false
+
+    // DeepFilterNet processor lazily initialized on first use; null means unavailable.
+    private var dfnProcessor: DeepFilterNetProcessor? = null
+    private var dfnInitTried = false
+    private var dfnLoadFailureLogged = false
 
     private var focusRequest: AudioFocusRequest? = null
 
@@ -547,11 +551,27 @@ class AudioRecognizer(
         if (!enabled) return samples
         if (activeSampleRateHz != DeepFilterNetSampleRateHz) return samples
         if (!DeepFilterNetAssets.isInstalled(context)) return samples
-        if (!dfnWarned) {
-            Log.w("AudioRecognizer", "DeepFilterNet enabled but processor not wired yet; bypassing")
-            dfnWarned = true
+
+        val processor = ensureDfnProcessor() ?: return samples
+        return try {
+            processor.process(samples)
+        } catch (t: Throwable) {
+            Log.e("AudioRecognizer", "DeepFilterNet inference failed, bypassing", t)
+            samples
         }
-        return samples
+    }
+
+    private fun ensureDfnProcessor(): DeepFilterNetProcessor? {
+        dfnProcessor?.let { return it }
+        if (dfnInitTried) return null
+        dfnInitTried = true
+        val proc = DeepFilterNetProcessor.create(context)
+        if (proc == null && !dfnLoadFailureLogged) {
+            Log.w("AudioRecognizer", "DeepFilterNet processor unavailable; audio passthrough")
+            dfnLoadFailureLogged = true
+        }
+        dfnProcessor = proc
+        return proc
     }
 
     private fun downsampleToWhisper(samples: FloatArray, sampleRateHz: Int): FloatArray {

@@ -59,6 +59,10 @@ android {
     sourceSets {
         main {
             res.srcDirs = ['../voiceinput-shared/src/main/res', translationsWithoutEngValues('../translations/voiceinput')]
+            // Map src/main/ml/ (which also hosts the ml submodule) into Android assets
+            // so DeepFilterNetAssets.isBundledAvailable()/installFromBundled() can
+            // resolve "deepfilternet/DeepFilterNet2_onnx.tar.gz" via context.assets.
+            assets.srcDirs = ['src/main/ml']
         }
     }
 
@@ -99,4 +103,7 @@ dependencies {
 
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1'
     implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+
+    // DeepFilterNet2 inference runtime
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.18.0'
 }
