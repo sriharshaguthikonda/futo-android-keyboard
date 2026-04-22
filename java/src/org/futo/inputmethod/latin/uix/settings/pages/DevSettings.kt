@@ -13,6 +13,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -159,7 +160,12 @@ fun DeveloperScreen(navController: NavHostController = rememberNavController()) 
             style = NavigationItemStyle.Misc,
             navigate = { navController.navigate("devtheme") }
         )
-
+        NavigationItem(
+            title = stringResource(R.string.testing_arena_title),
+            subtitle = stringResource(R.string.testing_arena_subtitle),
+            style = NavigationItemStyle.Misc,
+            navigate = { navController.navigate("testingArena") }
+        )
 
         ScreenTitle("Text input debug")
         SettingToggleDataStore(

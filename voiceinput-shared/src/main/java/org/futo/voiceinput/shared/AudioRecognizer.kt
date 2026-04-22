@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import org.futo.voiceinput.shared.deepfilternet.DeepFilterNetAssets
 import org.futo.voiceinput.shared.ggml.InferenceCancelledException
 import org.futo.voiceinput.shared.ggml.InvalidModelException
 import org.futo.voiceinput.shared.types.AudioRecognizerListener
@@ -81,14 +82,17 @@ private fun getRecordingDeviceKind(type: Int): String {
     }
 }
 
-private const val SampleRateHz = 16000
-private const val ReadBufferSize = 1600
+private const val WhisperSampleRateHz = 16000
+private const val DefaultRecordingSampleRateHz = 16000
+private const val DeepFilterNetSampleRateHz = 48000
+private const val ReadBufferDurationMs = 100
 
 data class RecordingSettings(
     val preferBluetoothMic: Boolean,
     val requestAudioFocus: Boolean,
     val canExpandSpace: Boolean,
     val useVADAutoStop: Boolean,
+    val useDeepFilterNet: Boolean,
     val channelMode: RecordingChannelMode,
     val prebufferDurationMs: Int
 )
@@ -126,22 +130,33 @@ class AudioRecognizer(
 
     private val canExpandSpace = settings.recordingConfiguration.canExpandSpace
     private val useVAD = settings.recordingConfiguration.useVADAutoStop
+    private val useDeepFilterNet = settings.recordingConfiguration.useDeepFilterNet
 
-    private var floatSamplesPrimary: FloatBuffer = FloatBuffer.allocate(16000 * 30)
+    private var desiredSampleRateHz = if (useDeepFilterNet) {
+        DeepFilterNetSampleRateHz
+    } else {
+        DefaultRecordingSampleRateHz
+    }
+    private var activeSampleRateHz = desiredSampleRateHz
+
+    private var floatSamplesPrimary: FloatBuffer = FloatBuffer.allocate(activeSampleRateHz * 30)
     private var floatSamplesSecondary: FloatBuffer? = null
-    private val prebufferSampleCount = (SampleRateHz * settings.recordingConfiguration.prebufferDurationMs / 1000)
-        .coerceAtLeast(0)
-    private var prebufferBuffer: FloatArray = FloatArray(prebufferSampleCount)
+    private var prebufferSampleCount = 0
+    private var prebufferBuffer: FloatArray = FloatArray(0)
+
     private var prebufferWriteIndex = 0
     private var prebufferFilled = false
     private var pendingPrebuffer = FloatArray(0)
     private var prebufferJob: Job? = null
     private var isPrebuffering = false
 
-    private var floatSamples: FloatBuffer = FloatBuffer.allocate(SampleRateHz * 30)
+    private var floatSamples: FloatBuffer = FloatBuffer.allocate(activeSampleRateHz * 30)
     private var recorderJob: Job? = null
     private var modelJob: Job? = null
     private var loadModelJob: Job? = null
+
+    private var vadDownsampleBuffer: ShortArray = ShortArray(0)
+    private var dfnWarned = false
 
     private var focusRequest: AudioFocusRequest? = null
 
@@ -245,6 +260,10 @@ class AudioRecognizer(
 
     init {
         verifyModelsExist()
+        configureSampleBuffers(activeChannelMode, activeSampleRateHz)
+        configurePrebuffer(activeSampleRateHz)
+        floatSamples = FloatBuffer.allocate(activeSampleRateHz * 30)
+        ensureVadDownsampleBuffer()
     }
 
     fun reset() {
@@ -265,11 +284,12 @@ class AudioRecognizer(
         isRecording = false
 
         activeChannelMode = settings.recordingConfiguration.channelMode
-        configureSampleBuffers(activeChannelMode)
+        activeSampleRateHz = desiredSampleRateHz
+        configureSampleBuffers(activeChannelMode, activeSampleRateHz)
+        configurePrebuffer(activeSampleRateHz)
         pendingPrebuffer = FloatArray(0)
-        prebufferWriteIndex = 0
-        prebufferFilled = false
-        floatSamples = FloatBuffer.allocate(SampleRateHz * 30)
+        floatSamples = FloatBuffer.allocate(activeSampleRateHz * 30)
+        ensureVadDownsampleBuffer()
 
         modelRunner.cancelAll()
 
@@ -370,34 +390,49 @@ class AudioRecognizer(
             AudioFormat.CHANNEL_IN_MONO
         }
         val desiredChannelCount = if (desiredChannelConfig == AudioFormat.CHANNEL_IN_STEREO) 2 else 1
+        val desiredSampleRate = desiredSampleRateHz
 
-        val recorder = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            SampleRateHz,
-            desiredChannelConfig,
-            AudioFormat.ENCODING_PCM_16BIT,
-            SampleRateHz * 2 * desiredChannelCount * 5
-        )
-
-        if (recorder.state != AudioRecord.STATE_INITIALIZED && desiredChannelConfig == AudioFormat.CHANNEL_IN_STEREO) {
-            recorder.release()
-            activeChannelMode = RecordingChannelMode.MONO
-            configureSampleBuffers(activeChannelMode)
+        fun buildRecorder(sampleRateHz: Int, channelConfig: Int, channelCount: Int): AudioRecord {
             return AudioRecord(
                 MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                16000,
-                AudioFormat.CHANNEL_IN_MONO,
+                sampleRateHz,
+                channelConfig,
                 AudioFormat.ENCODING_PCM_16BIT,
-                16000 * 2 * 5
+                sampleRateHz * 2 * channelCount * 5
             )
         }
 
-        activeChannelMode = if (desiredChannelConfig == AudioFormat.CHANNEL_IN_STEREO) {
+        var recorder = buildRecorder(desiredSampleRate, desiredChannelConfig, desiredChannelCount)
+        var actualSampleRate = desiredSampleRate
+        var actualChannelMode = if (desiredChannelConfig == AudioFormat.CHANNEL_IN_STEREO) {
             settings.recordingConfiguration.channelMode
         } else {
             RecordingChannelMode.MONO
         }
-        configureSampleBuffers(activeChannelMode)
+
+        if (recorder.state != AudioRecord.STATE_INITIALIZED && desiredChannelConfig == AudioFormat.CHANNEL_IN_STEREO) {
+            recorder.release()
+            recorder = buildRecorder(desiredSampleRate, AudioFormat.CHANNEL_IN_MONO, 1)
+            actualChannelMode = RecordingChannelMode.MONO
+        }
+
+        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+            recorder.release()
+            actualSampleRate = WhisperSampleRateHz
+            recorder = buildRecorder(WhisperSampleRateHz, AudioFormat.CHANNEL_IN_MONO, 1)
+            actualChannelMode = RecordingChannelMode.MONO
+        }
+
+        if (actualSampleRate != desiredSampleRate) {
+            Log.w("AudioRecognizer", "Requested $desiredSampleRate Hz but using $actualSampleRate Hz")
+        }
+
+        activeSampleRateHz = actualSampleRate
+        activeChannelMode = actualChannelMode
+        configureSampleBuffers(activeChannelMode, activeSampleRateHz)
+        configurePrebuffer(activeSampleRateHz)
+        floatSamples = FloatBuffer.allocate(activeSampleRateHz * 30)
+        ensureVadDownsampleBuffer()
 
         this.recorder = recorder
 
@@ -410,10 +445,11 @@ class AudioRecognizer(
 
     private suspend fun runPrebuffering(recorder: AudioRecord) {
         if (prebufferSampleCount <= 0) return
-        val samples = ShortArray(ReadBufferSize)
+        val readFrames = readBufferFrames()
+        val samples = ShortArray(readFrames)
         while (isPrebuffering) {
             yield()
-            val nRead = recorder.read(samples, 0, ReadBufferSize, AudioRecord.READ_BLOCKING)
+            val nRead = recorder.read(samples, 0, readFrames, AudioRecord.READ_BLOCKING)
             if (nRead <= 0) break
             storePrebufferSamples(samples, nRead)
         }
@@ -451,7 +487,7 @@ class AudioRecognizer(
     private fun expandSpaceIfAllowed(): Boolean {
         if(canExpandSpace) {
             // Allocate an extra 30 seconds
-            val extraSamples = 16000 * 30
+            val extraSamples = activeSampleRateHz * 30
             val newSampleBuffer = FloatBuffer.allocate(floatSamplesPrimary.capacity() + extraSamples)
             newSampleBuffer.put(
                 floatSamplesPrimary.array(),
@@ -470,9 +506,34 @@ class AudioRecognizer(
         return false
     }
 
-    private fun configureSampleBuffers(channelMode: RecordingChannelMode) {
-        floatSamplesPrimary = FloatBuffer.allocate(16000 * 30)
-        floatSamplesSecondary = if (channelMode.isTestMode()) FloatBuffer.allocate(16000 * 30) else null
+    private fun configureSampleBuffers(channelMode: RecordingChannelMode, sampleRateHz: Int) {
+        val capacity = sampleRateHz * 30
+        floatSamplesPrimary = FloatBuffer.allocate(capacity)
+        floatSamplesSecondary = if (channelMode.isTestMode()) FloatBuffer.allocate(capacity) else null
+    }
+
+    private fun configurePrebuffer(sampleRateHz: Int) {
+        prebufferSampleCount = (sampleRateHz * settings.recordingConfiguration.prebufferDurationMs / 1000)
+            .coerceAtLeast(0)
+        prebufferBuffer = FloatArray(prebufferSampleCount)
+        prebufferWriteIndex = 0
+        prebufferFilled = false
+    }
+
+    private fun readBufferFrames(): Int {
+        return (activeSampleRateHz * ReadBufferDurationMs / 1000).coerceAtLeast(1)
+    }
+
+    private fun ensureVadDownsampleBuffer() {
+        val factor = (activeSampleRateHz / WhisperSampleRateHz).coerceAtLeast(1)
+        if (factor == 1) {
+            vadDownsampleBuffer = ShortArray(0)
+            return
+        }
+        val targetSize = (readBufferFrames() / factor).coerceAtLeast(1)
+        if (vadDownsampleBuffer.size < targetSize) {
+            vadDownsampleBuffer = ShortArray(targetSize)
+        }
     }
 
     private fun appendFloatSamples(target: FloatBuffer, samples: ShortArray, length: Int) {
@@ -480,6 +541,35 @@ class AudioRecognizer(
             samples[index].toFloat() / Short.MAX_VALUE.toFloat()
         }
         target.put(floats)
+    }
+
+    private fun maybeApplyDeepFilterNet(samples: FloatArray): FloatArray {
+        if (!useDeepFilterNet) return samples
+        if (activeSampleRateHz != DeepFilterNetSampleRateHz) return samples
+        if (!DeepFilterNetAssets.isInstalled(context)) return samples
+        if (!dfnWarned) {
+            Log.w("AudioRecognizer", "DeepFilterNet enabled but processor not wired yet; bypassing")
+            dfnWarned = true
+        }
+        return samples
+    }
+
+    private fun downsampleToWhisper(samples: FloatArray, sampleRateHz: Int): FloatArray {
+        if (sampleRateHz == WhisperSampleRateHz) return samples
+        val factor = sampleRateHz / WhisperSampleRateHz
+        if (factor <= 1) return samples
+        val outLength = samples.size / factor
+        val out = FloatArray(outLength)
+        var inIdx = 0
+        for (i in 0 until outLength) {
+            var sum = 0.0f
+            for (j in 0 until factor) {
+                sum += samples[inIdx + j]
+            }
+            out[i] = sum / factor
+            inIdx += factor
+        }
+        return out
     }
 
     private suspend fun recordingJob(recorder: AudioRecord, vad: VadModel?) {
@@ -500,10 +590,11 @@ class AudioRecognizer(
         var numConsecutiveSpeech = 0
 
         val channelCount = if (activeChannelMode.requiresStereo()) 2 else 1
-        val samples = ShortArray(1600 * channelCount)
-        val channelOneSamples = ShortArray(1600)
+        val readFrames = readBufferFrames()
+        val samples = ShortArray(readFrames * channelCount)
+        val channelOneSamples = ShortArray(readFrames)
         val channelTwoSamples = if (activeChannelMode.isTestMode() || activeChannelMode == RecordingChannelMode.CHANNEL_2) {
-            ShortArray(1600)
+            ShortArray(readFrames)
         } else {
             null
         }
@@ -515,12 +606,12 @@ class AudioRecognizer(
             yield()
 
             val framesRead = nRead / channelCount
-            val requiredSamples = framesRead.coerceAtLeast(1600)
+            val requiredSamples = framesRead.coerceAtLeast(readFrames)
             val isOutOfPrimarySpace = floatSamplesPrimary.remaining() < requiredSamples
             val isOutOfSecondarySpace = floatSamplesSecondary?.remaining()?.let { it < requiredSamples } ?: false
             var isRunningOutOfSpace = (isOutOfPrimarySpace || isOutOfSecondarySpace) && !expandSpaceIfAllowed()
             // Also check single buffer for prebuffer functionality
-            isRunningOutOfSpace = isRunningOutOfSpace || ((floatSamples.remaining() < nRead.coerceAtLeast(ReadBufferSize)) && !expandSpaceIfAllowed())
+            isRunningOutOfSpace = isRunningOutOfSpace || ((floatSamples.remaining() < nRead.coerceAtLeast(readBufferFrames())) && !expandSpaceIfAllowed())
 
             val hasNotTalkedRecently = hasTalked && (numConsecutiveNonSpeech > 66) && useVAD
             if (isRunningOutOfSpace || hasNotTalkedRecently) {
@@ -554,7 +645,33 @@ class AudioRecognizer(
 
             // Run VAD
             if(useVAD && vad != null) {
-                var remainingSamples = selectedLength
+                val vadSamples: ShortArray
+                val vadLength: Int
+                val factor = (activeSampleRateHz / WhisperSampleRateHz).coerceAtLeast(1)
+                if (factor == 1) {
+                    vadSamples = selectedSamples
+                    vadLength = selectedLength
+                } else {
+                    val outLength = selectedLength / factor
+                    if (vadDownsampleBuffer.size < outLength) {
+                        vadDownsampleBuffer = ShortArray(outLength)
+                    }
+                    var inIdx = 0
+                    var outIdx = 0
+                    while (outIdx < outLength) {
+                        var sum = 0
+                        for (i in 0 until factor) {
+                            sum += selectedSamples[inIdx + i].toInt()
+                        }
+                        vadDownsampleBuffer[outIdx] = (sum / factor).toShort()
+                        outIdx += 1
+                        inIdx += factor
+                    }
+                    vadSamples = vadDownsampleBuffer
+                    vadLength = outLength
+                }
+
+                var remainingSamples = vadLength
                 var offset = 0
                 while (remainingSamples > 0) {
                     if (!vadSampleBuffer.hasRemaining()) {
@@ -573,9 +690,7 @@ class AudioRecognizer(
 
                     val samplesToRead = min(min(remainingSamples, 480), vadSampleBuffer.remaining())
                     for (i in 0 until samplesToRead) {
-                        vadSampleBuffer.put(
-                            selectedSamples[offset]
-                        )
+                        vadSampleBuffer.put(vadSamples[offset])
                         offset += 1
                         remainingSamples -= 1
                     }
@@ -586,7 +701,7 @@ class AudioRecognizer(
             if (activeChannelMode.isTestMode() && channelTwoSamples != null) {
                 appendFloatSamples(floatSamplesSecondary!!, channelTwoSamples, selectedLength)
             }
-            if(floatSamplesPrimary.position() >= 16000 * 60) {
+            if(floatSamplesPrimary.position() >= activeSampleRateHz * 60) {
                 yield()
                 withContext(Dispatchers.Main) { finish() }
                 return
@@ -594,7 +709,7 @@ class AudioRecognizer(
 
             // Don't set hasTalked if the start sound may still be playing, otherwise on some
             // devices the rms just explodes and `hasTalked` is always true
-            val startSoundPassed = (floatSamplesPrimary.position() > 16000 * 0.6)
+            val startSoundPassed = (floatSamplesPrimary.position() > (activeSampleRateHz * 0.6))
             if (!startSoundPassed) {
                 numConsecutiveSpeech = 0
                 numConsecutiveNonSpeech = 0
@@ -616,7 +731,7 @@ class AudioRecognizer(
             }
 
             // Check if mic is blocked
-            val blockCheckTimePassed = (floatSamplesPrimary.position() > 2 * 16000) // two seconds
+            val blockCheckTimePassed = (floatSamplesPrimary.position() > 2 * activeSampleRateHz) // two seconds
             if (!anyNoiseAtAll && canMicBeBlocked && blockCheckTimePassed) {
                 isMicBlocked = true
             }
@@ -645,7 +760,7 @@ class AudioRecognizer(
                 )
                 if (nRead2 > 0) {
                     val framesRead2 = nRead2 / channelCount
-                    val requiredSamples2 = framesRead2.coerceAtLeast(1600)
+                    val requiredSamples2 = framesRead2.coerceAtLeast(readFrames)
                     val isPrimaryOutOfSpace = floatSamplesPrimary.remaining() < requiredSamples2
                     val isSecondaryOutOfSpace = floatSamplesSecondary?.remaining()?.let { it < requiredSamples2 } ?: false
                     if ((isPrimaryOutOfSpace || isSecondaryOutOfSpace) && !expandSpaceIfAllowed()) {
@@ -674,7 +789,7 @@ class AudioRecognizer(
                             appendFloatSamples(floatSamplesSecondary!!, channelTwoSamples, frames)
                         }
                     }
-                    if(floatSamplesPrimary.position() >= 16000 * 60) {
+                    if(floatSamplesPrimary.position() >= activeSampleRateHz * 60) {
                         yield()
                         withContext(Dispatchers.Main) { finish() }
                         break
@@ -764,7 +879,7 @@ class AudioRecognizer(
             pendingPrebuffer.isNotEmpty() -> pendingPrebuffer
             else -> localPrebuffer
         }
-        floatSamples = FloatBuffer.allocate(SampleRateHz * 30)
+        floatSamples = FloatBuffer.allocate(activeSampleRateHz * 30)
         val device = try {
             createRecorderAndJob(settings.recordingConfiguration.preferBluetoothMic)
         } catch (e: SecurityException) {
@@ -772,6 +887,9 @@ class AudioRecognizer(
             clearCommunicationDevice()
             requestPermission()
             return
+        }
+        if (activeSampleRateHz != desiredSampleRateHz) {
+            pendingPrebuffer = FloatArray(0)
         }
 
         focusAudio()
@@ -836,12 +954,16 @@ class AudioRecognizer(
         if (currentSessionId != sessionId.get()) return
 
         suspend fun transcribe(floatArray: FloatArray): String {
+            val processedInput = downsampleToWhisper(
+                maybeApplyDeepFilterNet(floatArray),
+                activeSampleRateHz
+            )
             // First try Groq if configured
             if (settings.groqApiKey.isNotBlank()) {
                 try {
                     val groqResult = withContext(Dispatchers.IO) {
                         org.futo.voiceinput.shared.groq.GroqWhisperApi.transcribe(
-                            floatArray,
+                            processedInput,
                             settings.groqApiKey,
                             settings.groqModel,
                             settings.groqSystemPrompt.ifBlank { null }
@@ -888,7 +1010,7 @@ class AudioRecognizer(
 
             // Either Groq is not configured or it failed, use local model
             val firstPassResult = modelRunner.run(
-                floatArray,
+                processedInput,
                 settings.modelRunConfiguration,
                 settings.decodingConfiguration,
                 runnerCallback
@@ -899,7 +1021,7 @@ class AudioRecognizer(
                     firstPassResult
                 )
                 return modelRunner.run(
-                    floatArray,
+                    processedInput,
                     settings.modelRunConfiguration,
                     settings.decodingConfiguration.copy(systemPrompt = secondPassPrompt),
                     runnerCallback

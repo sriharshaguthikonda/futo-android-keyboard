@@ -50,6 +50,11 @@ val USE_VAD_AUTOSTOP = SettingsKey(
     default = true
 )
 
+val USE_DEEPFILTERNET_LOCAL = SettingsKey(
+    key = booleanPreferencesKey("use_deepfilternet_local"),
+    default = false
+)
+
 val VOICE_INPUT_PREBUFFER_SECONDS = SettingsKey(
     key = intPreferencesKey("voice_input_prebuffer_seconds"),
     default = 1

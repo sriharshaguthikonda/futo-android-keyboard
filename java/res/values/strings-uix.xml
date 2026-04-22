@@ -87,6 +87,7 @@
     <!-- Must be fairly short -->
     <string name="action_clipboard_manager_delete_corrupted_clipboard_button">Delete</string>
     <string name="action_clipboard_manager_error_clipboard_history_disabled_title">Clipboard History Inactive</string>
+    <string name="action_clipboard_manager_error_clipboard_history_disabled_text">@string/action_clipboard_manager_error_clipboard_history_disabled_text_v2</string>
     <string name="action_clipboard_manager_error_clipboard_history_disabled_text_v2">To save clipboard items, you can enable clipboard history. This will keep up to <xliff:g id="numItems" example="25">%1$s</xliff:g> items for <xliff:g id="numDays" example="3">%2$s</xliff:g> days (pinned items are exempt). You can configure this in settings.</string>
     <string name="action_clipboard_manager_enable_clipboard_history_button">Enable Clipboard History</string>
     <!-- This message is shown when we're typing in a text field does not support image insertion ("app" refers to the external app that is providing the text field) -->
@@ -421,6 +422,7 @@
 
     <!-- Keyboard's size settings -->
     <string name="size_settings_title">Resize Keyboard</string>
+    <string name="size_settings_subtitle">@string/size_settings_subtitle2</string>
     <string name="size_settings_subtitle2">Change keyboard size, make it one-handed, floating, split</string>
     <string name="size_settings_resize_tip">Tap the \"Resize Keyboard\" button to resize.</string>
     <string name="size_settings_keyboard_modes_tip">You can access this anywhere with the Keyboard Modes action:</string>
@@ -441,6 +443,7 @@
     <string name="morekey_settings_active">Active</string>
     <string name="morekey_settings_inactive">Inactive</string>
     <string name="morekey_settings_reactivate">Reactivate</string>
+    <string name="morekey_settings_enable">Enable</string>
     <string name="morekey_settings_disable">Deactivate</string>
     <string name="morekey_settings_keys">Long-Press Keys</string>
     <string name="morekey_settings_show_hints">Show hints</string>
@@ -489,6 +492,9 @@
 
     <!-- Automatic space insertion -->
     <string name="typing_settings_auto_space_mode">Automatic spaces mode</string>
+    <string name="typing_settings_auto_space_mode_auto">@string/typing_settings_auto_space_mode_auto2</string>
+    <string name="typing_settings_auto_space_mode_suggestions">@string/typing_settings_auto_space_mode_suggestions2</string>
+    <string name="typing_settings_auto_space_mode_legacy">@string/typing_settings_auto_space_mode_legacy2</string>
     <string name="typing_settings_auto_space_mode_auto2">Immediate space after suggestions &amp; punctuation</string>
     <string name="typing_settings_auto_space_mode_suggestions2">Immediate space after suggestions</string>
     <string name="typing_settings_auto_space_mode_legacy2">Delayed space after suggestions (legacy mode)</string>
@@ -550,6 +556,76 @@
     <string name="theme_customizer_import_custom_theme_author_text">Author: %s</string>
 
     <string name="dev_settings_title">Developer Settings</string>
+    <string name="testing_arena_title">Voice Model Compare</string>
+    <string name="testing_arena_subtitle">Record once, then compare multiple voice models.</string>
+    <string name="testing_arena_models_title">Models</string>
+    <string name="testing_arena_no_voice_models">No voice models available.</string>
+    <string name="testing_arena_voice_model_english">English</string>
+    <string name="testing_arena_voice_model_multilingual">Multilingual</string>
+    <string name="testing_arena_voice_model_unknown">Unknown</string>
+    <string name="testing_arena_voice_model_downloaded">Downloaded</string>
+    <string name="testing_arena_voice_model_missing">Not downloaded</string>
+    <string name="testing_arena_manage_voice_models_title">Manage voice models</string>
+    <string name="testing_arena_manage_voice_models_subtitle">Open Voice Input settings to download models.</string>
+    <string name="testing_arena_model_remote">Remote model</string>
+    <string name="testing_arena_model_remote_subtitle">Use Groq Whisper settings for remote runs.</string>
+    <string name="testing_arena_remote_title">Remote configuration (Groq)</string>
+    <string name="testing_arena_remote_missing_key">Groq API key not configured.</string>
+    <string name="testing_arena_remote_ready">Groq model: %1$s</string>
+    <string name="testing_arena_remote_open_settings">Configure Groq Whisper</string>
+    <string name="testing_arena_remote_open_settings_subtitle">Set API key and pick a Groq model.</string>
+    <string name="testing_arena_audio_title">Audio input</string>
+    <string name="testing_arena_audio_path_label">Audio file path</string>
+    <string name="testing_arena_audio_path_placeholder">/sdcard/Download/sample.wav</string>
+    <string name="testing_arena_dfn_title">DeepFilterNet assets</string>
+    <string name="testing_arena_dfn_status_label">Bundled: %1$s • Installed: %2$s</string>
+    <string name="testing_arena_dfn_status_bundled_yes">Yes</string>
+    <string name="testing_arena_dfn_status_bundled_no">No</string>
+    <string name="testing_arena_dfn_status_installed">Installed</string>
+    <string name="testing_arena_dfn_status_not_installed">Not installed</string>
+    <string name="testing_arena_dfn_install_bundled">Install bundled</string>
+    <string name="testing_arena_dfn_download">Download latest</string>
+    <string name="testing_arena_dfn_clear">Remove model</string>
+    <string name="testing_arena_record_start">Record voice</string>
+    <string name="testing_arena_record_stop">Stop recording</string>
+    <string name="testing_arena_record_clear">Clear recording</string>
+    <string name="testing_arena_record_ready">Recorded audio ready (%1$d seconds).</string>
+    <string name="testing_arena_use_recorded_audio">Use recorded audio</string>
+    <string name="testing_arena_use_recorded_audio_subtitle">Prefer the recorded clip when running tests.</string>
+    <string name="testing_arena_audio_recorded">Recorded audio (%1$d seconds)</string>
+    <string name="testing_arena_reference_title">Reference transcript</string>
+    <string name="testing_arena_reference_label">Reference text</string>
+    <string name="testing_arena_reference_placeholder">Paste the ground-truth transcript for WER/CER</string>
+    <string name="testing_arena_actions_title">Actions</string>
+    <string name="testing_arena_run_button">Run transcription</string>
+    <string name="testing_arena_metrics_button">Calculate WER/CER</string>
+    <string name="testing_arena_charts_button">Generate charts</string>
+    <string name="testing_arena_results_title">Results</string>
+    <string name="testing_arena_results_empty">No results yet. Run a transcription to see outputs.</string>
+    <string name="testing_arena_results_notice">Notice</string>
+    <string name="testing_arena_results_no_models">Select at least one model or remote to run.</string>
+    <string name="testing_arena_results_no_audio">Record audio to run a transcription.</string>
+    <string name="testing_arena_results_audio_missing">no audio selected</string>
+    <string name="testing_arena_results_local_ready">Local model ready.</string>
+    <string name="testing_arena_results_transcribing">Transcribing…</string>
+    <string name="testing_arena_results_model_missing">Model not downloaded.</string>
+    <string name="testing_arena_results_invalid_audio">Invalid audio file.</string>
+    <string name="testing_arena_results_unsupported_model">Unsupported local model format. Use a compatible voice model.</string>
+    <string name="testing_arena_results_transcription_failed">Transcription failed.</string>
+    <string name="testing_arena_results_missing_groq_key">Groq API key missing.</string>
+    <string name="testing_arena_results_remote_ready">Remote ready: %1$s</string>
+    <string name="testing_arena_results_placeholder">Audio: %1$s\nStatus: %2$s</string>
+    <string name="testing_arena_metrics_title">Metrics</string>
+    <string name="testing_arena_metrics_empty">Metrics will appear here after calculation.</string>
+    <string name="testing_arena_metrics_missing_reference">Add a reference transcript to calculate WER/CER.</string>
+    <string name="testing_arena_metrics_no_results">Run a transcription to calculate WER/CER.</string>
+    <string name="testing_arena_metrics_placeholder">WER: --% • CER: --%</string>
+    <string name="testing_arena_charts_placeholder">Charts will render here once the charting pipeline is wired up.</string>
+    <string name="testing_arena_voice_model_custom">Custom</string>
+    <string name="testing_arena_custom_models_title">Custom voice models</string>
+    <string name="testing_arena_custom_models_subtitle">Pick local voice model files to test alongside built-ins.</string>
+    <string name="testing_arena_custom_models_add">Choose model file</string>
+    <string name="testing_arena_custom_models_remove">Remove</string>
 
     <!-- Voice input settings menu -->
     <string name="voice_input_settings_title">Voice Input</string>
@@ -578,6 +654,8 @@
     <string name="voice_input_settings_long_form_subtitle">If disabled, voice input will auto-stop after 30 seconds.</string>
     <string name="voice_input_settings_autostop_vad">Auto-stop on silence</string>
     <string name="voice_input_settings_autostop_vad_subtitle">Automatically stop when silence is detected. You may need to manually stop regardless if there\'s too much background noise.</string>
+    <string name="voice_input_settings_use_deepfilternet">DeepFilterNet noise reduction</string>
+    <string name="voice_input_settings_use_deepfilternet_subtitle">Record at 48 kHz, denoise, then downsample to 16 kHz for Whisper</string>
     <string name="voice_input_settings_prebuffer_duration">Pre-recording buffer duration</string>
     <string name="voice_input_settings_prebuffer_duration_subtitle">Capture audio just before you tap the microphone</string>
     <string name="voice_input_settings_prebuffer_duration_off">Off</string>
@@ -700,6 +778,7 @@
 
     <!-- Credits menu -->
     <string name="credits_menu_title">Credits</string>
+    <string name="credits_title">Credits</string>
     <string name="credits_menu_header_text">Thanks to these people for helping make FUTO Keyboard a great app!</string>
     <string name="credits_menu_team_translators_title">Translators</string>
     <string name="credits_menu_team_keyboard_layouts_title">Layout contributors</string>

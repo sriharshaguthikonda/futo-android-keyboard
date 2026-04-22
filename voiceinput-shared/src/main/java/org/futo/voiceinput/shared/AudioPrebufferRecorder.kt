@@ -19,11 +19,12 @@ class AudioPrebufferRecorder(
     private val context: Context,
     private val lifecycleScope: LifecycleCoroutineScope,
     private val preferBluetoothMic: Boolean,
-    prebufferDurationMs: Int
+    private val prebufferDurationMs: Int,
+    sampleRateHz: Int = 16000
 ) {
-    private val sampleRateHz = 16000
-    private val readBufferSize = 1600
-    private val prebufferSampleCount = (sampleRateHz * prebufferDurationMs / 1000).coerceAtLeast(0)
+    private var activeSampleRateHz = sampleRateHz
+    private var readBufferSize = (activeSampleRateHz / 10).coerceAtLeast(1)
+    private var prebufferSampleCount = (activeSampleRateHz * prebufferDurationMs / 1000).coerceAtLeast(0)
 
     private var buffer: FloatArray = FloatArray(prebufferSampleCount)
     private var writeIndex = 0
@@ -59,13 +60,27 @@ class AudioPrebufferRecorder(
     }
 
     private fun createAudioRecorder(): AudioRecord {
-        val recorder = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            sampleRateHz,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            sampleRateHz * 2 * 5
-        )
+        fun buildRecorder(sampleRateHz: Int): AudioRecord {
+            return AudioRecord(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                sampleRateHz,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                sampleRateHz * 2 * 5
+            )
+        }
+
+        var recorder = buildRecorder(activeSampleRateHz)
+        if (recorder.state != AudioRecord.STATE_INITIALIZED && activeSampleRateHz != 16000) {
+            recorder.release()
+            activeSampleRateHz = 16000
+            readBufferSize = (activeSampleRateHz / 10).coerceAtLeast(1)
+            prebufferSampleCount = (activeSampleRateHz * prebufferDurationMs / 1000).coerceAtLeast(0)
+            buffer = FloatArray(prebufferSampleCount)
+            writeIndex = 0
+            filled = false
+            recorder = buildRecorder(activeSampleRateHz)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             recorder.setPreferredMicrophoneDirection(MicrophoneDirection.MIC_DIRECTION_TOWARDS_USER)
