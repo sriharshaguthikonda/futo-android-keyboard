@@ -65,6 +65,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.AUDIO_FOCUS
@@ -93,6 +94,7 @@ import org.futo.inputmethod.latin.uix.VOICE_INPUT_CHANNEL_MODE
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_PREBUFFER_SECONDS
 import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
 import org.futo.inputmethod.latin.uix.getSetting
+import org.futo.inputmethod.latin.uix.showToastAboveKeyboard
 import org.futo.inputmethod.latin.uix.setSetting
 import org.futo.inputmethod.latin.uix.settings.SettingsActivity
 import org.futo.inputmethod.latin.uix.utils.ModelOutputSanitizer
@@ -104,6 +106,7 @@ import org.futo.voiceinput.shared.RecognizerViewListener
 import org.futo.voiceinput.shared.RecognizerViewSettings
 import org.futo.voiceinput.shared.RecordingSettings
 import org.futo.voiceinput.shared.SoundPlayer
+import org.futo.voiceinput.shared.groq.GroqWhisperApi
 import org.futo.voiceinput.shared.types.Language
 import org.futo.voiceinput.shared.types.ModelLoader
 import org.futo.voiceinput.shared.types.RecordingChannelMode
@@ -149,6 +152,23 @@ fun NoModelInstalled(locale: Locale) {
                 .align(Alignment.Center)
                 .padding(8.dp), textAlign = TextAlign.Center)
     }
+}
+
+private suspend fun ensureGroqAvailability(
+    context: Context,
+    settings: RecognizerViewSettings
+): RecognizerViewSettings {
+    if (settings.groqApiKey.isBlank()) return settings
+    val groqAvailable = withContext(Dispatchers.IO) {
+        GroqWhisperApi.test(settings.groqApiKey)
+    }
+    if (groqAvailable) return settings
+    withContext(Dispatchers.Main) {
+        context.showToastAboveKeyboard(
+            context.getString(R.string.groq_voice_unavailable)
+        )
+    }
+    return settings.copy(groqApiKey = "")
 }
 
 class VoiceInputPersistentState(val manager: KeyboardManagerForAction) : PersistentActionState {
@@ -240,7 +260,7 @@ private class VoiceInputActionWindow(
 
     private val initJob = manager.getLifecycleScope().launch {
         yield()
-        val settings = loadSettings()
+        val settings = ensureGroqAvailability(context, loadSettings())
 
         yield()
         val recognizerView = try {
@@ -498,7 +518,7 @@ private class VoiceInputBottomBarWindow(
 
     private val initJob = manager.getLifecycleScope().launch {
         yield()
-        val settings = loadSettings()
+        val settings = ensureGroqAvailability(context, loadSettings())
 
         yield()
         val recognizerView = try {
