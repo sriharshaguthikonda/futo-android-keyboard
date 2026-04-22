@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
@@ -532,6 +533,10 @@ fun ClipboardHistoryWindowContent(
     val context = LocalContext.current
     val clipboardHistoryEnabledState = useDataStore(ClipboardHistoryEnabled, blocking = true)
     val showPinnedOnTopState = useDataStore(ClipboardShowPinnedOnTop, blocking = true)
+
+    BackHandler {
+        manager.closeActionWindow()
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Title bar now owns the search field; keep focus reset on close.
