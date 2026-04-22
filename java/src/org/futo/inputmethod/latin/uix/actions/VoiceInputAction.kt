@@ -61,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import android.view.KeyEvent
+import android.view.inputmethod.ExtractedTextRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
@@ -117,6 +118,52 @@ import org.futo.voiceinput.shared.whisper.ModelManager
 import org.futo.voiceinput.shared.whisper.MultiModelRunConfiguration
 import java.text.BreakIterator
 import java.util.Locale
+import kotlin.math.max
+
+private const val LOCAL_VOICE_SYSTEM_PROMPT_MAX_LENGTH = 1024
+private const val SCREEN_TEXT_MAX_CHARS = 2048
+private const val SCREEN_TEXT_MAX_LINES = 24
+
+private fun fetchScreenBoundsText(manager: KeyboardManagerForAction): String {
+    val inputConnection = manager.getLatinIMEForDebug().currentInputConnection ?: return ""
+    val extracted = inputConnection.getExtractedText(
+        ExtractedTextRequest().apply {
+            hintMaxChars = SCREEN_TEXT_MAX_CHARS
+            hintMaxLines = SCREEN_TEXT_MAX_LINES
+        },
+        0
+    )
+    return extracted?.text?.toString()?.trim().orEmpty()
+}
+
+private fun buildLocalVoiceSystemPrompt(
+    systemPrompt: String,
+    screenText: String
+): String {
+    val basePrompt = systemPrompt.trim()
+    val maxLength = max(LOCAL_VOICE_SYSTEM_PROMPT_MAX_LENGTH, basePrompt.length)
+    val trimmedBase = basePrompt.take(maxLength)
+    val trimmedScreenText = screenText.trim()
+    if (trimmedScreenText.isBlank()) {
+        return trimmedBase
+    }
+
+    val contextBlock = "Screen text:\n$trimmedScreenText"
+    if (trimmedBase.isBlank()) {
+        return contextBlock.take(LOCAL_VOICE_SYSTEM_PROMPT_MAX_LENGTH)
+    }
+
+    val separator = "\n\n"
+    val remaining = maxLength -
+        trimmedBase.length -
+        separator.length
+    if (remaining <= 0) {
+        return trimmedBase
+    }
+
+    val trimmedContext = contextBlock.take(max(0, remaining))
+    return trimmedBase + separator + trimmedContext
+}
 
 val SystemVoiceInputAction = Action(
     icon = R.drawable.mic_fill,
@@ -210,6 +257,12 @@ private class VoiceInputActionWindow(
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
         val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
         val channelMode = RecordingChannelMode.fromSetting(context.getSetting(VOICE_INPUT_CHANNEL_MODE))
+        val screenText = if (!useGroq) fetchScreenBoundsText(manager) else ""
+        val effectiveLocalPrompt = if (!useGroq) {
+            buildLocalVoiceSystemPrompt(localSystemPrompt, screenText)
+        } else {
+            localSystemPrompt
+        }
 
         state.modelManager.useGpu = useGpu
 
@@ -235,7 +288,7 @@ private class VoiceInputActionWindow(
                 glossary = glossary,
                 languages = allowedLanguages,
                 suppressSymbols = disallowSymbols,
-                systemPrompt = localSystemPrompt
+                systemPrompt = effectiveLocalPrompt
             ),
             recordingConfiguration = RecordingSettings(
                 preferBluetoothMic = useBluetoothAudio,
@@ -473,6 +526,12 @@ private class VoiceInputBottomBarWindow(
         val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
         val channelMode = RecordingChannelMode.fromSetting(context.getSetting(VOICE_INPUT_CHANNEL_MODE))
         val prebufferSeconds = context.getSetting(VOICE_INPUT_PREBUFFER_SECONDS)
+        val screenText = if (!useGroq) fetchScreenBoundsText(manager) else ""
+        val effectiveLocalPrompt = if (!useGroq) {
+            buildLocalVoiceSystemPrompt(localSystemPrompt, screenText)
+        } else {
+            localSystemPrompt
+        }
 
         state.modelManager.useGpu = useGpu
 
@@ -494,7 +553,7 @@ private class VoiceInputBottomBarWindow(
                 glossary = state.userDictionaryObserver.getWords(locales).map { it.word },
                 languages = allowedLanguages,
                 suppressSymbols = disallowSymbols,
-                systemPrompt = localSystemPrompt
+                systemPrompt = effectiveLocalPrompt
             ),
             recordingConfiguration = RecordingSettings(
                 preferBluetoothMic = useBluetoothAudio,
