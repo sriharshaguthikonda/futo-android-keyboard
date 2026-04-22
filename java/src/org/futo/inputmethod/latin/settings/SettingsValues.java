@@ -33,6 +33,7 @@ import org.futo.inputmethod.latin.uix.actions.ActionRegistry;
 import org.futo.inputmethod.latin.uix.actions.RegistryKt;
 import org.futo.inputmethod.latin.utils.AsyncResultHolder;
 import org.futo.inputmethod.latin.utils.ResourceUtils;
+import org.futo.inputmethod.latin.utils.ScriptUtils2;
 import org.futo.inputmethod.latin.utils.TargetPackageInfoGetterTask;
 
 import java.util.Arrays;
