@@ -50,6 +50,11 @@ val USE_VAD_AUTOSTOP = SettingsKey(
     default = true
 )
 
+val VOICE_INPUT_PREBUFFER_SECONDS = SettingsKey(
+    key = intPreferencesKey("voice_input_prebuffer_seconds"),
+    default = 1
+)
+
 val ENGLISH_MODEL_INDEX = SettingsKey(
     key = intPreferencesKey("english_model_index"),
     default = 0
@@ -85,6 +90,11 @@ val GROQ_VOICE_SYSTEM_PROMPT = SettingsKey(
     default = ""
 )
 
+val LOCAL_VOICE_SYSTEM_PROMPT = SettingsKey(
+    key = stringPreferencesKey("local_voice_system_prompt"),
+    default = ""
+)
+
 val USE_GPU_OFFLOAD = SettingsKey(
     key = booleanPreferencesKey("use_gpu_offload"),
     default = false
@@ -103,4 +113,9 @@ val VOICE_INPUT_BOTTOM_BAR_MODE = SettingsKey(
 val USE_PERSONAL_DICT = SettingsKey(
     key = booleanPreferencesKey("use_personal_dict_voice_input"),
     default = true
+)
+
+val VOICE_INPUT_CHANNEL_MODE = SettingsKey(
+    key = intPreferencesKey("voice_input_channel_mode"),
+    default = 0
 )

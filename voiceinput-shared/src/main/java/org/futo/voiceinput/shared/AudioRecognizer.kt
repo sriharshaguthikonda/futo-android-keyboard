@@ -38,6 +38,7 @@ import org.futo.voiceinput.shared.types.Language
 import org.futo.voiceinput.shared.types.MagnitudeState
 import org.futo.voiceinput.shared.types.ModelInferenceCallback
 import org.futo.voiceinput.shared.types.ModelLoader
+import org.futo.voiceinput.shared.types.RecordingChannelMode
 import org.futo.voiceinput.shared.ui.MicrophoneDeviceState
 import org.futo.voiceinput.shared.whisper.DecodingConfiguration
 import org.futo.voiceinput.shared.whisper.ModelManager
@@ -80,11 +81,16 @@ private fun getRecordingDeviceKind(type: Int): String {
     }
 }
 
+private const val SampleRateHz = 16000
+private const val ReadBufferSize = 1600
+
 data class RecordingSettings(
     val preferBluetoothMic: Boolean,
     val requestAudioFocus: Boolean,
     val canExpandSpace: Boolean,
-    val useVADAutoStop: Boolean
+    val useVADAutoStop: Boolean,
+    val channelMode: RecordingChannelMode,
+    val prebufferDurationMs: Int
 )
 
 data class AudioRecognizerSettings(
@@ -119,7 +125,18 @@ class AudioRecognizer(
     private val canExpandSpace = settings.recordingConfiguration.canExpandSpace
     private val useVAD = settings.recordingConfiguration.useVADAutoStop
 
-    private var floatSamples: FloatBuffer = FloatBuffer.allocate(16000 * 30)
+    private var floatSamplesPrimary: FloatBuffer = FloatBuffer.allocate(16000 * 30)
+    private var floatSamplesSecondary: FloatBuffer? = null
+    private val prebufferSampleCount = (SampleRateHz * settings.recordingConfiguration.prebufferDurationMs / 1000)
+        .coerceAtLeast(0)
+    private var prebufferBuffer: FloatArray = FloatArray(prebufferSampleCount)
+    private var prebufferWriteIndex = 0
+    private var prebufferFilled = false
+    private var pendingPrebuffer = FloatArray(0)
+    private var prebufferJob: Job? = null
+    private var isPrebuffering = false
+
+    private var floatSamples: FloatBuffer = FloatBuffer.allocate(SampleRateHz * 30)
     private var recorderJob: Job? = null
     private var modelJob: Job? = null
     private var loadModelJob: Job? = null
@@ -127,6 +144,7 @@ class AudioRecognizer(
     private var focusRequest: AudioFocusRequest? = null
 
     private var communicationDevice = "unknown"
+    private var activeChannelMode = settings.recordingConfiguration.channelMode
 
     private fun focusAudio() {
         unfocusAudio()
@@ -231,6 +249,9 @@ class AudioRecognizer(
         sessionId.incrementAndGet()
         recorder?.stop()
         recorderJob?.cancel()
+        prebufferJob?.cancel()
+        prebufferJob = null
+        isPrebuffering = false
 
         loadModelJob?.cancel()
         loadModelJob = null
@@ -241,7 +262,12 @@ class AudioRecognizer(
         modelJob?.cancel()
         isRecording = false
 
-        floatSamples = FloatBuffer.allocate(16000 * 30)
+        activeChannelMode = settings.recordingConfiguration.channelMode
+        configureSampleBuffers(activeChannelMode)
+        pendingPrebuffer = FloatArray(0)
+        prebufferWriteIndex = 0
+        prebufferFilled = false
+        floatSamples = FloatBuffer.allocate(SampleRateHz * 30)
 
         modelRunner.cancelAll()
 
@@ -282,6 +308,30 @@ class AudioRecognizer(
         }
     }
 
+    fun setPendingPrebuffer(samples: FloatArray) {
+        pendingPrebuffer = samples
+    }
+
+    fun startPrebuffering() {
+        if (prebufferSampleCount <= 0 || isPrebuffering || isRecording) return
+
+        try {
+            setCommunicationDevice(settings.recordingConfiguration.preferBluetoothMic)
+            val recorder = createAudioRecorder()
+            recorder.startRecording()
+            this.recorder = recorder
+
+            isPrebuffering = true
+            prebufferJob = lifecycleScope.launch {
+                withContext(Dispatchers.Default) {
+                    runPrebuffering(recorder)
+                }
+            }
+        } catch (e: SecurityException) {
+            clearCommunicationDevice()
+        }
+    }
+
     private fun requestPermission() {
         listener.needPermission { wasGranted ->
             if(wasGranted) {
@@ -290,16 +340,62 @@ class AudioRecognizer(
         }
     }
 
+    private fun stopPrebufferingAndSnapshot(): FloatArray {
+        if (prebufferSampleCount <= 0) return FloatArray(0)
+
+        if (isPrebuffering) {
+            isPrebuffering = false
+            prebufferJob?.cancel()
+            prebufferJob = null
+            recorder?.stop()
+            recorder?.release()
+            recorder = null
+            clearCommunicationDevice()
+        }
+
+        val snapshot = snapshotPrebuffer()
+        prebufferWriteIndex = 0
+        prebufferFilled = false
+        return snapshot
+    }
+
 
     @Throws(SecurityException::class)
     private fun createAudioRecorder(): AudioRecord {
+        val desiredChannelConfig = if (settings.recordingConfiguration.channelMode.requiresStereo()) {
+            AudioFormat.CHANNEL_IN_STEREO
+        } else {
+            AudioFormat.CHANNEL_IN_MONO
+        }
+        val desiredChannelCount = if (desiredChannelConfig == AudioFormat.CHANNEL_IN_STEREO) 2 else 1
+
         val recorder = AudioRecord(
             MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            16000,
-            AudioFormat.CHANNEL_IN_MONO,
+            SampleRateHz,
+            desiredChannelConfig,
             AudioFormat.ENCODING_PCM_16BIT,
-            16000 * 2 * 5
+            SampleRateHz * 2 * desiredChannelCount * 5
         )
+
+        if (recorder.state != AudioRecord.STATE_INITIALIZED && desiredChannelConfig == AudioFormat.CHANNEL_IN_STEREO) {
+            recorder.release()
+            activeChannelMode = RecordingChannelMode.MONO
+            configureSampleBuffers(activeChannelMode)
+            return AudioRecord(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                16000,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                16000 * 2 * 5
+            )
+        }
+
+        activeChannelMode = if (desiredChannelConfig == AudioFormat.CHANNEL_IN_STEREO) {
+            settings.recordingConfiguration.channelMode
+        } else {
+            RecordingChannelMode.MONO
+        }
+        configureSampleBuffers(activeChannelMode)
 
         this.recorder = recorder
 
@@ -310,6 +406,42 @@ class AudioRecognizer(
         return recorder
     }
 
+    private suspend fun runPrebuffering(recorder: AudioRecord) {
+        if (prebufferSampleCount <= 0) return
+        val samples = ShortArray(ReadBufferSize)
+        while (isPrebuffering) {
+            yield()
+            val nRead = recorder.read(samples, 0, ReadBufferSize, AudioRecord.READ_BLOCKING)
+            if (nRead <= 0) break
+            storePrebufferSamples(samples, nRead)
+        }
+    }
+
+    private fun storePrebufferSamples(samples: ShortArray, nRead: Int) {
+        if (prebufferSampleCount <= 0) return
+        for (i in 0 until nRead) {
+            prebufferBuffer[prebufferWriteIndex] =
+                samples[i].toFloat() / Short.MAX_VALUE.toFloat()
+            prebufferWriteIndex += 1
+            if (prebufferWriteIndex >= prebufferSampleCount) {
+                prebufferWriteIndex = 0
+                prebufferFilled = true
+            }
+        }
+    }
+
+    private fun snapshotPrebuffer(): FloatArray {
+        if (prebufferSampleCount <= 0) return FloatArray(0)
+        if (!prebufferFilled) {
+            return prebufferBuffer.copyOfRange(0, prebufferWriteIndex)
+        }
+        val result = FloatArray(prebufferSampleCount)
+        val tailLength = prebufferSampleCount - prebufferWriteIndex
+        System.arraycopy(prebufferBuffer, prebufferWriteIndex, result, 0, tailLength)
+        System.arraycopy(prebufferBuffer, 0, result, tailLength, prebufferWriteIndex)
+        return result
+    }
+
     private suspend fun preloadModels() {
         modelRunner.preload(settings.modelRunConfiguration)
     }
@@ -317,13 +449,35 @@ class AudioRecognizer(
     private fun expandSpaceIfAllowed(): Boolean {
         if(canExpandSpace) {
             // Allocate an extra 30 seconds
-            val newSampleBuffer = FloatBuffer.allocate(floatSamples.capacity() + 16000 * 30)
-            //Log.d("AudioRecognizer", "Allocating extra space: ${floatSamples.capacity() / 16000} -> ${newSampleBuffer.capacity() / 16000}")
-            newSampleBuffer.put(floatSamples.array(), 0, floatSamples.capacity() - floatSamples.remaining())
-            floatSamples = newSampleBuffer
+            val extraSamples = 16000 * 30
+            val newSampleBuffer = FloatBuffer.allocate(floatSamplesPrimary.capacity() + extraSamples)
+            newSampleBuffer.put(
+                floatSamplesPrimary.array(),
+                0,
+                floatSamplesPrimary.capacity() - floatSamplesPrimary.remaining()
+            )
+            floatSamplesPrimary = newSampleBuffer
+
+            floatSamplesSecondary = floatSamplesSecondary?.let { existing ->
+                val expanded = FloatBuffer.allocate(existing.capacity() + extraSamples)
+                expanded.put(existing.array(), 0, existing.capacity() - existing.remaining())
+                expanded
+            }
             return true
         }
         return false
+    }
+
+    private fun configureSampleBuffers(channelMode: RecordingChannelMode) {
+        floatSamplesPrimary = FloatBuffer.allocate(16000 * 30)
+        floatSamplesSecondary = if (channelMode.isTestMode()) FloatBuffer.allocate(16000 * 30) else null
+    }
+
+    private fun appendFloatSamples(target: FloatBuffer, samples: ShortArray, length: Int) {
+        val floats = FloatArray(length) { index ->
+            samples[index].toFloat() / Short.MAX_VALUE.toFloat()
+        }
+        target.put(floats)
     }
 
     private suspend fun recordingJob(recorder: AudioRecord, vad: VadModel?) {
@@ -343,15 +497,28 @@ class AudioRecognizer(
         var numConsecutiveNonSpeech = 0
         var numConsecutiveSpeech = 0
 
-        val samples = ShortArray(1600)
+        val channelCount = if (activeChannelMode.requiresStereo()) 2 else 1
+        val samples = ShortArray(1600 * channelCount)
+        val channelOneSamples = ShortArray(1600)
+        val channelTwoSamples = if (activeChannelMode.isTestMode() || activeChannelMode == RecordingChannelMode.CHANNEL_2) {
+            ShortArray(1600)
+        } else {
+            null
+        }
 
         while (isRecording) {
             yield()
-            val nRead = recorder.read(samples, 0, 1600, AudioRecord.READ_BLOCKING)
+            val nRead = recorder.read(samples, 0, samples.size, AudioRecord.READ_BLOCKING)
             if (nRead <= 0) break
             yield()
 
-            var isRunningOutOfSpace = (floatSamples.remaining() < nRead.coerceAtLeast(1600)) && !expandSpaceIfAllowed()
+            val framesRead = nRead / channelCount
+            val requiredSamples = framesRead.coerceAtLeast(1600)
+            val isOutOfPrimarySpace = floatSamplesPrimary.remaining() < requiredSamples
+            val isOutOfSecondarySpace = floatSamplesSecondary?.remaining()?.let { it < requiredSamples } ?: false
+            var isRunningOutOfSpace = (isOutOfPrimarySpace || isOutOfSecondarySpace) && !expandSpaceIfAllowed()
+            // Also check single buffer for prebuffer functionality
+            isRunningOutOfSpace = isRunningOutOfSpace || ((floatSamples.remaining() < nRead.coerceAtLeast(ReadBufferSize)) && !expandSpaceIfAllowed())
 
             val hasNotTalkedRecently = hasTalked && (numConsecutiveNonSpeech > 66) && useVAD
             if (isRunningOutOfSpace || hasNotTalkedRecently) {
@@ -362,9 +529,30 @@ class AudioRecognizer(
                 return
             }
 
+            val selectedSamples: ShortArray
+            val selectedLength: Int
+
+            if (channelCount == 1) {
+                selectedSamples = samples
+                selectedLength = nRead
+            } else {
+                val frames = framesRead
+                for (i in 0 until frames) {
+                    val baseIndex = i * channelCount
+                    channelOneSamples[i] = samples[baseIndex]
+                    channelTwoSamples?.let { it[i] = samples[baseIndex + 1] }
+                }
+                selectedLength = frames
+                selectedSamples = if (activeChannelMode == RecordingChannelMode.CHANNEL_2) {
+                    channelTwoSamples ?: channelOneSamples
+                } else {
+                    channelOneSamples
+                }
+            }
+
             // Run VAD
             if(useVAD && vad != null) {
-                var remainingSamples = nRead
+                var remainingSamples = selectedLength
                 var offset = 0
                 while (remainingSamples > 0) {
                     if (!vadSampleBuffer.hasRemaining()) {
@@ -384,7 +572,7 @@ class AudioRecognizer(
                     val samplesToRead = min(min(remainingSamples, 480), vadSampleBuffer.remaining())
                     for (i in 0 until samplesToRead) {
                         vadSampleBuffer.put(
-                            samples[offset]
+                            selectedSamples[offset]
                         )
                         offset += 1
                         remainingSamples -= 1
@@ -392,8 +580,11 @@ class AudioRecognizer(
                 }
             }
 
-            floatSamples.put(samples.sliceArray(0 until nRead).map { it.toFloat() / Short.MAX_VALUE.toFloat() }.toFloatArray())
-            if(floatSamples.position() >= 16000 * 60) {
+            appendFloatSamples(floatSamplesPrimary, selectedSamples, selectedLength)
+            if (activeChannelMode.isTestMode() && channelTwoSamples != null) {
+                appendFloatSamples(floatSamplesSecondary!!, channelTwoSamples, selectedLength)
+            }
+            if(floatSamplesPrimary.position() >= 16000 * 60) {
                 yield()
                 withContext(Dispatchers.Main) { finish() }
                 return
@@ -401,13 +592,17 @@ class AudioRecognizer(
 
             // Don't set hasTalked if the start sound may still be playing, otherwise on some
             // devices the rms just explodes and `hasTalked` is always true
-            val startSoundPassed = (floatSamples.position() > 16000 * 0.6)
+            val startSoundPassed = (floatSamplesPrimary.position() > 16000 * 0.6)
             if (!startSoundPassed) {
                 numConsecutiveSpeech = 0
                 numConsecutiveNonSpeech = 0
             }
 
-            val rms = sqrt(samples.sumOf { (it.toFloat() / Short.MAX_VALUE.toFloat()).pow(2).toDouble() } / samples.size).toFloat()
+            val rms = sqrt(
+                selectedSamples.take(selectedLength)
+                    .sumOf { (it.toFloat() / Short.MAX_VALUE.toFloat()).pow(2).toDouble() } /
+                    selectedLength.coerceAtLeast(1)
+            ).toFloat()
 
             if (startSoundPassed && ((rms > 0.01) || (numConsecutiveSpeech > 8))) {
                 hasTalked = true
@@ -419,7 +614,7 @@ class AudioRecognizer(
             }
 
             // Check if mic is blocked
-            val blockCheckTimePassed = (floatSamples.position() > 2 * 16000) // two seconds
+            val blockCheckTimePassed = (floatSamplesPrimary.position() > 2 * 16000) // two seconds
             if (!anyNoiseAtAll && canMicBeBlocked && blockCheckTimePassed) {
                 isMicBlocked = true
             }
@@ -444,18 +639,40 @@ class AudioRecognizer(
             while (true) {
                 yield()
                 val nRead2 = recorder.read(
-                    samples, 0, 1600, AudioRecord.READ_NON_BLOCKING
+                    samples, 0, samples.size, AudioRecord.READ_NON_BLOCKING
                 )
                 if (nRead2 > 0) {
-                    if (floatSamples.remaining() < nRead2 && !expandSpaceIfAllowed()) {
+                    val framesRead2 = nRead2 / channelCount
+                    val requiredSamples2 = framesRead2.coerceAtLeast(1600)
+                    val isPrimaryOutOfSpace = floatSamplesPrimary.remaining() < requiredSamples2
+                    val isSecondaryOutOfSpace = floatSamplesSecondary?.remaining()?.let { it < requiredSamples2 } ?: false
+                    if ((isPrimaryOutOfSpace || isSecondaryOutOfSpace) && !expandSpaceIfAllowed()) {
                         yield()
                         withContext(Dispatchers.Main) {
                             finish()
                         }
                         break
                     }
-                    floatSamples.put(samples.sliceArray(0 until nRead2).map { it.toFloat() / Short.MAX_VALUE.toFloat() }.toFloatArray())
-                    if(floatSamples.position() >= 16000 * 60) {
+                    if (channelCount == 1) {
+                        appendFloatSamples(floatSamplesPrimary, samples, nRead2)
+                    } else {
+                        val frames = framesRead2
+                        for (i in 0 until frames) {
+                            val baseIndex = i * channelCount
+                            channelOneSamples[i] = samples[baseIndex]
+                            channelTwoSamples?.let { it[i] = samples[baseIndex + 1] }
+                        }
+                        val target = if (activeChannelMode == RecordingChannelMode.CHANNEL_2) {
+                            channelTwoSamples ?: channelOneSamples
+                        } else {
+                            channelOneSamples
+                        }
+                        appendFloatSamples(floatSamplesPrimary, target, frames)
+                        if (activeChannelMode.isTestMode() && channelTwoSamples != null) {
+                            appendFloatSamples(floatSamplesSecondary!!, channelTwoSamples, frames)
+                        }
+                    }
+                    if(floatSamplesPrimary.position() >= 16000 * 60) {
                         yield()
                         withContext(Dispatchers.Main) { finish() }
                         break
@@ -527,6 +744,25 @@ class AudioRecognizer(
 
     private fun startRecording() {
         val currentSessionId = sessionId.incrementAndGet()
+        recorderJob?.cancel()
+        modelJob?.cancel()
+        loadModelJob?.cancel()
+        modelJob = null
+        loadModelJob = null
+        modelRunner.cancelAll()
+        isRecording = false
+        val localPrebuffer = stopPrebufferingAndSnapshot()
+        pendingPrebuffer = when {
+            pendingPrebuffer.isNotEmpty() && localPrebuffer.isNotEmpty() -> {
+                val combined = FloatArray(pendingPrebuffer.size + localPrebuffer.size)
+                System.arraycopy(pendingPrebuffer, 0, combined, 0, pendingPrebuffer.size)
+                System.arraycopy(localPrebuffer, 0, combined, pendingPrebuffer.size, localPrebuffer.size)
+                combined
+            }
+            pendingPrebuffer.isNotEmpty() -> pendingPrebuffer
+            else -> localPrebuffer
+        }
+        floatSamples = FloatBuffer.allocate(SampleRateHz * 30)
         val device = try {
             createRecorderAndJob(settings.recordingConfiguration.preferBluetoothMic)
         } catch (e: SecurityException) {
@@ -585,62 +821,92 @@ class AudioRecognizer(
 
         if (currentSessionId != sessionId.get()) return
 
-        val floatArray = floatSamples.array().sliceArray(0 until floatSamples.position())
-
-        // First try Groq if configured
-        if (settings.groqApiKey.isNotBlank()) {
-            try {
-                val groqResult = withContext(Dispatchers.IO) {
-                    org.futo.voiceinput.shared.groq.GroqWhisperApi.transcribe(
-                        floatArray, 
-                        settings.groqApiKey, 
-                        settings.groqModel,
-                        settings.groqSystemPrompt.ifBlank { null }
-                    )
-                }
-                
-                if (!groqResult.isNullOrBlank()) {
-                    // Groq succeeded, return its result
-                    if (currentSessionId != sessionId.get()) return
-                    yield()
-                    lifecycleScope.launch {
-                        withContext(Dispatchers.Main) {
-                            if (currentSessionId != sessionId.get()) return@withContext
-                            listener.finished(normalizeTranscription(groqResult))
+        suspend fun transcribe(floatArray: FloatArray): String {
+            // First try Groq if configured
+            if (settings.groqApiKey.isNotBlank()) {
+                try {
+                    val groqResult = withContext(Dispatchers.IO) {
+                        org.futo.voiceinput.shared.groq.GroqWhisperApi.transcribe(
+                            floatArray,
+                            settings.groqApiKey,
+                            settings.groqModel,
+                            settings.groqSystemPrompt.ifBlank { null }
+                        )
+                    }
+                    
+                    if (!groqResult.isNullOrBlank()) {
+                        // Groq succeeded, return its result
+                        if (currentSessionId != sessionId.get()) return groqResult
+                        yield()
+                        lifecycleScope.launch {
+                            withContext(Dispatchers.Main) {
+                                if (currentSessionId != sessionId.get()) return@withContext
+                                listener.finished(normalizeTranscription(groqResult))
+                            }
                         }
                     }
-                    return
-                }
-                // If we get here, Groq failed, fall through to local model
-            } catch (e: Exception) {
-                // Groq failed, fall through to local model
-                println("Groq transcription failed: ${e.message}")
-            }
-        }
 
-        // Either Groq is not configured or it failed, use local model
-        val outputText = try {
-            modelRunner.run(
+                    if (!groqResult.isNullOrBlank()) {
+                        return groqResult
+                    }
+                } catch (e: Exception) {
+                    println("Groq transcription failed: ${e.message}")
+                }
+            }
+
+            // Either Groq is not configured or it failed, use local model
+            return modelRunner.run(
                 floatArray,
                 settings.modelRunConfiguration,
                 settings.decodingConfiguration,
                 runnerCallback
             ).trim()
-        } catch(e: InferenceCancelledException) {
+        }
+
+        val primaryArray = floatSamplesPrimary.array().sliceArray(0 until floatSamplesPrimary.position())
+        val primaryArrayWithPrebuffer = if (pendingPrebuffer.isNotEmpty()) {
+            val combined = FloatArray(pendingPrebuffer.size + primaryArray.size)
+            System.arraycopy(pendingPrebuffer, 0, combined, 0, pendingPrebuffer.size)
+            System.arraycopy(primaryArray, 0, combined, pendingPrebuffer.size, primaryArray.size)
+            combined
+        } else {
+            primaryArray
+        }
+        pendingPrebuffer = FloatArray(0)
+
+        val primaryText = try {
+            transcribe(primaryArrayWithPrebuffer)
+        } catch (e: InferenceCancelledException) {
             yield()
             return
         }
 
         if (currentSessionId != sessionId.get()) return
 
-        val text = if (isBlankResult(outputText)) "" else outputText
+        val finalText = if (activeChannelMode.isTestMode()) {
+            val secondaryArray = floatSamplesSecondary?.array()
+                ?.sliceArray(0 until (floatSamplesSecondary?.position() ?: 0))
+                ?: FloatArray(0)
+            val secondaryText = try {
+                transcribe(secondaryArray)
+            } catch (e: InferenceCancelledException) {
+                yield()
+                return
+            }
+            val normalizedPrimary = if (isBlankResult(primaryText)) "" else normalizeTranscription(primaryText)
+            val normalizedSecondary = if (isBlankResult(secondaryText)) "" else normalizeTranscription(secondaryText)
+            "Channel 1: $normalizedPrimary\nChannel 2: $normalizedSecondary"
+        } else {
+            val text = if (isBlankResult(primaryText)) "" else primaryText
+            normalizeTranscription(text)
+        }
 
         yield()
         lifecycleScope.launch {
             withContext(Dispatchers.Main) {
                 if (currentSessionId != sessionId.get()) return@withContext
                 yield()
-                listener.finished(normalizeTranscription(text))
+                listener.finished(finalText)
             }
         }
     }

@@ -361,6 +361,8 @@
     <string name="language_settings_remove_language_cancel_button">Cancel</string>
 
     <string name="language_settings_other_options">Other options</string>
+    <string name="language_settings_local_model_system_prompt">Local model system prompt</string>
+    <string name="language_settings_local_model_system_prompt_placeholder">Optional context to guide local transcription (e.g., names, jargon)</string>
     <string name="language_settings_import_resource_from_file">Import resource file</string>
     <string name="language_settings_explore_voice_input_models_online">Explore voice input models</string>
     <string name="language_settings_explore_dictionaries_online">Explore dictionaries</string>
@@ -560,6 +562,12 @@
     <string name="voice_input_settings_use_personal_dict_subtitle">Whether or not to use the personal dictionary for voice input</string>
     <string name="voice_input_settings_use_bluetooth_mic">Prefer Bluetooth Mic</string>
     <string name="voice_input_settings_use_bluetooth_mic_subtitle">There may be extra delay to recording starting as Bluetooth SCO connection must be negotiated</string>
+    <string name="voice_input_settings_audio_channel">Audio recording channel</string>
+    <string name="voice_input_settings_audio_channel_subtitle">Choose which audio channel to use for voice input recording</string>
+    <string name="voice_input_settings_audio_channel_default">Default (mono)</string>
+    <string name="voice_input_settings_audio_channel_1">Channel 1</string>
+    <string name="voice_input_settings_audio_channel_2">Channel 2</string>
+    <string name="voice_input_settings_audio_channel_test">Test channels 1 + 2</string>
     <string name="voice_input_settings_audio_focus">Audio Focus</string>
     <string name="voice_input_settings_audio_focus_subtitle">Pause videos/music when voice input is activated</string>
     <string name="voice_input_settings_suppress_symbols">Suppress symbols</string>
@@ -568,6 +576,10 @@
     <string name="voice_input_settings_long_form_subtitle">If disabled, voice input will auto-stop after 30 seconds.</string>
     <string name="voice_input_settings_autostop_vad">Auto-stop on silence</string>
     <string name="voice_input_settings_autostop_vad_subtitle">Automatically stop when silence is detected. You may need to manually stop regardless if there\'s too much background noise.</string>
+    <string name="voice_input_settings_prebuffer_duration">Pre-recording buffer duration</string>
+    <string name="voice_input_settings_prebuffer_duration_subtitle">Capture audio just before you tap the microphone</string>
+    <string name="voice_input_settings_prebuffer_duration_off">Off</string>
+    <string name="voice_input_settings_prebuffer_duration_seconds">%1$d seconds</string>
     <string name="voice_input_settings_change_models">Models</string>
     <string name="voice_input_settings_change_models_subtitle">To change the models, visit Languages &amp; Models menu</string>
 

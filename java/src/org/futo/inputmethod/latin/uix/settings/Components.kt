@@ -49,6 +49,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -799,7 +800,16 @@ fun SettingTextField(title: String, placeholder: String, field: SettingsKey<Stri
         placeholder = { Text(placeholder) },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp, 4.dp),
+            .padding(8.dp, 4.dp)
+            .heightIn(min = 120.dp),
+        maxLines = 5,
+        singleLine = false,
+        colors = TextFieldDefaults.colors(
+            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        )
     )
 }
 

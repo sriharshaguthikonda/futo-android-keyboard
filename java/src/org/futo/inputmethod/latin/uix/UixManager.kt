@@ -1,8 +1,10 @@
 package org.futo.inputmethod.latin.uix
 
+import android.Manifest
 import android.content.ClipDescription
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -105,6 +107,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.futo.inputmethod.accessibility.AccessibilityUtils
 import org.futo.inputmethod.engine.IMEInterface
 import org.futo.inputmethod.event.Event
@@ -128,6 +131,7 @@ import org.futo.inputmethod.latin.uix.actions.BugViewerAction
 import org.futo.inputmethod.latin.uix.actions.BugViewerState
 import org.futo.inputmethod.latin.uix.actions.KeyboardModeAction
 import org.futo.inputmethod.latin.uix.actions.PersistentEmojiState
+import org.futo.inputmethod.latin.uix.actions.VoiceInputAction
 import org.futo.inputmethod.latin.uix.actions.keyCode
 import org.futo.inputmethod.latin.uix.actions.keyCodeAlt
 import org.futo.inputmethod.latin.uix.resizing.KeyboardResizers
@@ -152,6 +156,7 @@ import org.futo.inputmethod.v2keyboard.OneHandedKeyboardSize
 import org.futo.inputmethod.v2keyboard.RegularKeyboardSize
 import org.futo.inputmethod.v2keyboard.SplitKeyboardSize
 import org.futo.inputmethod.v2keyboard.opposite
+import org.futo.voiceinput.shared.AudioPrebufferRecorder
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -631,6 +636,18 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
 
         val ime = latinIME.imeManager.getActiveIME(Settings.getInstance().current)
         return if(clazz.isInstance(ime)) clazz.cast(ime) else null
+    }
+
+    override fun startVoiceInputPrebuffering() {
+        uixManager.startVoiceInputPrebuffering()
+    }
+
+    override fun stopVoiceInputPrebuffering() {
+        uixManager.stopVoiceInputPrebuffering()
+    }
+
+    override fun getVoiceInputPrebufferSnapshot(): FloatArray {
+        return uixManager.getVoiceInputPrebufferSnapshot()
     }
 }
 
@@ -1691,6 +1708,9 @@ class UixManager(private val latinIME: LatinIME) {
 
     private val quickClipState: MutableState<QuickClipState?> = mutableStateOf(null)
     fun dismissQuickClips() { quickClipState.value = null }
+    private var voiceInputPrebufferRecorder: AudioPrebufferRecorder? = null
+    private var voiceInputPrebufferSeconds: Int = 0
+    private var voiceInputPrebufferPreferBluetooth: Boolean = false
     fun inputStarted(editorInfo: EditorInfo?) {
         try {
             checkIfDictInstalled()
@@ -1712,6 +1732,21 @@ class UixManager(private val latinIME: LatinIME) {
         }
 
         quickClipState.value = QuickClip.getCurrentState(latinIME)
+        startVoiceInputPrebuffering()
+    }
+
+    fun maybeAutoStartVoiceInput(restarting: Boolean) {
+        if (restarting) return
+        if (!latinIME.getSetting(START_VOICE_ON_OPEN)) return
+        if (currWindowAction.value != null || currWindowActionWindow.value != null) return
+        if (isShowingActionEditor.value) return
+
+        latinIME.lifecycleScope.launch(Dispatchers.Main) {
+            yield()
+            if (currWindowAction.value == null && currWindowActionWindow.value == null) {
+                onActionActivated(VoiceInputAction)
+            }
+        }
     }
 
     fun onInputFinishing() {
@@ -1720,6 +1755,48 @@ class UixManager(private val latinIME: LatinIME) {
         isShowingActionEditor.value = false
         resizers.hideResizer()
         inlineSuggestions.value = emptyList()
+        stopVoiceInputPrebuffering()
+    }
+
+    fun startVoiceInputPrebuffering() {
+        if (latinIME.getSetting(USE_SYSTEM_VOICE_INPUT)) {
+            stopVoiceInputPrebuffering()
+            return
+        }
+        val seconds = latinIME.getSetting(VOICE_INPUT_PREBUFFER_SECONDS).coerceAtLeast(0)
+        if (seconds <= 0) {
+            stopVoiceInputPrebuffering()
+            return
+        }
+        if (latinIME.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            stopVoiceInputPrebuffering()
+            return
+        }
+
+        val preferBluetooth = latinIME.getSetting(PREFER_BLUETOOTH)
+        if (voiceInputPrebufferRecorder == null
+            || voiceInputPrebufferSeconds != seconds
+            || voiceInputPrebufferPreferBluetooth != preferBluetooth
+        ) {
+            voiceInputPrebufferRecorder?.stop()
+            voiceInputPrebufferRecorder = AudioPrebufferRecorder(
+                context = latinIME,
+                lifecycleScope = latinIME.lifecycleScope,
+                preferBluetoothMic = preferBluetooth,
+                prebufferDurationMs = seconds * 1000
+            )
+            voiceInputPrebufferSeconds = seconds
+            voiceInputPrebufferPreferBluetooth = preferBluetooth
+        }
+        voiceInputPrebufferRecorder?.start()
+    }
+
+    fun stopVoiceInputPrebuffering() {
+        voiceInputPrebufferRecorder?.stop()
+    }
+
+    fun getVoiceInputPrebufferSnapshot(): FloatArray {
+        return voiceInputPrebufferRecorder?.snapshotAndReset() ?: FloatArray(0)
     }
 
     // Called by InputLogic on any event

@@ -461,7 +461,7 @@ fun ClipboardHistoryWindowTitleBar(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     // Automatically focus the search field just like the emoji search bar
-                    ActionTextEditor(text = searchText)
+                    ActionTextEditor(text = searchText, clipboardSearchFocus = true)
                 }
             }
 

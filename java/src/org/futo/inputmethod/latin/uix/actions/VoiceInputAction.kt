@@ -86,8 +86,11 @@ import org.futo.inputmethod.latin.uix.USE_GROQ_WHISPER
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_SYSTEM_PROMPT
+import org.futo.inputmethod.latin.uix.LOCAL_VOICE_SYSTEM_PROMPT
 import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_CHANNEL_MODE
+import org.futo.inputmethod.latin.uix.VOICE_INPUT_PREBUFFER_SECONDS
 import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.setSetting
@@ -103,6 +106,7 @@ import org.futo.voiceinput.shared.RecordingSettings
 import org.futo.voiceinput.shared.SoundPlayer
 import org.futo.voiceinput.shared.types.Language
 import org.futo.voiceinput.shared.types.ModelLoader
+import org.futo.voiceinput.shared.types.RecordingChannelMode
 import org.futo.voiceinput.shared.types.getLanguageFromWhisperString
 import org.futo.voiceinput.shared.ui.MicrophoneDeviceState
 import org.futo.voiceinput.shared.whisper.DecodingConfiguration
@@ -177,12 +181,15 @@ private class VoiceInputActionWindow(
         val requestAudioFocus = context.getSetting(AUDIO_FOCUS)
         val canExpandSpace = context.getSetting(CAN_EXPAND_SPACE)
         val useVAD = context.getSetting(USE_VAD_AUTOSTOP)
+        val prebufferSeconds = context.getSetting(VOICE_INPUT_PREBUFFER_SECONDS)
         val usePersonalDict = context.getSetting(USE_PERSONAL_DICT)
         val useGroq = context.getSetting(USE_GROQ_WHISPER)
         val groqKey = context.getSetting(GROQ_VOICE_API_KEY)
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
+        val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
+        val channelMode = RecordingChannelMode.fromSetting(context.getSetting(VOICE_INPUT_CHANNEL_MODE))
 
         state.modelManager.useGpu = useGpu
 
@@ -208,13 +215,15 @@ private class VoiceInputActionWindow(
                 glossary = glossary,
                 languages = allowedLanguages,
                 suppressSymbols = disallowSymbols,
-                systemPrompt = groqSystemPrompt
+                systemPrompt = localSystemPrompt
             ),
             recordingConfiguration = RecordingSettings(
                 preferBluetoothMic = useBluetoothAudio,
                 requestAudioFocus = requestAudioFocus,
                 canExpandSpace = canExpandSpace,
-                useVADAutoStop = useVAD
+                useVADAutoStop = useVAD,
+                channelMode = channelMode,
+                prebufferDurationMs = prebufferSeconds.coerceAtLeast(0) * 1000
             ),
             groqApiKey = if(useGroq) groqKey else "",
             groqModel = groqModel,
@@ -249,10 +258,10 @@ private class VoiceInputActionWindow(
 
         this@VoiceInputActionWindow.recognizerView.value = recognizerView
 
-        //yield()
+        val prebufferSnapshot = manager.getVoiceInputPrebufferSnapshot()
+        manager.stopVoiceInputPrebuffering()
         recognizerView.reset()
-
-        //yield()
+        recognizerView.setPendingPrebuffer(prebufferSnapshot)
         recognizerView.start()
     }
 
@@ -309,6 +318,7 @@ private class VoiceInputActionWindow(
         runBlocking { initJob.cancelAndJoin() }
         recognizerView.value?.cancel()
         state.modelManager.cancelAll()
+        manager.startVoiceInputPrebuffering()
         return CloseResult.Default
     }
 
@@ -440,6 +450,9 @@ private class VoiceInputBottomBarWindow(
         val groqModel = context.getSetting(GROQ_VOICE_MODEL)
         val useGpu = context.getSetting(USE_GPU_OFFLOAD)
         val groqSystemPrompt = context.getSetting(GROQ_VOICE_SYSTEM_PROMPT)
+        val localSystemPrompt = context.getSetting(LOCAL_VOICE_SYSTEM_PROMPT)
+        val channelMode = RecordingChannelMode.fromSetting(context.getSetting(VOICE_INPUT_CHANNEL_MODE))
+        val prebufferSeconds = context.getSetting(VOICE_INPUT_PREBUFFER_SECONDS)
 
         state.modelManager.useGpu = useGpu
 
@@ -461,13 +474,15 @@ private class VoiceInputBottomBarWindow(
                 glossary = state.userDictionaryObserver.getWords(locales).map { it.word },
                 languages = allowedLanguages,
                 suppressSymbols = disallowSymbols,
-                systemPrompt = groqSystemPrompt
+                systemPrompt = localSystemPrompt
             ),
             recordingConfiguration = RecordingSettings(
                 preferBluetoothMic = useBluetoothAudio,
                 requestAudioFocus = requestAudioFocus,
                 canExpandSpace = canExpandSpace,
-                useVADAutoStop = useVAD
+                useVADAutoStop = useVAD,
+                channelMode = channelMode,
+                prebufferDurationMs = prebufferSeconds.coerceAtLeast(0) * 1000
             ),
             groqApiKey = if(useGroq) groqKey else "",
             groqModel = groqModel,
@@ -500,8 +515,11 @@ private class VoiceInputBottomBarWindow(
         }
 
         this@VoiceInputBottomBarWindow.recognizerView.value = recognizerView
+        val prebufferSnapshot = manager.getVoiceInputPrebufferSnapshot()
+        manager.stopVoiceInputPrebuffering()
         recognizerView.reset()
-        recognizerView.start()
+        recognizerView.setPendingPrebuffer(prebufferSnapshot)
+        recognizerView.startPrebuffering()
     }
 
     private var inputTransaction: ActionInputTransaction? = null
@@ -809,7 +827,6 @@ private class VoiceInputBottomBarWindow(
                                 statusText.value = "Stopping…"
                                 recognizerView.value?.finish()
                             } else {
-                                recognizerView.value?.reset()
                                 recognizerView.value?.start()
                             }
                         },
@@ -864,6 +881,7 @@ private class VoiceInputBottomBarWindow(
         runBlocking { initJob.cancelAndJoin() }
         recognizerView.value?.cancel()
         state.modelManager.cancelAll()
+        manager.startVoiceInputPrebuffering()
         return CloseResult.Default
     }
 
@@ -889,6 +907,7 @@ private class VoiceInputBottomBarWindow(
                 manager.getLatinIMEForDebug().requestHideSelf(0)
             }
         }
+        recognizerView.value?.startPrebuffering()
     }
 
     override fun recordingStarted(device: MicrophoneDeviceState) {
@@ -937,6 +956,7 @@ private class VoiceInputBottomBarWindow(
                 manager.getLatinIMEForDebug().requestHideSelf(0)
             }
         }
+        recognizerView.value?.startPrebuffering()
     }
 
     override fun partialResult(result: String) {

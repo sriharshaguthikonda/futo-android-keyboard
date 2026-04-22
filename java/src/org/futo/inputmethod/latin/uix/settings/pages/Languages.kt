@@ -53,6 +53,7 @@ import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.Subtypes
 import org.futo.inputmethod.latin.SubtypesSetting
 import org.futo.inputmethod.latin.uix.FileKind
+import org.futo.inputmethod.latin.uix.LOCAL_VOICE_SYSTEM_PROMPT
 import org.futo.inputmethod.latin.uix.ResourceHelper
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.icon
@@ -60,11 +61,13 @@ import org.futo.inputmethod.latin.uix.kindTitle
 import org.futo.inputmethod.latin.uix.namePreferenceKeyFor
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
+import org.futo.inputmethod.latin.uix.settings.SettingTextField
 import org.futo.inputmethod.latin.uix.settings.Tip
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.pages.modelmanager.openModelImporter
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
+import org.futo.inputmethod.latin.uix.settings.userSettingDecorationOnly
 import org.futo.inputmethod.latin.uix.settings.userSettingNavigationItem
 import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.latin.uix.theme.UixThemeWrapper
@@ -508,6 +511,13 @@ val LanguageSettingsTop = listOf(
     )
 )
 val LanguageSettingsBottom = listOf(
+    userSettingDecorationOnly {
+        SettingTextField(
+            title = stringResource(R.string.language_settings_local_model_system_prompt),
+            placeholder = stringResource(R.string.language_settings_local_model_system_prompt_placeholder),
+            field = LOCAL_VOICE_SYSTEM_PROMPT
+        )
+    },
     userSettingNavigationItem(
         title = R.string.language_settings_import_resource_from_file,
         style = NavigationItemStyle.Misc,
