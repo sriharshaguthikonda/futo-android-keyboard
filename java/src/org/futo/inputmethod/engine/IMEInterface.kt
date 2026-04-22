@@ -1,5 +1,6 @@
 package org.futo.inputmethod.engine
 
+import androidx.compose.runtime.MutableState
 import org.futo.inputmethod.annotations.UsedForTesting
 import org.futo.inputmethod.event.Event
 import org.futo.inputmethod.latin.common.Constants

@@ -1,11 +1,17 @@
-package org.futo.inputmethod.latin.uix.settings.pages
+package org.futo.inputmethod.latin.uix.settings.pages.themes
 
 import android.app.Activity
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FabPosition
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
@@ -40,10 +46,63 @@ import org.futo.inputmethod.latin.uix.settings.ResetThemeRow
 import org.futo.inputmethod.latin.uix.settings.UserSetting
 import org.futo.inputmethod.latin.uix.settings.UserSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.useDataStore
+import org.futo.inputmethod.latin.uix.theme.ZipThemes
+import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.latin.uix.theme.defaultThemeOption
 import org.futo.inputmethod.latin.uix.theme.selector.ThemePicker
 import org.futo.inputmethod.latin.uix.settings.RotatingChevronIcon
+import org.futo.inputmethod.latin.uix.urlEncode
 import kotlinx.coroutines.launch
+
+
+@Composable
+fun DeleteCustomThemeDialog(name: String, navController: NavHostController) {
+    val context = LocalContext.current
+    AlertDialog(
+        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        icon = { },
+        title = {
+            Text(
+                stringResource(R.string.theme_settings_custom_theme_delete_title),
+                style = Typography.Body.MediumMl,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        },
+        text = {
+            Text(
+                stringResource(R.string.theme_settings_custom_theme_delete_body, name),
+                style = Typography.SmallMl,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        },
+        onDismissRequest = {
+            navController.navigateUp()
+        },
+        confirmButton = {
+            OutlinedButton(onClick = {
+                ZipThemes.delete(context, ZipThemes.custom(name))
+                navController.navigateUp()
+            }) {
+                Text(
+                    stringResource(R.string.theme_settings_custom_theme_delete_confirm),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = Typography.Body.Medium
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                navController.navigateUp()
+            }) {
+                Text(
+                    stringResource(R.string.theme_settings_custom_theme_delete_cancel),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = Typography.Body.Medium
+                )
+            }
+        }
+    )
+}
 
 val ThemeSettingsMenu = UserSettingsMenu(
     title = R.string.theme_settings_title,
@@ -145,9 +204,11 @@ fun ThemeScreen(navController: NavHostController = rememberNavController()) {
                     setTheme(defaultThemeOption(context).key)
                 }
             }
-            ThemePicker {
-                setTheme(it.key)
-            }
+            ThemePicker({ name ->
+                navController.navigate("deleteTheme/${name.urlEncode()}")
+            }, {
+                navController.navigate("themeGenerator")
+            })
         }
     }
 }

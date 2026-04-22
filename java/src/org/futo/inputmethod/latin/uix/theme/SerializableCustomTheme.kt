@@ -198,6 +198,9 @@ data class SerializableCustomTheme(
                 keyboardContainerPressed   = keyboardContainerPressed.toColor(),
                 onKeyboardContainerPressed = onKeyboardContainerPressed.toColor(),
 
+                settingsIconColor       = primary.toColor(),
+                settingsIconBackground  = primaryContainer.toColor(),
+
                 hintColor          = hintColor?.toColor(),
                 navigationBarColor = navigationBarColor?.toColor(),
 

@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Job
 import androidx.navigation.NavHostController
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.CustomIconColor
@@ -181,7 +180,7 @@ fun ThemeGeneratorScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun ColorPicker(label: String, colorStr: String, setColor: (String) -> Job) {
+private fun ColorPicker(label: String, colorStr: String, setColor: (String) -> Unit) {
     fun toHex(c: Color): String = String.format("#%06X", 0xFFFFFF and c.toArgb())
     var color by remember(colorStr) { mutableStateOf(runCatching { Color(android.graphics.Color.parseColor(colorStr)) }.getOrDefault(Color.White)) }
     val update = { setColor(toHex(color)) }
@@ -197,7 +196,7 @@ private fun ColorPicker(label: String, colorStr: String, setColor: (String) -> J
 }
 
 @Composable
-private fun TextFieldWithLabel(label: String, value: String, setValue: (String) -> Job) {
+private fun TextFieldWithLabel(label: String, value: String, setValue: (String) -> Unit) {
     var text by remember(value) { mutableStateOf(value) }
     Column(Modifier.fillMaxWidth().padding(16.dp, 8.dp)) {
         Text(label)
@@ -210,7 +209,7 @@ private fun TextFieldWithLabel(label: String, value: String, setValue: (String) 
 }
 
 @Composable
-private fun ImagePicker(label: String, value: String, setValue: (String) -> Job) {
+private fun ImagePicker(label: String, value: String, setValue: (String) -> Unit) {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { setValue(it.toString()) }
     }

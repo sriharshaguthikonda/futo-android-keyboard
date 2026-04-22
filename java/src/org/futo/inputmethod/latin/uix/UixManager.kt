@@ -626,11 +626,6 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
         sendKeyEvent(KeyEvent.KEYCODE_V, KeyEvent.META_CTRL_ON)
     }
 
-    override fun getSizingCalculator(): KeyboardSizingCalculator =
-        latinIME.sizingCalculator
-
-    override fun getLatinIMEForDebug(): LatinIME = latinIME
-
     override fun <T : IMEInterface> getIMEInterface(clazz: Class<T>): T? {
         if(clazz == IMEInterface::class.java) throw IllegalArgumentException("Please specify a specific IMEInterface")
 

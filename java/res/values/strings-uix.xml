@@ -186,6 +186,7 @@
     <string name="theme_dynamic_dark">Dynamic Dark</string>
     <string name="theme_dynamic_light">Dynamic Light</string>
     <string name="theme_custom">Custom Theme</string>
+    <string name="theme_custom_named">Custom: %s</string>
     <string name="theme_reset_to_default">Reset to default</string>
     <string name="theme_generator_title">Theme Generator</string>
     <string name="theme_generator_accent">Accent color (#RRGGBB)</string>

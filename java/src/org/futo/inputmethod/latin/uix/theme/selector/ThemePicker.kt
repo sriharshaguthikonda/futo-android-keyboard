@@ -39,6 +39,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -417,17 +421,17 @@ private fun ThemePickerPreview() {
         }
         UixThemeWrapper(AMOLEDDarkRed.obtainColors(LocalContext.current)) {
             Surface(color = MaterialTheme.colorScheme.background) {
-                ThemePicker {}
+                ThemePicker({},{})
             }
         }
         UixThemeWrapper(AMOLEDDarkBlue.obtainColors(LocalContext.current)) {
             Surface(color = MaterialTheme.colorScheme.background) {
-                ThemePicker {}
+                ThemePicker({},{})
             }
         }
         UixThemeWrapper(AMOLEDDarkGreen.obtainColors(LocalContext.current)) {
             Surface(color = MaterialTheme.colorScheme.background) {
-                ThemePicker {}
+                ThemePicker({},{})
             }
         }
     }
