@@ -90,9 +90,19 @@ val GROQ_VOICE_SYSTEM_PROMPT = SettingsKey(
     default = ""
 )
 
+val GROQ_VOICE_TWO_PASS = SettingsKey(
+    key = booleanPreferencesKey("groq_voice_two_pass"),
+    default = false
+)
+
 val LOCAL_VOICE_SYSTEM_PROMPT = SettingsKey(
     key = stringPreferencesKey("local_voice_system_prompt"),
     default = ""
+)
+
+val LOCAL_VOICE_TWO_PASS = SettingsKey(
+    key = booleanPreferencesKey("local_voice_two_pass"),
+    default = false
 )
 
 val USE_GPU_OFFLOAD = SettingsKey(

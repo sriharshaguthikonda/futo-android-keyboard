@@ -14,10 +14,12 @@ import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_API_KEY
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_MODEL
 import org.futo.inputmethod.latin.uix.GROQ_VOICE_SYSTEM_PROMPT
+import org.futo.inputmethod.latin.uix.GROQ_VOICE_TWO_PASS
 import org.futo.inputmethod.latin.uix.settings.ScrollableList
 import org.futo.inputmethod.latin.uix.settings.ScreenTitle
 import org.futo.inputmethod.latin.uix.settings.SettingItem
 import org.futo.inputmethod.latin.uix.settings.SettingTextField
+import org.futo.inputmethod.latin.uix.settings.SettingToggleDataStore
 import org.futo.inputmethod.latin.uix.settings.DropDownPickerSettingItem
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.voiceinput.shared.groq.GroqWhisperApi
@@ -82,6 +84,12 @@ fun GroqWhisperConfigScreen(navController: NavHostController = rememberNavContro
             title = stringResource(R.string.groq_voice_settings_system_prompt),
             placeholder = stringResource(R.string.groq_voice_settings_system_prompt_placeholder),
             field = GROQ_VOICE_SYSTEM_PROMPT
+        )
+
+        SettingToggleDataStore(
+            title = stringResource(R.string.groq_voice_settings_two_pass_title),
+            subtitle = stringResource(R.string.groq_voice_settings_two_pass_subtitle),
+            setting = GROQ_VOICE_TWO_PASS
         )
 
         // Models dropdown with loading and error states

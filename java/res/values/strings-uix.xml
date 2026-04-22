@@ -363,6 +363,8 @@
     <string name="language_settings_other_options">Other options</string>
     <string name="language_settings_local_model_system_prompt">Local model system prompt</string>
     <string name="language_settings_local_model_system_prompt_placeholder">Optional context to guide local transcription (e.g., names, jargon)</string>
+    <string name="language_settings_local_model_two_pass_title">Two-pass transcription</string>
+    <string name="language_settings_local_model_two_pass_subtitle">Run a second pass using the first result as context</string>
     <string name="language_settings_import_resource_from_file">Import resource file</string>
     <string name="language_settings_explore_voice_input_models_online">Explore voice input models</string>
     <string name="language_settings_explore_dictionaries_online">Explore dictionaries</string>
@@ -619,6 +621,8 @@
     <string name="groq_voice_settings_system_prompt">System prompt</string>
     <string name="groq_voice_settings_system_prompt_placeholder">Optional context to guide transcription (e.g., names, jargon)</string>
     <string name="groq_voice_unavailable">Internet model not accessible. Using local transcription.</string>
+    <string name="groq_voice_settings_two_pass_title">Two-pass transcription</string>
+    <string name="groq_voice_settings_two_pass_subtitle">Run a second pass using the first result as context</string>
     <string name="groq_settings_testing">Testing…</string>
     <string name="groq_settings_test">Test connection</string>
     <string name="groq_settings_success">Test successful!</string>
