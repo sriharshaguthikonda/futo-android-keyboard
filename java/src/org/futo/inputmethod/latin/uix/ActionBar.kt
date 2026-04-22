@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -116,9 +117,11 @@ import org.futo.inputmethod.latin.SuggestedWords.SuggestedWordInfo.KIND_TYPED
 import org.futo.inputmethod.latin.SuggestionBlacklist
 import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.suggestions.SuggestionStripViewListener
+import org.futo.inputmethod.latin.uix.START_VOICE_ON_OPEN
 import org.futo.inputmethod.latin.uix.actions.FavoriteActions
 import org.futo.inputmethod.latin.uix.actions.MoreActionsAction
 import org.futo.inputmethod.latin.uix.actions.PinnedActions
+import org.futo.inputmethod.latin.uix.actions.VoiceAutoStartAction
 import org.futo.inputmethod.latin.uix.actions.toActionList
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
@@ -503,14 +506,34 @@ fun RowScope.SuggestionItems(words: SuggestedWords, onClick: (i: Int) -> Unit, o
 fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Unit, onLongSelect: (Action) -> Unit) {
     val width = 56.dp
 
+    val isActive = when (action) {
+        VoiceAutoStartAction -> useDataStoreValue(START_VOICE_ON_OPEN)
+        else -> false
+    }
+
     val modifier = Modifier
         .width(width)
         .fillMaxHeight()
 
-    val contentCol = LocalKeyboardScheme.current.onBackground
+    val scheme = LocalKeyboardScheme.current
+    val borderColor = scheme.primary
+    val borderWidth = 2.dp
+
+    val contentCol = if (isActive) {
+        scheme.primary
+    } else {
+        scheme.onBackground
+    }
 
     Box(modifier = modifier
         .clip(CircleShape)
+        .then(
+            if (isActive) {
+                Modifier.border(borderWidth, borderColor, CircleShape)
+            } else {
+                Modifier
+            }
+        )
         .combinedClickable(
             onLongClick = action.altPressImpl?.let { { onLongSelect(action) } },
             onClick = { onSelect(action) }), contentAlignment = Center) {
@@ -526,8 +549,20 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (Action) -> Unit) {
-    val bgCol = LocalKeyboardScheme.current.keyboardContainer
-    val fgCol = LocalKeyboardScheme.current.onKeyboardContainer
+    val scheme = LocalKeyboardScheme.current
+    val isActive = when (action) {
+        VoiceAutoStartAction -> useDataStoreValue(START_VOICE_ON_OPEN)
+        else -> false
+    }
+
+    val bgCol = if (isActive) scheme.keyboardContainerPressed else scheme.keyboardContainer
+    val fgCol = if (isActive && scheme.onKeyboardContainerPressed != Color.Transparent) {
+        scheme.onKeyboardContainerPressed
+    } else {
+        scheme.onKeyboardContainer
+    }
+    val borderColor = scheme.primary
+    val borderWidth = 2.dp
 
     val circleRadius = with(LocalDensity.current) {
         16.dp.toPx()
@@ -542,6 +577,13 @@ fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (A
                 radius = circleRadius,
                 style = Fill
             )
+            if (isActive) {
+                drawCircle(
+                    color = borderColor,
+                    radius = circleRadius,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = borderWidth.toPx())
+                )
+            }
         }
         .clip(CircleShape)
         .combinedClickable(onLongClick = action.altPressImpl?.let { { onLongSelect(action) } }) {
