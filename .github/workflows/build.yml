@@ -16,6 +16,9 @@ jobs:
           lfs: true
           fetch-depth: 0
 
+      - name: Pull LFS in submodules
+        run: git submodule foreach --recursive git lfs pull
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
