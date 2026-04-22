@@ -1,12 +1,15 @@
 package org.futo.voiceinput.shared.moonshine
 
 import android.content.Context
+import android.util.Log
 import ai.moonshine.voice.JNI
 import ai.moonshine.voice.Transcriber
 import ai.moonshine.voice.TranscriptEvent
 import java.util.LinkedHashMap
 import java.util.function.Consumer
 import kotlin.math.min
+
+private const val TAG = "MoonshineStreaming"
 
 class MoonshineStreamingLocalBackend {
     interface StreamingSession {
@@ -70,18 +73,23 @@ class MoonshineStreamingLocalBackend {
                 when (event) {
                     is TranscriptEvent.LineStarted -> {
                         linesById[event.line.id] = event.line.text?.trim().orEmpty()
+                        Log.d(TAG, "LineStarted id=${event.line.id} text=[${event.line.text}]")
                     }
                     is TranscriptEvent.LineUpdated -> {
                         linesById[event.line.id] = event.line.text?.trim().orEmpty()
+                        Log.d(TAG, "LineUpdated id=${event.line.id} text=[${event.line.text}]")
                     }
                     is TranscriptEvent.LineTextChanged -> {
                         linesById[event.line.id] = event.line.text?.trim().orEmpty()
+                        Log.d(TAG, "LineTextChanged id=${event.line.id} text=[${event.line.text}]")
                     }
                     is TranscriptEvent.LineCompleted -> {
                         linesById[event.line.id] = event.line.text?.trim().orEmpty()
+                        Log.d(TAG, "LineCompleted id=${event.line.id} text=[${event.line.text}]")
                     }
                     is TranscriptEvent.Error -> {
                         failure = event.cause ?: RuntimeException("Unknown Moonshine error")
+                        Log.e(TAG, "Moonshine error", failure)
                     }
                 }
 
@@ -93,11 +101,15 @@ class MoonshineStreamingLocalBackend {
                     }
                 }
             }
-            textToEmit?.let(onTranscriptChanged)
+            textToEmit?.let {
+                Log.d(TAG, "Emitting partial transcript: [$it]")
+                onTranscriptChanged(it)
+            }
         }
 
         transcriber.addListener(listener)
         transcriber.start()
+        Log.d(TAG, "Streaming session started (model=${modelDir.absolutePath})")
         return session
     }
 

@@ -351,8 +351,10 @@ private class VoiceInputActionWindow(
     }
 
     override fun partialResult(result: String) {
+        android.util.Log.d("VoiceInputAction", "partialResult(action window) result=[$result]")
         manager.getLifecycleScope().launch(Dispatchers.Main) {
             val sanitized = ModelOutputSanitizer.sanitize(result, inputTransaction.textContext, manager.isCapsLocked())
+            android.util.Log.d("VoiceInputAction", "partialResult(action window) sanitized=[$sanitized]")
             inputTransaction.updatePartial(sanitized)
         }
     }
@@ -897,8 +899,13 @@ private class VoiceInputBottomBarWindow(
     }
 
     override fun partialResult(result: String) {
-        val transaction = inputTransaction ?: return
+        android.util.Log.d("VoiceInputAction", "partialResult(bottom bar) result=[$result]")
+        val transaction = inputTransaction ?: run {
+            android.util.Log.w("VoiceInputAction", "partialResult(bottom bar) dropped — no active input transaction")
+            return
+        }
         val sanitized = ModelOutputSanitizer.sanitize(result, transaction.textContext, manager.isCapsLocked())
+        android.util.Log.d("VoiceInputAction", "partialResult(bottom bar) sanitized=[$sanitized]")
         transaction.updatePartial(sanitized)
         // Show abbreviated partial result in status
         statusText.value = if (result.length > 30) "…${result.takeLast(30)}" else result.ifEmpty { "Listening…" }

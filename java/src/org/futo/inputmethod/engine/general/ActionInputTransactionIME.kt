@@ -72,7 +72,15 @@ class ActionInputTransactionIME(val helper: IMEHelper) : IMEInterface, ActionInp
     private var isFinished = false
     private var partialText = ""
     override fun updatePartial(text: String) {
-        if (isFinished) return
+        if (isFinished) {
+            android.util.Log.w("ActionInputTxn", "updatePartial dropped — transaction finished: [$text]")
+            return
+        }
+        if (ic == null) {
+            android.util.Log.w("ActionInputTxn", "updatePartial dropped — null InputConnection: [$text]")
+            return
+        }
+        android.util.Log.d("ActionInputTxn", "updatePartial text=[$text] icType=${ic.javaClass.simpleName}")
         helper.requestCursorUpdate()
         partialText = text
         ic?.setComposingText(

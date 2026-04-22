@@ -473,12 +473,17 @@ class AudioRecognizer(
     }
 
     private fun startMoonshineStreamingSession(currentSessionId: Long) {
-        if (!shouldUseMoonshineLiveStreaming()) return
+        if (!shouldUseMoonshineLiveStreaming()) {
+            Log.d("AudioRecognizer", "Moonshine live streaming disabled (backend=${settings.localBackend}, groqKey=${settings.groqApiKey.isNotBlank()}, testMode=${activeChannelMode.isTestMode()})")
+            return
+        }
+        Log.d("AudioRecognizer", "Starting Moonshine live streaming session (sid=$currentSessionId)")
         closeMoonshineStreamingSession()
 
         try {
             val streamingSession = moonshineBackend.startStreamingSession(context) { partialText ->
                 if (currentSessionId != sessionId.get()) return@startStreamingSession
+                Log.d("AudioRecognizer", "Moonshine partial callback: [$partialText]")
                 lifecycleScope.launch {
                     withContext(Dispatchers.Main) {
                         if (currentSessionId != sessionId.get()) return@withContext
