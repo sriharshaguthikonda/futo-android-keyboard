@@ -207,7 +207,8 @@ private class VoiceInputActionWindow(
             decodingConfiguration = DecodingConfiguration(
                 glossary = glossary,
                 languages = allowedLanguages,
-                suppressSymbols = disallowSymbols
+                suppressSymbols = disallowSymbols,
+                systemPrompt = groqSystemPrompt
             ),
             recordingConfiguration = RecordingSettings(
                 preferBluetoothMic = useBluetoothAudio,
@@ -459,7 +460,8 @@ private class VoiceInputBottomBarWindow(
             decodingConfiguration = DecodingConfiguration(
                 glossary = state.userDictionaryObserver.getWords(locales).map { it.word },
                 languages = allowedLanguages,
-                suppressSymbols = disallowSymbols
+                suppressSymbols = disallowSymbols,
+                systemPrompt = groqSystemPrompt
             ),
             recordingConfiguration = RecordingSettings(
                 preferBluetoothMic = useBluetoothAudio,
