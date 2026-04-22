@@ -54,8 +54,8 @@ import org.futo.inputmethod.latin.uix.settings.pages.SearchScreen
 import org.futo.inputmethod.latin.uix.settings.pages.SelectLanguageScreen
 import org.futo.inputmethod.latin.uix.settings.pages.SelectLayoutsScreen
 import org.futo.inputmethod.latin.uix.settings.pages.TestingArenaScreen
-import org.futo.inputmethod.latin.uix.settings.pages.ThemeSettingsMenu
-import org.futo.inputmethod.latin.uix.settings.pages.ThemeScreen
+import org.futo.inputmethod.latin.uix.settings.pages.themes.ThemeSettingsMenu
+import org.futo.inputmethod.latin.uix.settings.pages.themes.ThemeScreen
 import org.futo.inputmethod.latin.uix.settings.pages.ThemeGeneratorScreen
 import org.futo.inputmethod.latin.uix.settings.pages.TypingSettingsMenu
 import org.futo.inputmethod.latin.uix.settings.pages.VoiceInputMenu
