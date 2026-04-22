@@ -124,6 +124,7 @@ class AudioRecognizer(
 
     private val modelRunner = MultiModelRunner(modelManager)
     private val moonshineBackend = MoonshineStreamingLocalBackend()
+    private var moonshineStreamingSession: MoonshineStreamingLocalBackend.StreamingSession? = null
 
     private val canExpandSpace = settings.recordingConfiguration.canExpandSpace
     private val useVAD = settings.recordingConfiguration.useVADAutoStop
@@ -273,6 +274,7 @@ class AudioRecognizer(
         floatSamples = FloatBuffer.allocate(SampleRateHz * 30)
 
         modelRunner.cancelAll()
+        closeMoonshineStreamingSession()
 
         unfocusAudio()
 
@@ -463,6 +465,71 @@ class AudioRecognizer(
         return languages.size == 1 && languages.contains(Language.English)
     }
 
+    private fun shouldUseMoonshineLiveStreaming(): Boolean {
+        if (!shouldUseMoonshineLocalBackend()) return false
+        if (settings.groqApiKey.isNotBlank()) return false
+        if (activeChannelMode.isTestMode()) return false
+        return true
+    }
+
+    private fun startMoonshineStreamingSession(currentSessionId: Long) {
+        if (!shouldUseMoonshineLiveStreaming()) return
+        closeMoonshineStreamingSession()
+
+        try {
+            val streamingSession = moonshineBackend.startStreamingSession(context) { partialText ->
+                if (currentSessionId != sessionId.get()) return@startStreamingSession
+                lifecycleScope.launch {
+                    withContext(Dispatchers.Main) {
+                        if (currentSessionId != sessionId.get()) return@withContext
+                        listener.partialResult(normalizeTranscription(partialText))
+                    }
+                }
+            }
+
+            moonshineStreamingSession = streamingSession
+            if (pendingPrebuffer.isNotEmpty()) {
+                streamingSession.addAudio(pendingPrebuffer, SampleRateHz)
+            }
+        } catch (t: Throwable) {
+            Log.e("AudioRecognizer", "Moonshine live streaming setup failed", t)
+            closeMoonshineStreamingSession()
+        }
+    }
+
+    private fun appendMoonshineStreamingAudio(samples: ShortArray, length: Int) {
+        val session = moonshineStreamingSession ?: return
+        if (length <= 0) return
+
+        try {
+            val floatSamples = FloatArray(length)
+            for (index in 0 until length) {
+                floatSamples[index] = samples[index].toFloat() / Short.MAX_VALUE.toFloat()
+            }
+            session.addAudio(floatSamples, SampleRateHz)
+        } catch (t: Throwable) {
+            Log.e("AudioRecognizer", "Moonshine live streaming chunk failed", t)
+            closeMoonshineStreamingSession()
+        }
+    }
+
+    private fun stopMoonshineStreamingSessionAndGetText(): String? {
+        val session = moonshineStreamingSession ?: return null
+        moonshineStreamingSession = null
+
+        return try {
+            session.stopAndGetText().trim()
+        } finally {
+            session.close()
+        }
+    }
+
+    private fun closeMoonshineStreamingSession() {
+        val session = moonshineStreamingSession ?: return
+        moonshineStreamingSession = null
+        runCatching { session.close() }
+    }
+
     private fun expandSpaceIfAllowed(): Boolean {
         if(canExpandSpace) {
             // Allocate an extra 30 seconds
@@ -601,6 +668,7 @@ class AudioRecognizer(
             if (activeChannelMode.isTestMode() && channelTwoSamples != null) {
                 appendFloatSamples(floatSamplesSecondary!!, channelTwoSamples, selectedLength)
             }
+            appendMoonshineStreamingAudio(selectedSamples, selectedLength)
             if(floatSamplesPrimary.position() >= 16000 * 60) {
                 yield()
                 withContext(Dispatchers.Main) { finish() }
@@ -672,6 +740,7 @@ class AudioRecognizer(
                     }
                     if (channelCount == 1) {
                         appendFloatSamples(floatSamplesPrimary, samples, nRead2)
+                        appendMoonshineStreamingAudio(samples, nRead2)
                     } else {
                         val frames = framesRead2
                         for (i in 0 until frames) {
@@ -685,6 +754,7 @@ class AudioRecognizer(
                             channelOneSamples
                         }
                         appendFloatSamples(floatSamplesPrimary, target, frames)
+                        appendMoonshineStreamingAudio(target, frames)
                         if (activeChannelMode.isTestMode() && channelTwoSamples != null) {
                             appendFloatSamples(floatSamplesSecondary!!, channelTwoSamples, frames)
                         }
@@ -792,6 +862,7 @@ class AudioRecognizer(
         focusAudio()
 
         listener.recordingStarted(device)
+        startMoonshineStreamingSession(currentSessionId)
 
         loadModelJob = lifecycleScope.launch {
             withContext(Dispatchers.Default) {
@@ -874,6 +945,11 @@ class AudioRecognizer(
             // Either Groq is not configured or it failed, use local model
             if (shouldUseMoonshineLocalBackend()) {
                 try {
+                    val streamingResult = stopMoonshineStreamingSessionAndGetText()
+                    if (streamingResult != null) {
+                        return streamingResult.trim()
+                    }
+
                     return moonshineBackend
                         .transcribe(context, floatArray, SampleRateHz)
                         .trim()
