@@ -1,4 +1,7 @@
-# WS5 — Gboard-style windowless voice dictation (design)
+# WS4 (redo) — Gboard-style windowless voice dictation (design)
+
+> Supersedes WS4a (bottom-bar pill) + WS4b in [PLAN.md](PLAN.md). Numbered WS4-redo because
+> WS5 is the AI-Reply workstream. Step 1 plan: [WS4-REDO-STEP1-PLAN.md](WS4-REDO-STEP1-PLAN.md).
 
 Date: 2026-07-20
 Branch: feature/moonshine-streaming
@@ -66,8 +69,10 @@ background session** whose output flows through a **single-writer edit coordinat
 - Voice emits two kinds of output:
   - **Stable chunks** → committed into the field via `commitText` (this is the live,
     progressive text the user sees appear as they speak).
-  - **Unstable tail** → shown in the keyboard UI (suggestion strip), never written to the
-    field as a composing span.
+  - **Unstable tail** → NOT shown anywhere (user decision **B** — no extra UI). Only
+    stabilized words appear, and they appear in the field. No suggestion-strip preview in
+    Step 1. (`EditSink.showUnstable` stays a no-op hook so Step 2 could add a preview later
+    without an interface change.)
 - **Touch owns the composing region.** While the keyboard is composing a typed word (or a
   selection is active), voice stable-chunks are briefly buffered and flushed at the next
   natural commit boundary (space, punctuation, enter, suggestion chosen, cursor moved).
@@ -148,7 +153,7 @@ fast-interleave mode. Design detailed after Step 1 is confirmed on device.
   keystroke + voice mutations on the IME thread. Location confirmed in plan.
 - `java/src/org/futo/inputmethod/latin/uix/ActionBar.kt` — mic-key listening glow.
 - Shared listening state (likely `VoiceInputPersistentState` or `UixManager`).
-- Suggestion strip: render the unstable voice tail (if user wants it — see open question).
+- (No suggestion-strip work — user decision B: unstable tail not shown.)
 
 ## Out of scope
 - Groq/non-streaming backends: emit no incremental partials, so they naturally land at

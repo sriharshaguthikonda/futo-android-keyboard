@@ -40,8 +40,9 @@ feature, active only when the Moonshine streaming backend is selected.
 | 1   | True Moonshine live streaming (gate on backend, not key; show partials) | `AudioRecognizer.kt`, `MoonshineStreamingLocalBackend.kt`, `VoiceInputAction.kt` | pending |
 | 2   | Production offline fallback (connectivity pre-check, readTimeout, error UI, guard last stage, fix double-commit) | `AudioRecognizer.kt:919-971`, `GroqWhisperApi.kt`, `RecognizerView.kt` | pending |
 | 3   | Voice commands + literal mode (local deterministic parser) | `ModelOutputSanitizer.kt`, `Action.kt`, `VoiceInputSettingKeys.kt`, `VoiceInput.kt`, `InputLogic.java` | pending |
-| 4a  | Talk-and-type: keyboard visible+tappable under voice pill (`onlyShowAboveKeyboard=true`) | `UixManager.kt:773`, `VoiceInputAction.kt:403` | pending |
-| 4b  | (deferred) True concurrent multi-writer merge | `IMEManager.kt:75`, `ActionInputTransactionIME.kt:49`, `InputConnectionInternalComposingWrapper.kt` | deferred |
+| ~~4a~~ | ~~Talk-and-type under voice pill~~ — **SUPERSEDED** (user rejected the pill/bar) → WS4-redo | — | superseded |
+| 4-redo | **Windowless Gboard-style dictation**: no bar, mic-key glow, live stable-chunk streaming, keyboard stays. Design: [WS4-REDO-DICTATION-DESIGN.md](WS4-REDO-DICTATION-DESIGN.md) · Step 1 plan: [WS4-REDO-STEP1-PLAN.md](WS4-REDO-STEP1-PLAN.md) | new `uix/voice/TextEditCoordinator.kt`, `VoiceInputAction.kt`, `ActionInputTransactionIME.kt`, `ActionBar.kt` | Step 1 planned, Codex to implement |
+| 4b  | True concurrent multi-writer merge — now **WS4-redo Step 2** (seamless type-while-dictate) | `ActionInputTransactionIME.kt`, `TextEditCoordinator.kt` | deferred to Step 2 |
 | 5   | AI Reply UX fix (ChatGPT design pass first) + roadmap §6 text tools | AI-reply/radial-menu classes | pending |
 
 Detail for each WS lives in the agent working copy; this table + root-cause is the durable summary.
