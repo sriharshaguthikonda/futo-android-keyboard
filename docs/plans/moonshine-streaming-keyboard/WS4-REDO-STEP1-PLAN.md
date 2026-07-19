@@ -68,7 +68,7 @@ Gradle (`assembleUnstableDebug`), JUnit 4 local unit tests (`src/test`, see Task
 
 - New: `java/src/org/futo/inputmethod/latin/uix/voice/TextEditCoordinator.kt` — serial edit
   reducer with `VOICE_STABLE`/`VOICE_MUTABLE` tail (unit-tested).
-- New test: `java/src/test/java/org/futo/inputmethod/latin/uix/voice/TextEditCoordinatorTest.kt`
+- New test: `src/test/java/org/futo/inputmethod/latin/uix/voice/TextEditCoordinatorTest.kt`
   (create the `src/test` tree; confirm module gradle wiring in Task 1).
 - New: `java/src/org/futo/inputmethod/latin/uix/voice/HeadlessVoiceSession.kt` — drives
   `AudioRecognizer`, owns `listening` state, feeds the coordinator. Hosted by
@@ -104,6 +104,9 @@ interface EditSink {
     /** Replace the current voice tail range [start,end) in the field with [text]; returns
      *  the new tail end offset. Implemented via setSelection + commitText on the IME thread. */
     fun replaceVoiceTail(text: String)
+    /** Freeze only the first [length] characters of the current tail, keeping the suffix
+     *  replaceable. Implemented by advancing the tracked tail start; no field change. */
+    fun freezeVoiceTailPrefix(length: Int)
     /** Freeze: the current tail becomes immutable committed text (no field change). */
     fun freezeVoiceTail()
 }
@@ -127,7 +130,8 @@ class TextEditCoordinator(private val sink: EditSink) {
   of recent snapshots.
 - `VoiceSnapshot(full)`: `newTail = full.removePrefix(stablePrefix)`; `sink.replaceVoiceTail(newTail)`.
   Advance `stablePrefix` to the longest prefix unchanged across the last N (=3) snapshots;
-  when it grows, the newly-stable words are just part of the committed text (tail shrinks).
+  when it grows, call `sink.freezeVoiceTailPrefix(newlyStableLength)` so the newly-stable
+  prefix stays committed while only the suffix remains replaceable.
 - On `KeyboardComposingStarted` OR `SelectionChanged(userInitiated=true, collapsed elsewhere)`:
   `sink.freezeVoiceTail()`, clear `mutableTail`; the next `VoiceSnapshot` starts a fresh tail
   at the new cursor. (SAFE Step-1 coexistence — no lift/restore yet.)
@@ -137,10 +141,11 @@ class TextEditCoordinator(private val sink: EditSink) {
 - `submit(_, generation)` with `generation != current` → drop.
 
 **Steps (TDD):**
-- [ ] 1. Create `src/test` tree; wire a minimal JUnit4 local test to run via
-  `./gradlew :java:testUnstableDebugUnitTest` (confirm the exact task name from `build.gradle`).
-- [ ] 2. Failing tests with a fake `EditSink` recording calls: (a) two growing snapshots →
-  tail replaced twice, stable prefix advances, no re-emit of frozen text; (b) snapshot then
+- [ ] 1. Create root `src/test` tree; wire a minimal JUnit4 local test to run via
+  `./gradlew testUnstableDebugUnitTest` (confirmed from the live root app Gradle tasks).
+- [ ] 2. Failing tests with a fake `EditSink` recording calls: (a) three qualifying growing
+  snapshots → tail replaced on each, stable prefix advances on the third, and a following
+  snapshot does not re-emit frozen text; (b) snapshot then
   `KeyboardComposingStarted` → `freezeVoiceTail` called, next snapshot starts fresh tail;
   (c) stale generation dropped; (d) `VoiceFinal` freezes + resets.
 - [ ] 3. Run → FAIL.
