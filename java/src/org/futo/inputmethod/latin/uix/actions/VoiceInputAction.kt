@@ -208,7 +208,7 @@ private class VoiceInputActionWindow(
         shouldPlaySounds = enableSound
 
         return RecognizerViewSettings(
-            shouldShowInlinePartialResult = false,
+            shouldShowInlinePartialResult = (localBackend == LocalTranscriptionBackend.Moonshine),
             shouldShowVerboseFeedback = verboseFeedback,
             localBackend = localBackend,
             modelRunConfiguration = MultiModelRunConfiguration(
@@ -437,7 +437,7 @@ private class VoiceInputBottomBarWindow(
         shouldPlaySounds = enableSound
 
         return RecognizerViewSettings(
-            shouldShowInlinePartialResult = false,
+            shouldShowInlinePartialResult = (localBackend == LocalTranscriptionBackend.Moonshine),
             shouldShowVerboseFeedback = verboseFeedback,
             localBackend = localBackend,
             modelRunConfiguration = MultiModelRunConfiguration(

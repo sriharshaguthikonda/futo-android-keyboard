@@ -467,7 +467,6 @@ class AudioRecognizer(
 
     private fun shouldUseMoonshineLiveStreaming(): Boolean {
         if (!shouldUseMoonshineLocalBackend()) return false
-        if (settings.groqApiKey.isNotBlank()) return false
         if (activeChannelMode.isTestMode()) return false
         return true
     }
@@ -915,7 +914,23 @@ class AudioRecognizer(
         if (currentSessionId != sessionId.get()) return
 
         suspend fun transcribe(floatArray: FloatArray): String {
-            // First try Groq if configured
+            // If the Moonshine local backend is selected, it fully owns transcription — do NOT call Groq.
+            if (shouldUseMoonshineLocalBackend()) {
+                try {
+                    val streamingResult = stopMoonshineStreamingSessionAndGetText()
+                    if (streamingResult != null) {
+                        return streamingResult.trim()
+                    }
+
+                    return moonshineBackend
+                        .transcribe(context, floatArray, SampleRateHz)
+                        .trim()
+                } catch (t: Throwable) {
+                    Log.e("AudioRecognizer", "Moonshine transcription failed, falling back to Whisper", t)
+                }
+            }
+
+            // Otherwise try Groq if configured
             if (settings.groqApiKey.isNotBlank()) {
                 try {
                     val groqResult = withContext(Dispatchers.IO) {
@@ -944,22 +959,6 @@ class AudioRecognizer(
                     }
                 } catch (e: Exception) {
                     println("Groq transcription failed: ${e.message}")
-                }
-            }
-
-            // Either Groq is not configured or it failed, use local model
-            if (shouldUseMoonshineLocalBackend()) {
-                try {
-                    val streamingResult = stopMoonshineStreamingSessionAndGetText()
-                    if (streamingResult != null) {
-                        return streamingResult.trim()
-                    }
-
-                    return moonshineBackend
-                        .transcribe(context, floatArray, SampleRateHz)
-                        .trim()
-                } catch (t: Throwable) {
-                    Log.e("AudioRecognizer", "Moonshine transcription failed, falling back to Whisper", t)
                 }
             }
 
