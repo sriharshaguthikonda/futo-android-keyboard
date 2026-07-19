@@ -5,24 +5,53 @@ import org.junit.Test
 
 class TextEditCoordinatorTest {
     @Test
-    fun stablePrefixAdvancesAfterThreeSnapshots() {
+    fun stablePrefixAdvancesOnWordBoundaryOnly() {
         val sink = RecordingEditSink()
         val coordinator = TextEditCoordinator(sink)
 
+        // Three agreeing snapshots whose shared prefix "hello" has no trailing space:
+        // nothing may be frozen yet (a half word could still be revised).
         coordinator.submit(EditIntent.VoiceSnapshot("hello"), generation = 0)
         coordinator.submit(EditIntent.VoiceSnapshot("hello world"), generation = 0)
-        coordinator.submit(EditIntent.VoiceSnapshot("hello world!"), generation = 0)
+        coordinator.submit(EditIntent.VoiceSnapshot("hello world"), generation = 0)
+        assertEquals(emptyList<Int>(), sink.frozenPrefixLengths)
 
-        assertEquals(listOf("hello", "hello world", "hello world!"), sink.replacements)
-        assertEquals(listOf(5), sink.frozenPrefixLengths)
-        assertEquals(
-            listOf("replace:hello", "replace:hello world", "replace:hello world!", "freezePrefix:5"),
-            sink.events
-        )
+        // Now the shared prefix reaches "hello world" — the complete word "hello " (6 chars,
+        // incl. trailing space) becomes stable; "world" stays in the mutable tail.
+        coordinator.submit(EditIntent.VoiceSnapshot("hello world today"), generation = 0)
+        assertEquals(listOf(6), sink.frozenPrefixLengths)
 
-        coordinator.submit(EditIntent.VoiceSnapshot("hello there"), generation = 0)
+        // Subsequent snapshots are expressed relative to the frozen "hello ".
+        coordinator.submit(EditIntent.VoiceSnapshot("hello world tonight"), generation = 0)
+        assertEquals("world tonight", sink.replacements.last())
+    }
 
-        assertEquals(" there", sink.replacements.last())
+    @Test
+    fun midWordFragmentIsNeverFrozen() {
+        val sink = RecordingEditSink()
+        val coordinator = TextEditCoordinator(sink)
+
+        // Shared prefix "wash" has no space — must never be frozen as a half word.
+        coordinator.submit(EditIntent.VoiceSnapshot("wash"), generation = 0)
+        coordinator.submit(EditIntent.VoiceSnapshot("wash"), generation = 0)
+        coordinator.submit(EditIntent.VoiceSnapshot("wash"), generation = 0)
+
+        assertEquals(emptyList<Int>(), sink.frozenPrefixLengths)
+    }
+
+    @Test
+    fun freezesCompletedWordKeepsTrailingFragmentMutable() {
+        val sink = RecordingEditSink()
+        val coordinator = TextEditCoordinator(sink)
+
+        // Shared prefix "washing mac": freeze the whole word "washing " (8), keep "mac" mutable.
+        coordinator.submit(EditIntent.VoiceSnapshot("washing mac"), generation = 0)
+        coordinator.submit(EditIntent.VoiceSnapshot("washing mac"), generation = 0)
+        coordinator.submit(EditIntent.VoiceSnapshot("washing mac"), generation = 0)
+        assertEquals(listOf(8), sink.frozenPrefixLengths)
+
+        coordinator.submit(EditIntent.VoiceSnapshot("washing machine"), generation = 0)
+        assertEquals("machine", sink.replacements.last())
     }
 
     @Test
@@ -56,16 +85,18 @@ class TextEditCoordinatorTest {
         val sink = RecordingEditSink()
         val coordinator = TextEditCoordinator(sink)
 
-        coordinator.submit(EditIntent.VoiceSnapshot("hello"), generation = 0)
-        coordinator.submit(EditIntent.VoiceSnapshot("hello world"), generation = 0)
-        coordinator.submit(EditIntent.VoiceSnapshot("hello world!"), generation = 0)
+        // Freeze the whole word "washing " first, leaving "mac" mutable.
+        coordinator.submit(EditIntent.VoiceSnapshot("washing mac"), generation = 0)
+        coordinator.submit(EditIntent.VoiceSnapshot("washing mac"), generation = 0)
+        coordinator.submit(EditIntent.VoiceSnapshot("washing mac"), generation = 0)
         sink.clear()
 
-        coordinator.submit(EditIntent.VoiceFinal("hello world"), generation = 0)
-        assertEquals(listOf("replace: world", "freeze"), sink.events)
-        coordinator.submit(EditIntent.VoiceSnapshot("hello again"), generation = 0)
+        // Final result is expressed relative to the frozen "washing " prefix.
+        coordinator.submit(EditIntent.VoiceFinal("washing machine"), generation = 0)
+        assertEquals(listOf("replace:machine", "freeze"), sink.events)
+        coordinator.submit(EditIntent.VoiceSnapshot("new note"), generation = 0)
 
-        assertEquals(listOf(" world", "hello again"), sink.replacements)
+        assertEquals(listOf("machine", "new note"), sink.replacements)
         assertEquals(1, sink.freezeCount)
     }
 

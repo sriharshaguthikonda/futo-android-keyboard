@@ -54,12 +54,20 @@ class TextEditCoordinator(private val sink: EditSink) {
         val commonPrefix = recentSnapshots.reduce { prefix, snapshot ->
             prefix.commonPrefixWith(snapshot)
         }
-        if (!commonPrefix.startsWith(stablePrefix) || commonPrefix.length == stablePrefix.length) return
+        if (!commonPrefix.startsWith(stablePrefix)) return
 
-        val newlyStableLength = commonPrefix.length - stablePrefix.length
-        sink.freezeVoiceTailPrefix(newlyStableLength)
-        stablePrefix = commonPrefix
-        mutableTail = mutableTail.drop(newlyStableLength)
+        // Freeze whole words only: advance to the last space in the shared prefix, so the
+        // trailing in-progress word stays in the mutable tail until a space (or VoiceFinal)
+        // arrives. Never freeze a half word the recognizer may still revise.
+        // ponytail: revision of an already-frozen word (removePrefix mismatch) is a known
+        // Step-2 limitation — handled there by the range ledger + context fingerprints.
+        val boundary = commonPrefix.lastIndexOf(' ') + 1
+        if (boundary <= stablePrefix.length) return
+
+        val newStable = commonPrefix.substring(0, boundary)
+        sink.freezeVoiceTailPrefix(newStable.length - stablePrefix.length)
+        stablePrefix = newStable
+        mutableTail = fullHypothesis.removePrefix(stablePrefix)
     }
 
     private fun freezeAndReset() {
