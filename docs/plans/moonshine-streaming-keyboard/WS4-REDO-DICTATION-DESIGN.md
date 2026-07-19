@@ -138,9 +138,13 @@ Scope:
 Verify on device before Step 2.
 
 ### Step 2 — true concurrent type-while-dictating (next delivery)
-Seamless merge: word revision of recent voice text when surrounding context still matches
-(seal chunk as USER_EDITED once touched), tighter flush timing, and the optional
-fast-interleave mode. Design detailed after Step 1 is confirmed on device.
+FULL mode from the ceiling research: composition **lift/edit/restore** (touch keeps autocorrect
++ suggestions while voice edits its range immediately), a **range ledger** with anchor affinity
++ context fingerprints, a **per-app capability profile** (FULL / COMMIT_ONLY / CONSERVATIVE)
+with dynamic downgrade, and a COMMIT_ONLY shadow-`WordComposer` fallback for WebViews. Full
+detail: [../../Research/chatgpt_true_simultaneity_ceiling.md](../../Research/chatgpt_true_simultaneity_ceiling.md).
+This is the real Android 7–11 ceiling — no second cursor/composing-region exists for any
+keyboard.
 
 ## Files in scope (Step 1)
 

@@ -1,103 +1,119 @@
 # WS4 (redo) Step 1 — Windowless Gboard-style dictation — Implementation Plan
 
 > Design: [WS4-REDO-DICTATION-DESIGN.md](WS4-REDO-DICTATION-DESIGN.md) · Index: [PLAN.md](PLAN.md)
-
-> **For the implementer (Codex):** Execute task-by-task. Confirm each *Investigation*
-> block against the real code BEFORE writing the code for that task — do not guess Android
-> internals. Report unknowns back rather than fabricating. Commit per task.
+> Findings: [WS4-REDO-STEP1-FINDINGS.md](WS4-REDO-STEP1-FINDINGS.md) · Ceiling research:
+> [../../Research/chatgpt_true_simultaneity_ceiling.md](../../Research/chatgpt_true_simultaneity_ceiling.md)
+>
+> **For the implementer (Codex):** Execute task-by-task, commit per task. The four unknowns
+> are already investigated (Task 0 done). Follow the corrected contracts below exactly.
 
 **Goal:** When "Simultaneous voice + typing" is ON, dictation runs with the normal keyboard
-fully visible (no overlay bar), the mic key glows while listening, and stable voice text
-streams live into the field via a single-writer coordinator — instead of the rejected
-bottom-bar window that buffered then dumped.
+fully visible (no overlay bar), the mic key glows while listening, and voice text streams
+**live, word-by-word, into the field** via a single-writer coordinator using a replaceable
+committed voice tail — instead of the rejected bottom-bar window that buffered then dumped.
 
-**Architecture:** Voice becomes a headless background session (no `ActionWindow`) whose
-output flows through a serial `TextEditCoordinator`. Touch keeps ownership of the Android
-composing region; voice only ever `commitText`s *stable* chunks, buffering them while a typed
-word/selection is active. A shared `listening` state drives the mic-key glow.
+**Architecture (Step 1 subset of the ceiling design):**
+Voice becomes a **headless** background session (no `ActionWindow`). All editor mutations go
+through one serial `TextEditCoordinator`. Touch keeps Android's single composing region. Voice
+keeps a **committed mutable tail** (`VOICE_MUTABLE`) it replaces on each Moonshine snapshot,
+freezing a stable prefix (`VOICE_STABLE`) so the mutable range stays small. This yields live
+in-field streaming **without** needing Moonshine's discarded `LineCompleted` boundary. Step 1
+uses the SAFE typing-coexistence policy (freeze the voice tail on a keypress); the seamless
+composition-lift/edit/restore + per-app profiles are Step 2.
 
-**Tech Stack:** Kotlin, Android IME (FUTO/AOSP LatinIME), Jetpack Compose (action bar UI),
-Gradle (`assembleUnstableDebug`), JUnit (JVM unit tests for the pure coordinator).
+**Tech Stack:** Kotlin, Android IME (FUTO/AOSP LatinIME), Jetpack Compose (action bar),
+Gradle (`assembleUnstableDebug`), JUnit 4 local unit tests (`src/test`, see Task 1).
 
 ## Global Constraints (verbatim from spec)
 
-- Android 7–11: editor has **ONE composing region + ONE selection**. Voice must NOT own a
-  composing span. Voice never calls `setComposingText()` while touch typing coexists.
+- Android 7–11: editor has **ONE composing region + ONE selection**. Touch owns the composing
+  region. Voice never calls `setComposingText()`; it commits/replaces ordinary text ranges.
 - Gating: behind `VOICE_SIMULTANEOUS_TYPING`. **Toggle OFF path must stay byte-for-byte
   unchanged** (original `VoiceInputActionWindow` full-screen).
-- Recognition callbacks must **never** call `InputConnection` directly — everything through
-  the coordinator, serialized on the IME thread.
+- Recognition callbacks (already marshalled to `Dispatchers.Main`) submit **intents only** to
+  the coordinator; they never call `InputConnection` directly.
+- Every voice result carries an input-session generation; drop stale-generation results.
 - Do not touch unrelated dirty files (`.settings/…buildship…`, `voiceinput-shared/src/main/ml`).
-- Do not scope-creep into the roadmap (voice commands, snippets, programmable actions).
+- No scope-creep into the roadmap (voice commands, snippets, programmable actions).
+
+## Corrected contracts (from Task 0 findings — do not deviate)
+
+- **Moonshine partials are full running snapshots**, revisable (`MoonshineStreamingLocalBackend.kt:96-107`;
+  `AudioRecognizer.kt:483-490`; `RecognizerView.kt:197-202`). Step 1 does NOT rely on
+  `LineCompleted`; it replaces the `VOICE_MUTABLE` range with the new snapshot each time and
+  freezes a stable prefix heuristically (longest prefix unchanged across the last N snapshots).
+- **Headless recognizer is feasible** — `AudioRecognizer` (plain class, `AudioRecognizer.kt:110-116`,
+  lifecycle `reset/start/finish/cancel` `:252-312`) runs on the injected IME lifecycle scope,
+  no Compose required. Host it in `VoiceInputPersistentState` (`VoiceInputAction.kt:157-170`);
+  extend its `cleanUp`/`close` to cancel the session.
+- **windowImpl fork CANNOT do windowless** (`UixManager.kt:667-680` always takes `windowImpl`
+  when non-null; simple-press path skips on-trigger persistent-state init `UixManager.kt:762-771`).
+  → Task 2 adds an explicit headless dispatch (see there).
+- **Session generation**: bump from `UixManager.inputStarted` (via `LatinIME.onStartInput`
+  `LatinIME.kt:577-581`; `UixManager.kt:1655-1663`); stop the session from
+  `UixManager.onInputFinishing` (`LatinIME.kt:593-604`; `UixManager.kt:1690-1697`). NOT
+  `IMEManager.onStartInput` (too late).
+- **Keystroke/selection interception**: observe touch composing at the shared
+  `RichInputConnection.setComposingText`, and word-commit when `commitText`/`finishComposingText`
+  clears nonempty tracked composing text (`RichInputConnection.java:324-375,655-668`); observe
+  selection at the START of `IMEManager.onUpdateSelection` (`IMEManager.kt:285-301`), before its
+  20 ms debounce. `ActionInputTransactionIME.onUpdateSelection` alone is too late.
+- **Mic glow**: plumb `listening` through `ActionBar`→`ActionItems`/`PinnedActionItems`→
+  `ActionItem` (`ActionBar.kt:496-532`) and `ActionItemSmall` (`ActionBar.kt:538-588`); gate on
+  `action == VoiceInputAction`.
+- **Unit-test path**: `src/test/java/org/futo/inputmethod/latin/uix/voice/` (JUnit 4 declared
+  `build.gradle:416`; `tests/src` is androidTest instrumentation — do NOT put the pure test there).
 
 ## File structure
 
-- New: `java/src/org/futo/inputmethod/latin/uix/voice/TextEditCoordinator.kt` — pure serial
-  edit-intent reducer (unit-tested).
-- New test: `java/tests/.../uix/voice/TextEditCoordinatorTest.kt` (mirror existing test dir
-  layout — confirm path in Task 1 investigation).
-- Modify: `java/src/org/futo/inputmethod/latin/uix/actions/VoiceInputAction.kt` — windowless
-  start path when toggle ON.
-- Modify: `java/src/org/futo/inputmethod/engine/general/ActionInputTransactionIME.kt` —
-  remove partial-suppression; route stable voice text via coordinator/commit.
-- Modify: `java/src/org/futo/inputmethod/latin/uix/ActionBar.kt` — mic-key glow from
-  `listening` state.
-- Modify (location TBD): shared `listening` state holder (`VoiceInputPersistentState` or
-  `UixManager`).
+- New: `java/src/org/futo/inputmethod/latin/uix/voice/TextEditCoordinator.kt` — serial edit
+  reducer with `VOICE_STABLE`/`VOICE_MUTABLE` tail (unit-tested).
+- New test: `java/src/test/java/org/futo/inputmethod/latin/uix/voice/TextEditCoordinatorTest.kt`
+  (create the `src/test` tree; confirm module gradle wiring in Task 1).
+- New: `java/src/org/futo/inputmethod/latin/uix/voice/HeadlessVoiceSession.kt` — drives
+  `AudioRecognizer`, owns `listening` state, feeds the coordinator. Hosted by
+  `VoiceInputPersistentState`.
+- Modify: `VoiceInputAction.kt` — headless dispatch when toggle ON; host session in persistent
+  state; keep windowed path for toggle OFF.
+- Modify: `UixManager.kt` — headless dispatch branch + session-generation bump/stop hooks.
+- Modify: `ActionInputTransactionIME.kt` — remove partial suppression (`:80-84`); this
+  transaction is no longer the voice writer in simultaneous mode (coordinator is).
+- Modify: `RichInputConnection.java` / bridge — emit composing-start / word-commit signals to
+  the coordinator.
+- Modify: `ActionBar.kt` — mic-key glow from `listening`.
 
 ---
 
-### Task 0: Investigation — confirm the four unknowns (no code, report findings)
+### Task 0: Investigation — DONE
 
-Codex reads the code and answers, in a short `WS4-REDO-STEP1-FINDINGS.md`, before any edits:
-
-1. **Moonshine partial semantics.** In `AudioRecognizer` / `RecognizerView.partialResult`,
-   does `partialResult(text)` deliver the *entire running hypothesis so far* (revisable) or
-   an *incremental delta*? Where do finalized segment boundaries occur? This determines how
-   the coordinator computes the "stable prefix delta."
-   - Files: `voiceinput-shared/src/main/java/org/futo/voiceinput/shared/AudioRecognizer.kt`,
-     `RecognizerView.kt`.
-2. **Headless recognizer lifecycle.** Can `AudioRecognizer` be driven (create → `reset` →
-   `start` → `finish`/`cancel`) with a listener but WITHOUT composing `RecognizerView.Content()`?
-   What owns its coroutine scope if there's no window? (`VoiceInputPersistentState` already
-   holds `ModelManager` + lives across windows — candidate host.)
-3. **Keystroke interception point.** Where do committed keystrokes/word-commits flow through
-   the IME (`InputLogic` / `IMEHelper`) such that the coordinator can observe "keyboard is
-   composing a word" / "word just committed" / "selection/cursor changed"? Identify the exact
-   hook(s) the coordinator will subscribe to. (`ActionInputTransactionIME.onUpdateSelection`
-   already exists as one signal.)
-4. **Mic-key rendering.** In `ActionBar.kt`, find the composable that renders an action item's
-   icon and how the voice `Action` maps to it. Identify where a per-item `listening` boolean
-   can drive a tint/pulse without restructuring the bar.
-
-Acceptance: `WS4-REDO-STEP1-FINDINGS.md` answers all four with file:line refs. If any is
-infeasible as designed, STOP and report — do not work around silently.
+See [WS4-REDO-STEP1-FINDINGS.md](WS4-REDO-STEP1-FINDINGS.md). Two blockers found and resolved
+in this plan (mutable-tail dissolves the Moonshine-boundary blocker; Task 2 adds explicit
+headless dispatch for the windowImpl blocker).
 
 ---
 
-### Task 1: `TextEditCoordinator` pure logic + unit tests
+### Task 1: `TextEditCoordinator` (serial reducer + mutable voice tail) + unit tests
 
-The one piece that is pure and testable in isolation. Everything Android-specific is behind a
-tiny `EditSink` interface so the reducer is JVM-unit-testable.
+Pure/JVM-testable. Android specifics sit behind a tiny `EditSink`.
 
-**Files:**
-- Create: `java/src/org/futo/inputmethod/latin/uix/voice/TextEditCoordinator.kt`
-- Test: confirm test dir in Task 0.4 / existing layout, then create
-  `…/uix/voice/TextEditCoordinatorTest.kt`
+**Files:** Create `…/uix/voice/TextEditCoordinator.kt`; create `src/test` tree + test.
 
 **Interfaces (Produces):**
 ```kotlin
 interface EditSink {
-    fun commitVoiceText(text: String)   // ic.commitText(text, 1) on IME thread
-    fun showUnstable(text: String)      // suggestion-strip preview ("" clears)
+    /** Replace the current voice tail range [start,end) in the field with [text]; returns
+     *  the new tail end offset. Implemented via setSelection + commitText on the IME thread. */
+    fun replaceVoiceTail(text: String)
+    /** Freeze: the current tail becomes immutable committed text (no field change). */
+    fun freezeVoiceTail()
 }
 
 sealed interface EditIntent {
-    data class VoicePartial(val fullHypothesis: String) : EditIntent
+    data class VoiceSnapshot(val fullHypothesis: String) : EditIntent
     data class VoiceFinal(val text: String) : EditIntent
-    object KeyboardComposingStarted : EditIntent   // touch owns composing now
-    object KeyboardWordCommitted : EditIntent       // flush boundary
-    data class SelectionChanged(val start: Int, val end: Int) : EditIntent
+    object KeyboardComposingStarted : EditIntent
+    object KeyboardWordCommitted : EditIntent
+    data class SelectionChanged(val start: Int, val end: Int, val userInitiated: Boolean) : EditIntent
     data class NewInputSession(val generation: Long) : EditIntent
 }
 
@@ -106,100 +122,122 @@ class TextEditCoordinator(private val sink: EditSink) {
 }
 ```
 
-**Behavior to encode (and test):**
-- Maintains `committedVoicePrefix`. On `VoicePartial(full)`: compute stable prefix (per Task 0.1
-  finding — e.g. longest stable common prefix across recent partials, or up to last finalized
-  boundary). If keyboard is NOT composing and no active selection → `sink.commitVoiceText(delta)`
-  and advance prefix; put the remaining unstable tail to `sink.showUnstable(tail)`.
-- If keyboard IS composing a word / selection active → buffer the stable delta; do NOT commit.
-  On `KeyboardWordCommitted` / `SelectionChanged(collapsed)` → flush buffered delta.
-- `VoiceFinal(text)` → flush everything, `showUnstable("")`, reset prefix.
-- `NewInputSession(gen)` → bump generation, clear buffers/prefix, `showUnstable("")`.
-- `submit(..., generation)` where `generation != current` → drop (stale result guard).
+**Behavior to encode + test:**
+- Maintains `stablePrefix` (frozen) + `mutableTail` (current replaceable text) + a small ring
+  of recent snapshots.
+- `VoiceSnapshot(full)`: `newTail = full.removePrefix(stablePrefix)`; `sink.replaceVoiceTail(newTail)`.
+  Advance `stablePrefix` to the longest prefix unchanged across the last N (=3) snapshots;
+  when it grows, the newly-stable words are just part of the committed text (tail shrinks).
+- On `KeyboardComposingStarted` OR `SelectionChanged(userInitiated=true, collapsed elsewhere)`:
+  `sink.freezeVoiceTail()`, clear `mutableTail`; the next `VoiceSnapshot` starts a fresh tail
+  at the new cursor. (SAFE Step-1 coexistence — no lift/restore yet.)
+- `KeyboardWordCommitted`: no-op for the tail in Step 1 (typing already committed normally).
+- `VoiceFinal(text)`: replace tail with final text, then `freezeVoiceTail()`, reset prefix.
+- `NewInputSession(gen)`: bump generation, freeze+clear.
+- `submit(_, generation)` with `generation != current` → drop.
 
 **Steps (TDD):**
-- [ ] 1. Confirm test dir + JUnit setup from an existing test in the module (Task 0). 
-- [ ] 2. Write failing tests: (a) partial with idle keyboard commits stable delta once, not
-  re-committing the same prefix; (b) partial while `KeyboardComposingStarted` buffers, then
-  `KeyboardWordCommitted` flushes; (c) stale generation dropped; (d) `VoiceFinal` flushes +
-  clears unstable. Use a fake `EditSink` recording calls.
-- [ ] 3. Run tests → FAIL.
-- [ ] 4. Implement `TextEditCoordinator` minimally to pass.
-- [ ] 5. Run tests → PASS.
-- [ ] 6. Commit: `feat(voice): TextEditCoordinator serial edit reducer + tests`.
+- [ ] 1. Create `src/test` tree; wire a minimal JUnit4 local test to run via
+  `./gradlew :java:testUnstableDebugUnitTest` (confirm the exact task name from `build.gradle`).
+- [ ] 2. Failing tests with a fake `EditSink` recording calls: (a) two growing snapshots →
+  tail replaced twice, stable prefix advances, no re-emit of frozen text; (b) snapshot then
+  `KeyboardComposingStarted` → `freezeVoiceTail` called, next snapshot starts fresh tail;
+  (c) stale generation dropped; (d) `VoiceFinal` freezes + resets.
+- [ ] 3. Run → FAIL.
+- [ ] 4. Implement minimally.
+- [ ] 5. Run → PASS.
+- [ ] 6. Commit: `feat(voice): TextEditCoordinator with mutable voice tail + tests`.
 
 ---
 
-### Task 2: Headless voice session wired to the coordinator
+### Task 2: Headless voice session + explicit windowless dispatch
 
-**Files:** Modify `ActionInputTransactionIME.kt`, and the session host confirmed in Task 0.2
-(likely `VoiceInputPersistentState` or a new small `HeadlessVoiceSession`).
+**Files:** Create `HeadlessVoiceSession.kt`; modify `VoiceInputAction.kt`, `UixManager.kt`,
+`ActionInputTransactionIME.kt`.
 
-- [ ] 1. Remove the suppression at `ActionInputTransactionIME.kt:80-84`. In simultaneous
-  mode, `updatePartial`/`commit` route text to the `TextEditCoordinator` (as
-  `VoicePartial`/`VoiceFinal`) instead of `setComposingText`. Non-simultaneous path unchanged.
-- [ ] 2. Implement the headless session per Task 0.2: create `AudioRecognizer` with an
-  `AudioRecognizerListener` whose callbacks only `submit` `EditIntent`s (no direct IC calls).
-  Feed `recordingStarted`→ set `listening=true`; `partialResult`→ `VoicePartial`;
-  `finished`→ `VoiceFinal` + `listening=false`; `cancelled`→ clear + `listening=false`.
-- [ ] 3. Provide the `EditSink` impl that calls `ic.commitText` / suggestion-strip on the IME
-  thread.
-- [ ] 4. Build `assembleUnstableDebug` → SUCCESS. Commit:
-  `feat(voice): headless dictation session via coordinator`.
-
-Note: no unit-test harness for Android IC here; correctness of this glue is verified on-device
-(Task 5). The pure logic it depends on is already tested in Task 1.
+- [ ] 1. `HeadlessVoiceSession`: constructs `AudioRecognizer` with the IME lifecycle scope +
+  `ModelManager` from `VoiceInputPersistentState`; exposes `listening: State<Boolean>` and
+  `start()/stop()/cancel()`. Listener callbacks submit `EditIntent`s only:
+  `recordingStarted`→`listening=true`; `partialResult`→`VoiceSnapshot`; `finished`→`VoiceFinal`
+  +`listening=false`; `cancelled`→freeze+`listening=false`.
+- [ ] 2. Host it in `VoiceInputPersistentState`; extend `cleanUp`/`close` to cancel it.
+- [ ] 3. `EditSink` impl: `replaceVoiceTail` = `setSelection(tailStart,tailEnd)` +
+  `commitText(text,1)` on the IME `RichInputConnection`, tracking `tailStart`; `freezeVoiceTail`
+  = drop tracking. Wrap in `beginBatchEdit/endBatchEdit`.
+- [ ] 4. Windowless dispatch (fixes Blocker 2): in `UixManager` action dispatch
+  (`UixManager.kt:667-680`), when the triggered action is `VoiceInputAction` AND
+  `VOICE_SIMULTANEOUS_TYPING` is ON: initialize on-trigger persistent state (as
+  `enterActionWindowView` does), start the headless session, and DO NOT enter the action-window
+  view (keyboard stays). Toggle OFF → unchanged windowed path.
+- [ ] 5. Remove suppression at `ActionInputTransactionIME.kt:80-84` (dead once coordinator owns
+  voice writing in simultaneous mode). Keep the non-simultaneous composing path intact.
+- [ ] 6. Session generation: bump in `UixManager.inputStarted`, stop session in
+  `UixManager.onInputFinishing`.
+- [ ] 7. Build `assembleUnstableDebug` → SUCCESS. Commit:
+  `feat(voice): headless windowless dictation session + dispatch`.
 
 ---
 
-### Task 3: Windowless start path (no ActionWindow when toggle ON)
+### Task 3: Keystroke / selection signals to the coordinator
 
-**Files:** Modify `VoiceInputAction.kt` (`windowImpl` fork at lines ~945-972).
+**Files:** Modify `RichInputConnection.java` (+ its `IMEHelper`/provider bridge), `IMEManager.kt`.
 
-- [ ] 1. When `VOICE_SIMULTANEOUS_TYPING` is ON, do NOT return a `VoiceInputBottomBarWindow`
-  or `VoiceInputActionWindow`. Instead start the Task 2 headless session and keep the main
-  keyboard shown (confirm the mechanism: an `Action` with `simplePressImpl` / a no-op window,
-  per Task 0). Toggle OFF → original `VoiceInputActionWindow` unchanged.
-- [ ] 2. Tapping mic again while listening → stop+finalize the session.
-- [ ] 3. Build → SUCCESS. Commit: `feat(voice): windowless dictation start when toggle ON`.
+- [ ] 1. In `RichInputConnection.setComposingText`, signal `KeyboardComposingStarted` to the
+  active coordinator (via the bridge, guarded so it's a no-op when no headless session is live).
+- [ ] 2. In `commitText`/`finishComposingText`, when they clear nonempty tracked composing text,
+  signal `KeyboardWordCommitted`.
+- [ ] 3. At the START of `IMEManager.onUpdateSelection` (before the 20 ms debounce), forward
+  `SelectionChanged(start,end,userInitiated=<not IME-expected>)` to the coordinator.
+- [ ] 4. Build → SUCCESS. Commit: `feat(voice): route touch composing/selection to coordinator`.
 
 ---
 
 ### Task 4: Mic-key glow while listening
 
-**Files:** Modify `ActionBar.kt` + the shared `listening` state (Task 0.4 / 0.2).
+**Files:** Modify `ActionBar.kt`; thread `listening` from `VoiceInputPersistentState`/`UixManager`.
 
-- [ ] 1. Expose `listening: State<Boolean>` from the session host; observe it where the action
-  bar renders the voice item.
-- [ ] 2. When `listening`, animate the mic item (pulse/glow tint) — reuse the
-  `rememberInfiniteTransition` pulse pattern already in `VoiceInputAction.kt:566-575`.
+- [ ] 1. Add a `listening: State<Boolean>` param threaded `ActionBar`→`ActionItems`/
+  `PinnedActionItems`→`ActionItem`/`ActionItemSmall`.
+- [ ] 2. When `listening && action == VoiceInputAction`, drive a pulse/tint on the mic item —
+  reuse the `rememberInfiniteTransition` pulse from `VoiceInputAction.kt:566-575`. Applied at the
+  existing tint sites (`ActionBar.kt:527-532`, `:583-588`).
 - [ ] 3. Build → SUCCESS. Commit: `feat(voice): mic key glows while dictating`.
 
 ---
 
 ### Task 5: Unstable-tail display — RESOLVED = B (no extra UI)
 
-User decision **B**: the not-yet-final voice tail is NOT shown; only stabilized words land in
-the field. `EditSink.showUnstable` is a **no-op** in Step 1 — no suggestion-strip work. Kept
-in the interface so Step 2 can add an optional preview without an API change. **No task.**
+User decision **B**: only the in-field mutable tail is shown; no suggestion strip. `EditSink`
+has no `showUnstable`. **No task.** (Step 2 may add an optional preview.)
 
 ---
 
-### Task 6: On-device verification
+### Task 6: On-device verification (phone `10BF191Z51001DC`)
 
-- [ ] 1. `assembleUnstableDebug`, install to device.
-- [ ] 2. Toggle ON → open text field → dictate. Verify: **no bar**; keyboard fully visible +
-  tappable; words appear **as spoken** (not dumped); mic key **glows**; tap mic stops+finalizes.
-- [ ] 3. Type a word, then speak → voice text appends after the typed word commits (no clobber).
-- [ ] 4. Toggle OFF → original full-screen voice unchanged.
-- [ ] 5. Report results in Q&A channel. Do NOT claim success without on-device evidence.
+- [ ] 1. `assembleUnstableDebug`, install.
+- [ ] 2. Toggle ON → text field → dictate. Verify: **no bar**; keyboard fully visible +
+  tappable; words appear **as spoken** into the field (mutable tail updates live), not dumped;
+  mic key **glows**; tap mic stops+finalizes.
+- [ ] 3. Type a word mid-dictation → voice tail freezes, typed word lands, voice resumes with a
+  fresh tail (no clobber).
+- [ ] 4. Change focus / rotate → no stale voice text leaks (session-generation guard).
+- [ ] 5. Toggle OFF → original full-screen voice unchanged.
+- [ ] 6. Report results in Q&A. No success claim without on-device evidence
+  (`adb logcat -s VoiceInputAction AudioRecognizer TextEditCoordinator`).
 
 ---
 
-## Self-review notes
-- Spec coverage: no-bar (T3), live streaming stable chunks (T1+T2), mic glow (T4),
-  keyboard-stays (T3), safe typing coexistence (T1 buffer/flush + T2 wiring), session guard
-  (T1), toggle-OFF untouched (T3), unstable tail (T5). Covered.
-- Testable core (coordinator) is isolated and unit-tested; Android glue verified on-device.
-- Open dependency: Task 0 findings may adjust T1's stable-prefix algorithm and T2/T4 hooks —
-  that is intended (investigation-gated), not a placeholder.
+## Step 2 (next milestone — from the ceiling research, do NOT build in Step 1)
+FULL mode: composition lift/edit/restore so typing keeps autocorrect/suggestions while voice
+edits its range immediately; range ledger with anchor affinity + context fingerprints;
+per-app capability profile (FULL / COMMIT_ONLY / CONSERVATIVE) with dynamic downgrade;
+COMMIT_ONLY shadow-`WordComposer` fallback for WebViews; boundary-space handling; gesture.
+Reference: [chatgpt_true_simultaneity_ceiling.md](../../Research/chatgpt_true_simultaneity_ceiling.md).
+
+## Self-review
+- Blockers resolved: mutable-tail (Blocker 1), explicit headless dispatch (Blocker 2).
+- Corrected hooks applied (session-gen, RichInputConnection, onUpdateSelection, test path).
+- Testable core (coordinator) isolated + unit-tested; Android glue verified on-device.
+- Spec coverage: no-bar (T2), live streaming (T1+T2), mic glow (T4), keyboard-stays (T2),
+  safe typing coexistence (T1 freeze + T3 signals), session guard (T1+T2), toggle-OFF
+  untouched (T2). Covered.
