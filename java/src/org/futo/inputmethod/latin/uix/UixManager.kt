@@ -126,6 +126,7 @@ import org.futo.inputmethod.latin.uix.actions.AllActions
 import org.futo.inputmethod.latin.uix.actions.KeyboardModeAction
 import org.futo.inputmethod.latin.uix.actions.PersistentEmojiState
 import org.futo.inputmethod.latin.uix.actions.VoiceInputAction
+import org.futo.inputmethod.latin.uix.actions.VoiceInputPersistentState
 import org.futo.inputmethod.latin.uix.actions.keyCode
 import org.futo.inputmethod.latin.uix.actions.keyCodeAlt
 import org.futo.inputmethod.latin.uix.resizing.KeyboardResizers
@@ -671,6 +672,13 @@ class UixManager(private val latinIME: LatinIME) {
             ActionRegistry.getActionOverride(latinIME, rawAction)
         }
 
+        // Windowless dictation: when simultaneous voice+typing is ON, run voice headless so the
+        // keyboard stays fully visible. Toggle OFF keeps the original windowed path below.
+        if (action == VoiceInputAction && latinIME.getSetting(VOICE_SIMULTANEOUS_TYPING)) {
+            startHeadlessVoiceSession(action)
+            return
+        }
+
         if (action.windowImpl != null) {
             enterActionWindowView(action)
         } else if (action.simplePressImpl != null) {
@@ -757,6 +765,29 @@ class UixManager(private val latinIME: LatinIME) {
                 )
             }
         }
+    }
+
+    // Monotonic input-session generation; voice results carrying a stale value are dropped by the
+    // coordinator. Bumped on inputStarted, stamped onto every voice intent.
+    private var voiceSessionGeneration = 0L
+
+    private fun startHeadlessVoiceSession(action: Action) {
+        if (persistentStates[action] == null) {
+            persistentStates[action] = action.persistentState?.let { it(keyboardManagerForAction) }
+        }
+        val state = persistentStates[action] as? VoiceInputPersistentState ?: return
+
+        // Mic key acts as a toggle: a second tap while listening finalizes the utterance.
+        if (state.headlessSession?.listening?.value == true) {
+            state.headlessSession?.stop()
+            return
+        }
+
+        if (action.keepScreenAwake) {
+            latinIME.window.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+
+        state.startHeadlessSession(voiceSessionGeneration)
     }
 
     private fun enterActionWindowView(action: Action) {
@@ -1671,6 +1702,11 @@ class UixManager(private val latinIME: LatinIME) {
 
         quickClipState.value = QuickClip.getCurrentState(latinIME)
         startVoiceInputPrebuffering()
+
+        // New input session: advance the voice generation and inform any live headless session so
+        // stale-generation voice results are dropped by the coordinator.
+        voiceSessionGeneration += 1
+        (persistentStates[VoiceInputAction] as? VoiceInputPersistentState)?.onNewInputSession(voiceSessionGeneration)
     }
 
     fun maybeAutoStartVoiceInput(restarting: Boolean) {
@@ -1689,6 +1725,7 @@ class UixManager(private val latinIME: LatinIME) {
 
     fun onInputFinishing() {
         closeActionWindow()
+        (persistentStates[VoiceInputAction] as? VoiceInputPersistentState)?.stopHeadlessSession()
         languageSwitcherDialog?.dismiss()
         isShowingActionEditor.value = false
         resizers.hideResizer()

@@ -77,11 +77,6 @@ class ActionInputTransactionIME(val helper: IMEHelper) : IMEInterface, ActionInp
             android.util.Log.w("ActionInputTxn", "updatePartial dropped — transaction finished: [$text]")
             return
         }
-        if (helper.context.getSetting(VOICE_SIMULTANEOUS_TYPING)) {
-            partialText = text
-            // ponytail: v1 suppresses live composing partials; add a multi-writer merge later.
-            return
-        }
         if (ic == null) {
             android.util.Log.w("ActionInputTxn", "updatePartial dropped — null InputConnection: [$text]")
             return

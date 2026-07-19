@@ -98,6 +98,7 @@ import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.setSetting
 import org.futo.inputmethod.latin.uix.settings.SettingsActivity
 import org.futo.inputmethod.latin.uix.utils.ModelOutputSanitizer
+import org.futo.inputmethod.latin.uix.voice.HeadlessVoiceSession
 import org.futo.inputmethod.latin.xlm.UserDictionaryObserver
 import org.futo.inputmethod.updates.openURI
 import org.futo.voiceinput.shared.ModelDoesNotExistException
@@ -159,11 +160,38 @@ class VoiceInputPersistentState(val manager: KeyboardManagerForAction) : Persist
     val soundPlayer = SoundPlayer(manager.getContext())
     val userDictionaryObserver = UserDictionaryObserver(manager.getContext())
 
+    /** Windowless dictation session, created lazily when simultaneous typing is ON. */
+    var headlessSession: HeadlessVoiceSession? = null
+        private set
+
+    /** Start (or restart) the windowless session for the given input-session generation. */
+    fun startHeadlessSession(generation: Long) {
+        val locales = manager.getActiveLocales()
+        val model = ResourceHelper.tryFindingVoiceInputModelForLocale(
+            manager.getContext(), locales.firstOrNull() ?: Locale.ROOT
+        ) ?: return
+
+        val session = headlessSession ?: HeadlessVoiceSession(manager, this).also { headlessSession = it }
+        session.start(model, locales, generation)
+    }
+
+    /** Forward an input-session generation bump to a live session (drops stale voice results). */
+    fun onNewInputSession(generation: Long) {
+        headlessSession?.onNewInputSession(generation)
+    }
+
+    /** Stop/discard the windowless session (e.g. editor finishing). */
+    fun stopHeadlessSession() {
+        headlessSession?.cancel()
+    }
+
     override suspend fun cleanUp() {
+        headlessSession?.cancel()
         modelManager.cleanUp()
     }
 
     override fun close() {
+        headlessSession?.cancel()
         runBlocking { modelManager.cleanUp() }
         userDictionaryObserver.unregister()
     }
