@@ -949,7 +949,7 @@ val VoiceInputAction = Action(icon = R.drawable.mic_fill,
     persistentState = { VoiceInputPersistentState(it) },
     windowImpl = { manager, persistentState ->
         val locales = manager.getActiveLocales()
-        val useBottomBarMode = manager.getContext().getSetting(VOICE_INPUT_BOTTOM_BAR_MODE)
+        val useBottomBarMode = manager.getContext().getSetting(VOICE_INPUT_BOTTOM_BAR_MODE) || manager.getContext().getSetting(VOICE_SIMULTANEOUS_TYPING)
 
         val model = ResourceHelper.tryFindingVoiceInputModelForLocale(manager.getContext(), locales.firstOrNull() ?: Locale.ROOT)
 

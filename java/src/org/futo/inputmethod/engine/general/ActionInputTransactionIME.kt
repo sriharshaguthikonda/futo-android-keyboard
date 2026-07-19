@@ -101,6 +101,10 @@ class ActionInputTransactionIME(val helper: IMEHelper) : IMEInterface, ActionInp
         if (isFinished) return
         helper.requestCursorUpdate()
         isFinished = true
+        if (helper.context.getSetting(VOICE_SIMULTANEOUS_TYPING)) {
+            // ponytail: finalize the shared composing span only for simultaneous typing.
+            ic?.finishComposingText()
+        }
         ic?.commitText(
             text,
             1
@@ -111,7 +115,11 @@ class ActionInputTransactionIME(val helper: IMEHelper) : IMEInterface, ActionInp
 
     override fun cancel() {
         helper.requestCursorUpdate()
-        commit(partialText)
+        if (helper.context.getSetting(VOICE_SIMULTANEOUS_TYPING)) {
+            helper.endInputTransaction(this)
+        } else {
+            commit(partialText)
+        }
         (ic as? InputConnectionInternalComposingWrapper)?.send()
     }
 
