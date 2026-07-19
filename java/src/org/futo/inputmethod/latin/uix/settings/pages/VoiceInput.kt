@@ -19,6 +19,7 @@ import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.START_VOICE_ON_OPEN
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_CHANNEL_MODE
+import org.futo.inputmethod.latin.uix.VOICE_SIMULTANEOUS_TYPING
 import org.futo.inputmethod.latin.uix.LOCAL_VOICE_BACKEND
 import org.futo.inputmethod.latin.uix.settings.NavigationItemStyle
 import org.futo.inputmethod.latin.uix.settings.SettingRadio
@@ -157,6 +158,12 @@ val VoiceInputMenu = UserSettingsMenu(
             title = R.string.voice_input_settings_bottom_bar_mode,
             subtitle = R.string.voice_input_settings_bottom_bar_mode_subtitle,
             setting = VOICE_INPUT_BOTTOM_BAR_MODE
+        ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
+
+        userSettingToggleDataStore(
+            title = R.string.voice_input_settings_simultaneous_typing,
+            subtitle = R.string.voice_input_settings_simultaneous_typing_subtitle,
+            setting = VOICE_SIMULTANEOUS_TYPING
         ).copy(visibilityCheck = visibilityCheckNotSystemVoiceInput),
 
         userSettingToggleDataStore(

@@ -18,6 +18,7 @@ import org.futo.inputmethod.latin.settings.Settings
 import org.futo.inputmethod.latin.settings.SettingsValues
 import org.futo.inputmethod.latin.uix.ActionInputTransaction
 import org.futo.inputmethod.latin.uix.SettingsKey
+import org.futo.inputmethod.latin.uix.VOICE_SIMULTANEOUS_TYPING
 import org.futo.inputmethod.latin.uix.actions.throwIfDebug
 import org.futo.inputmethod.latin.uix.dataStore
 import org.futo.inputmethod.latin.uix.deferSetSetting
@@ -72,7 +73,9 @@ class IMEManager(
     fun getActiveIME(
         settingsValues: SettingsValues,
     ): IMEInterface {
-        currentActionInputTransactionIME?.let { return it }
+        currentActionInputTransactionIME?.let {
+            if (!currentActionInputTransactionSimultaneous) return it
+        }
 
         val kind = getActiveIMEKind(settingsValues)
 
@@ -154,6 +157,7 @@ class IMEManager(
     }
 
     private var currentActionInputTransactionIME: ActionInputTransactionIME? = null
+    private var currentActionInputTransactionSimultaneous = false
     fun createInputTransaction(): ActionInputTransaction {
         if(currentActionInputTransactionIME != null) {
             throwIfDebug(IllegalStateException("Cannot create an input transaction while one is already active."))
@@ -163,9 +167,11 @@ class IMEManager(
             throwIfDebug(IllegalStateException("Cannot create an input transaction while outside of input."))
         }
 
+        val simultaneous = service.getSetting(VOICE_SIMULTANEOUS_TYPING)
         val existingIme = getActiveIME(settings.current)
         val ime = ActionInputTransactionIME(helper)
         currentActionInputTransactionIME = ime
+        currentActionInputTransactionSimultaneous = simultaneous
 
         var selectionUpdated = false
         prevSelection?.apply {
@@ -190,7 +196,9 @@ class IMEManager(
             )
         }
 
-        existingIme.onFinishInput()
+        if (!simultaneous) {
+            existingIme.onFinishInput()
+        }
 
         return ime
     }
@@ -215,11 +223,13 @@ class IMEManager(
 
     fun endInputTransaction(inputTransactionIME: ActionInputTransactionIME) {
         if(inputTransactionIME == currentActionInputTransactionIME) {
+            val simultaneous = currentActionInputTransactionSimultaneous
             currentActionInputTransactionIME = null
+            currentActionInputTransactionSimultaneous = false
 
             inputTransactionIME.ensureFinished()
 
-            if (inInput) {
+            if (inInput && !simultaneous) {
                 val existingIme = getActiveIME(settings.current)
                 startIme(existingIme)
             }
@@ -253,6 +263,13 @@ class IMEManager(
                 s.newSelStart, s.newSelEnd,
                 s.composingSpanStart, s.composingSpanEnd
             )
+            if (currentActionInputTransactionSimultaneous) {
+                currentActionInputTransactionIME?.onUpdateSelection(
+                    s.oldSelStart, s.oldSelEnd,
+                    s.newSelStart, s.newSelEnd,
+                    s.composingSpanStart, s.composingSpanEnd
+                )
+            }
         }
         pendingUpdateSelection = null
     }
@@ -276,6 +293,13 @@ class IMEManager(
                     newSelStart, newSelEnd,
                     composingSpanStart, composingSpanEnd
                 )
+                if (currentActionInputTransactionSimultaneous) {
+                    currentActionInputTransactionIME?.onUpdateSelection(
+                        oldSelStart, oldSelEnd,
+                        newSelStart, newSelEnd,
+                        composingSpanStart, composingSpanEnd
+                    )
+                }
                 pendingUpdateSelection = null
             }
         } to sel

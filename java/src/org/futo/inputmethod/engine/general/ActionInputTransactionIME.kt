@@ -10,6 +10,7 @@ import org.futo.inputmethod.latin.VoiceInputAlternativeICComposing
 import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.common.InputPointers
 import org.futo.inputmethod.latin.uix.ActionInputTransaction
+import org.futo.inputmethod.latin.uix.VOICE_SIMULTANEOUS_TYPING
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.utils.TextContext
 import org.futo.inputmethod.v2keyboard.KeyboardLayoutSetV2
@@ -74,6 +75,11 @@ class ActionInputTransactionIME(val helper: IMEHelper) : IMEInterface, ActionInp
     override fun updatePartial(text: String) {
         if (isFinished) {
             android.util.Log.w("ActionInputTxn", "updatePartial dropped — transaction finished: [$text]")
+            return
+        }
+        if (helper.context.getSetting(VOICE_SIMULTANEOUS_TYPING)) {
+            partialText = text
+            // ponytail: v1 suppresses live composing partials; add a multi-writer merge later.
             return
         }
         if (ic == null) {

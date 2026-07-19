@@ -632,6 +632,8 @@
 
     <string name="voice_input_settings_bottom_bar_mode">Floating bar mode</string>
     <string name="voice_input_settings_bottom_bar_mode_subtitle">Show voice input as a minimal floating bar at the bottom, giving you more screen space</string>
+    <string name="voice_input_settings_simultaneous_typing">Simultaneous voice + typing (experimental)</string>
+    <string name="voice_input_settings_simultaneous_typing_subtitle">Keep the keyboard usable while dictating. Live partial preview is disabled in this mode.</string>
 
     <string name="voice_input_settings_use_groq">Use Groq Whisper</string>
     <string name="voice_input_settings_groq_config">Groq Voice API Settings</string>

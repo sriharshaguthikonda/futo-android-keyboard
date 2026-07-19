@@ -92,6 +92,7 @@ import org.futo.inputmethod.latin.uix.USE_GPU_OFFLOAD
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_BOTTOM_BAR_MODE
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_CHANNEL_MODE
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_PREBUFFER_SECONDS
+import org.futo.inputmethod.latin.uix.VOICE_SIMULTANEOUS_TYPING
 import org.futo.inputmethod.latin.uix.LocalKeyboardScheme
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.setSetting
@@ -399,8 +400,7 @@ private class VoiceInputBottomBarWindow(
 ) : ActionWindow(), RecognizerViewListener {
     val context = manager.getContext()
 
-    // Hide the keyboard and show only this minimal bar at the bottom
-    override val onlyShowAboveKeyboard: Boolean = false
+    override val onlyShowAboveKeyboard: Boolean = context.getSetting(VOICE_SIMULTANEOUS_TYPING)
     override val showCloseButton: Boolean = false
     override val fixedWindowHeight: Dp = 88.dp
     override val showHeaderBar: Boolean = false

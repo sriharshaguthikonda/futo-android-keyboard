@@ -115,6 +115,11 @@ val VOICE_INPUT_BOTTOM_BAR_MODE = SettingsKey(
     default = true
 )
 
+val VOICE_SIMULTANEOUS_TYPING = SettingsKey(
+    key = booleanPreferencesKey("voice_simultaneous_typing"),
+    default = false
+)
+
 val USE_PERSONAL_DICT = SettingsKey(
     key = booleanPreferencesKey("use_personal_dict_voice_input"),
     default = true
