@@ -27,6 +27,21 @@ class TextEditCoordinatorTest {
     }
 
     @Test
+    fun freezeDoesNotDuplicateContinuingHypothesis() {
+        val sink = RecordingEditSink()
+        val coordinator = TextEditCoordinator(sink)
+
+        // Mid-dictation the user types a key; the recognizer keeps streaming the SAME transcript.
+        coordinator.submit(EditIntent.VoiceSnapshot("hello wor"), generation = 0)
+        coordinator.submit(EditIntent.KeyboardComposingStarted, generation = 0)
+        coordinator.submit(EditIntent.VoiceSnapshot("hello world today"), generation = 0)
+
+        // Only the NEW suffix may be committed — never the whole hypothesis again.
+        assertEquals(listOf("hello wor", "ld today"), sink.replacements)
+        assertEquals(1, sink.freezeCount)
+    }
+
+    @Test
     fun midWordFragmentIsNeverFrozen() {
         val sink = RecordingEditSink()
         val coordinator = TextEditCoordinator(sink)

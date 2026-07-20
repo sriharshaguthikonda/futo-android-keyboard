@@ -31,14 +31,15 @@ class TextEditCoordinator(private val sink: EditSink) {
                 sink.freezeVoiceTail()
                 resetTracking()
             }
-            EditIntent.KeyboardComposingStarted -> freezeAndReset()
+            EditIntent.KeyboardComposingStarted -> freezeTail()
             EditIntent.KeyboardWordCommitted -> Unit
             is EditIntent.SelectionChanged -> {
-                if (intent.userInitiated && intent.start == intent.end) freezeAndReset()
+                if (intent.userInitiated && intent.start == intent.end) freezeTail()
             }
             is EditIntent.NewInputSession -> {
                 currentGeneration = intent.generation
-                freezeAndReset()
+                sink.freezeVoiceTail()
+                resetTracking()
             }
         }
     }
@@ -70,9 +71,17 @@ class TextEditCoordinator(private val sink: EditSink) {
         mutableTail = fullHypothesis.removePrefix(stablePrefix)
     }
 
-    private fun freezeAndReset() {
+    /**
+     * Touch interrupted dictation: the current tail becomes permanent field content, but the
+     * recognizer keeps streaming the SAME full transcript. Preserve everything already written
+     * (stablePrefix + mutableTail) as the prefix to strip from later snapshots — resetting it
+     * would re-commit the entire hypothesis and duplicate text in the field.
+     */
+    private fun freezeTail() {
         sink.freezeVoiceTail()
-        resetTracking()
+        stablePrefix += mutableTail
+        mutableTail = ""
+        recentSnapshots.clear()
     }
 
     private fun resetTracking() {
