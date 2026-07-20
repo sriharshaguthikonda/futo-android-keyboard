@@ -77,6 +77,14 @@ class HeadlessVoiceSession(
 
     private var recognizerView: RecognizerView? = null
 
+    // --- VAD keep-listening state (main-thread only) ---
+    /** True when stop()/cancel() ended the burst; false means finished() came from VAD auto-stop. */
+    private var userRequestedStop = false
+    /** Generation the current burst was started under; a mismatch means the field changed. */
+    private var burstGeneration = 0L
+    /** Two consecutive empty finals = silence loop → stop auto-restarting. */
+    private var consecutiveEmptyFinals = 0
+
     /**
      * Advance to a new input-session generation. Submitted with the OLD generation so it passes the
      * coordinator's stale-drop guard, which then adopts [newGeneration] and freezes the tail.
@@ -103,6 +111,18 @@ class HeadlessVoiceSession(
             return
         }
 
+        userRequestedStop = false
+        consecutiveEmptyFinals = 0
+        burstGeneration = generation
+        startBurst(view)
+    }
+
+    /**
+     * Fresh recognizer burst: same sequence for user start and VAD auto-restart. reset() bumps
+     * the recognizer's sessionId (dropping any straggler callbacks from the previous burst) and
+     * releases the stopped recorder, so it is safe to call right after finished() fired.
+     */
+    private fun startBurst(view: RecognizerView) {
         val prebufferSnapshot = manager.getVoiceInputPrebufferSnapshot()
         manager.stopVoiceInputPrebuffering()
         view.reset()
@@ -112,11 +132,13 @@ class HeadlessVoiceSession(
 
     /** Finalize the current utterance (mic tap / done). */
     fun stop() {
+        userRequestedStop = true
         recognizerView?.finish()
     }
 
     /** Discard the current utterance without committing the unstable tail. */
     fun cancel() {
+        userRequestedStop = true
         recognizerView?.cancel()
     }
 
@@ -208,7 +230,22 @@ class HeadlessVoiceSession(
     override fun finished(result: String) {
         onMain {
             coordinator.submit(EditIntent.VoiceFinal(result), generation)
-            listeningState.value = false
+
+            if (result.isBlank()) consecutiveEmptyFinals++ else consecutiveEmptyFinals = 0
+
+            // VAD auto-stop (not user/cancel/input-finishing): finalize but KEEP LISTENING —
+            // restart a fresh burst so dictation continues across pauses. Guards: session still
+            // current (generation unchanged), a view to restart, and no silence loop.
+            val view = recognizerView
+            if (!userRequestedStop && view != null &&
+                generation == burstGeneration &&
+                consecutiveEmptyFinals < MAX_CONSECUTIVE_EMPTY_FINALS
+            ) {
+                android.util.Log.d("HeadlessVoiceSession", "VAD finalize -> auto-restart burst")
+                startBurst(view) // listeningState stays true: mic glow must not blink off
+            } else {
+                listeningState.value = false
+            }
         }
     }
 
@@ -245,6 +282,7 @@ class HeadlessVoiceSession(
 
     private companion object {
         const val MAX_PENDING_DELTAS = 64
+        const val MAX_CONSECUTIVE_EMPTY_FINALS = 2
     }
 
     private fun loadSettings(model: ModelLoader, locales: List<Locale>): RecognizerViewSettings {
