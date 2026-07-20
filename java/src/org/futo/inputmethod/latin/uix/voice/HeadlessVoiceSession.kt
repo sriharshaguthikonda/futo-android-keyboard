@@ -192,7 +192,10 @@ class HeadlessVoiceSession(
     // --- RecognizerViewListener: intents only, never InputConnection ---
 
     override fun recordingStarted(device: MicrophoneDeviceState) {
-        onMain { listeningState.value = true }
+        onMain {
+            android.util.Log.d("HeadlessVoiceSession", "listening -> true (recordingStarted)")
+            listeningState.value = true
+        }
     }
 
     override fun partialResult(result: String) {

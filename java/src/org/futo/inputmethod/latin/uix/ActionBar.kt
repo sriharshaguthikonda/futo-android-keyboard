@@ -502,24 +502,29 @@ private fun isMicDictating(action: Action): Boolean =
             && LocalManager.current.isHeadlessVoiceListening()
 
 /**
- * Scale-pulse for the mic icon while dictating. The infinite transition is only created while
- * [active]; when idle this returns the receiver unchanged (zero cost, identical rendering).
+ * 0→1→0 pulse fraction while dictating. The infinite transition only exists while [active];
+ * idle returns a constant 0 (zero cost, identical rendering).
  */
 @Composable
-private fun Modifier.micPulse(active: Boolean): Modifier = if (!active) this else {
+private fun micPulseFraction(active: Boolean): Float = if (!active) 0f else {
     val transition = rememberInfiniteTransition(label = "micPulse")
-    val pulseScale by transition.animateFloat(
-        initialValue = 1.0f,
-        targetValue = 1.15f,
+    val fraction by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(600),
+            animation = tween(500),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "micPulseScale"
+        label = "micPulseFraction"
     )
-    this.graphicsLayer {
-        scaleX = pulseScale
-        scaleY = pulseScale
+    fraction
+}
+
+/** Scale-pulse for the mic icon while dictating; identity when [pulse] is 0. */
+private fun Modifier.micPulse(pulse: Float): Modifier = if (pulse == 0f) this else {
+    graphicsLayer {
+        scaleX = 1f + 0.25f * pulse
+        scaleY = 1f + 0.25f * pulse
     }
 }
 
@@ -533,6 +538,7 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
         else -> false
     }
     val isDictating = isMicDictating(action)
+    val pulse = micPulseFraction(isDictating)
 
     val modifier = Modifier
         .width(width)
@@ -542,16 +548,29 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
     val borderColor = scheme.primary
     val borderWidth = 2.dp
 
-    val contentCol = if (isActive || isDictating) {
+    val contentCol = if (isDictating) {
+        MaterialTheme.colorScheme.onPrimary
+    } else if (isActive) {
         scheme.primary
     } else {
         MaterialTheme.colorScheme.onBackground
     }
 
+    val dictatingRadius = with(LocalDensity.current) { 20.dp.toPx() }
+
     Box(modifier = modifier
         .clip(CircleShape)
         .then(
-            if (isActive) {
+            if (isDictating) {
+                // Unmissable recording indicator: filled primary circle pulsing in size + alpha.
+                Modifier.drawBehind {
+                    drawCircle(
+                        color = borderColor.copy(alpha = 0.55f + 0.45f * pulse),
+                        radius = dictatingRadius * (1f + 0.2f * pulse),
+                        style = Fill
+                    )
+                }
+            } else if (isActive) {
                 Modifier.border(borderWidth, borderColor, CircleShape)
             } else {
                 Modifier
@@ -564,7 +583,7 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
             painter = painterResource(id = action.icon),
             contentDescription = stringResource(action.name),
             tint = contentCol,
-            modifier = Modifier.size(20.dp).micPulse(isDictating),
+            modifier = Modifier.size(20.dp).micPulse(pulse),
         )
     }
 }
@@ -578,10 +597,18 @@ fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (A
         else -> false
     }
     val isDictating = isMicDictating(action)
+    val pulse = micPulseFraction(isDictating)
 
-    val bgCol = if (isActive) scheme.keyboardContainerPressed else scheme.keyboardContainer
+    val bgCol = if (isDictating) {
+        // Unmissable recording indicator: the key's circle becomes a pulsing primary fill.
+        scheme.primary.copy(alpha = 0.55f + 0.45f * pulse)
+    } else if (isActive) {
+        scheme.keyboardContainerPressed
+    } else {
+        scheme.keyboardContainer
+    }
     val fgCol = if (isDictating) {
-        scheme.primary
+        MaterialTheme.colorScheme.onPrimary
     } else if (isActive && scheme.onKeyboardContainerPressed != Color.Transparent) {
         scheme.onKeyboardContainerPressed
     } else {
@@ -600,7 +627,7 @@ fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (A
         .drawBehind {
             drawCircle(
                 color = bgCol,
-                radius = circleRadius,
+                radius = if (isDictating) circleRadius * (1f + 0.25f * pulse) else circleRadius,
                 style = Fill
             )
             if (isActive) {
@@ -623,7 +650,7 @@ fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (A
             painter = painterResource(id = action.icon),
             contentDescription = stringResource(action.name),
             tint = fgCol,
-            modifier = Modifier.size(16.dp).micPulse(isDictating)
+            modifier = Modifier.size(16.dp).micPulse(pulse)
         )
     }
 }
