@@ -56,8 +56,16 @@ class HeadlessVoiceSession(
     private val context = manager.getContext()
     private val scope = manager.getLifecycleScope()
 
-    private val sink = VoiceTailSink(manager)
+    private val sink = VoiceTailSink(manager) { delta -> onVoiceEditApplied(delta) }
     private val coordinator = TextEditCoordinator(sink)
+
+    /**
+     * Cursor-position deltas produced by our own tail writes, awaiting their matching
+     * onUpdateSelection callbacks. Used to tell voice-caused selection changes apart from
+     * user-initiated ones (see [isVoiceCausedSelection]). Main-thread only (all writers run
+     * through [onMain]/the IME main thread).
+     */
+    private val pendingVoiceEditDeltas = ArrayDeque<Int>()
 
     /** The input-session generation currently stamped on every intent. Mirrors the coordinator. */
     private var generation = 0L
@@ -116,6 +124,71 @@ class HeadlessVoiceSession(
         scope.launch(Dispatchers.Main.immediate) { block() }
     }
 
+    // --- Touch-coexistence hooks (SAFE policy) ---
+    // Called from the IME layer ONLY while this session is listening (callers reach us through
+    // UixManager.getListeningVoiceSession(), which returns null otherwise). They go through the
+    // same onMain path as the recognizer callbacks so intent ordering stays serial.
+
+    /** Touch started/updated the composing region → freeze the voice tail. */
+    fun onKeyboardComposingStarted() {
+        onMain { coordinator.submit(EditIntent.KeyboardComposingStarted, generation) }
+    }
+
+    /** Touch committed a word (commitText/finishComposingText cleared nonempty composing text). */
+    fun onKeyboardWordCommitted() {
+        onMain { coordinator.submit(EditIntent.KeyboardWordCommitted, generation) }
+    }
+
+    /** Raw selection change from IMEManager.onUpdateSelection (pre-debounce). */
+    fun onSelectionChanged(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int) {
+        onMain {
+            val userInitiated = !isVoiceCausedSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd)
+            coordinator.submit(
+                EditIntent.SelectionChanged(newSelStart, newSelEnd, userInitiated), generation
+            )
+        }
+    }
+
+    private fun onVoiceEditApplied(delta: Int) {
+        pendingVoiceEditDeltas.addLast(delta)
+        // Some editors never deliver selection callbacks; cap so the queue cannot grow unbounded.
+        while (pendingVoiceEditDeltas.size > MAX_PENDING_DELTAS) pendingVoiceEditDeltas.removeFirst()
+    }
+
+    /**
+     * Voice writes its tail through the raw InputConnection, so RichInputConnection's
+     * expected-selection tracking cannot vouch for those cursor moves. Instead, match the observed
+     * collapsed-cursor delta against the queue of deltas our own tail writes produced (editors may
+     * coalesce several batch edits into one callback, hence the prefix-sum walk). Everything that
+     * does not match is treated as user-initiated: freezing the tail is the safe default — only our
+     * OWN writes must not freeze it, because a freeze between two snapshots would re-commit the
+     * whole hypothesis and duplicate text in the field.
+     */
+    private fun isVoiceCausedSelection(
+        oldStart: Int, oldEnd: Int, newStart: Int, newEnd: Int
+    ): Boolean {
+        // No movement at all (some editors re-send the current selection): nothing to freeze.
+        if (newStart == oldStart && newEnd == oldEnd) return true
+        if (newStart != newEnd || oldStart != oldEnd) {
+            // A non-collapsed selection is never produced by our tail writes → user-initiated.
+            pendingVoiceEditDeltas.clear()
+            return false
+        }
+        val observed = newEnd - oldEnd
+        var sum = 0
+        var count = 0
+        for (delta in pendingVoiceEditDeltas) {
+            sum += delta
+            count++
+            if (sum == observed) {
+                repeat(count) { pendingVoiceEditDeltas.removeFirst() }
+                return true
+            }
+        }
+        pendingVoiceEditDeltas.clear()
+        return false
+    }
+
     // --- RecognizerViewListener: intents only, never InputConnection ---
 
     override fun recordingStarted(device: MicrophoneDeviceState) {
@@ -166,6 +239,10 @@ class HeadlessVoiceSession(
 
     override fun openSettings() {
         // Headless mode has no settings affordance; no-op.
+    }
+
+    private companion object {
+        const val MAX_PENDING_DELTAS = 64
     }
 
     private fun loadSettings(model: ModelLoader, locales: List<Locale>): RecognizerViewSettings {
@@ -235,7 +312,11 @@ class HeadlessVoiceSession(
  * never holds an offset across a cursor move) and avoids fragile cross-app absolute-offset reads.
  * Absolute range tracking against the InputLogic RichInputConnection is the Step-2 upgrade path.
  */
-private class VoiceTailSink(private val manager: KeyboardManagerForAction) : EditSink {
+private class VoiceTailSink(
+    private val manager: KeyboardManagerForAction,
+    /** Notified with the net cursor delta of every applied tail write (for selection matching). */
+    private val onEditApplied: (delta: Int) -> Unit
+) : EditSink {
     // Length of the current replaceable tail that sits immediately before the cursor.
     private var tailLen = 0
 
@@ -243,11 +324,13 @@ private class VoiceTailSink(private val manager: KeyboardManagerForAction) : Edi
 
     override fun replaceVoiceTail(text: String) {
         val connection = ic ?: return
+        val delta = text.length - tailLen
         connection.beginBatchEdit()
         if (tailLen > 0) connection.deleteSurroundingText(tailLen, 0)
         if (text.isNotEmpty()) connection.commitText(text, 1)
         tailLen = text.length
         connection.endBatchEdit()
+        if (delta != 0) onEditApplied(delta)
     }
 
     override fun freezeVoiceTailPrefix(length: Int) {

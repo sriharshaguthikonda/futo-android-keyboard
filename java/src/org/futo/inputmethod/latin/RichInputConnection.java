@@ -32,6 +32,7 @@ import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 
 import org.futo.inputmethod.compat.InputConnectionCompatUtils;
+import org.futo.inputmethod.engine.IMEHelper;
 import org.futo.inputmethod.engine.InputMethodConnectionProvider;
 import org.futo.inputmethod.latin.common.Constants;
 import org.futo.inputmethod.latin.common.UnicodeSurrogate;
@@ -47,6 +48,7 @@ import org.futo.inputmethod.latin.utils.ScriptUtils;
 import org.futo.inputmethod.latin.utils.SpannableStringUtils;
 import org.futo.inputmethod.latin.utils.StatsUtils;
 import org.futo.inputmethod.latin.utils.TextRange;
+import org.futo.inputmethod.latin.uix.voice.HeadlessVoiceSession;
 
 import java.util.concurrent.TimeUnit;
 
@@ -321,9 +323,29 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         }
     }
 
+    /**
+     * Touch typing-coexistence bridge: the live headless dictation session, but ONLY while it is
+     * actually listening; null otherwise. When this returns null the composing/word-commit hooks
+     * below are strict no-ops, so normal typing behavior is unchanged when voice is idle.
+     * In production {@link #mConnectionProvider} is always the concrete {@link IMEHelper}; other
+     * providers (test mocks) simply have no voice session.
+     */
+    @Nullable
+    private HeadlessVoiceSession getListeningVoiceSession() {
+        if (mConnectionProvider instanceof IMEHelper) {
+            return ((IMEHelper) mConnectionProvider).getListeningVoiceSession();
+        }
+        return null;
+    }
+
     public void finishComposingText() {
         if (DEBUG_BATCH_NESTING) checkBatchEdit();
         if (DEBUG_PREVIOUS_TEXT) checkConsistencyForDebug();
+        if (mComposingText.length() > 0) {
+            // Voice typing-coexistence: finishing nonempty composing text = a touch word landed.
+            final HeadlessVoiceSession voiceSession = getListeningVoiceSession();
+            if (voiceSession != null) voiceSession.onKeyboardWordCommitted();
+        }
         // TODO: this is not correct! The cursor is not necessarily after the composing text.
         // In the practice right now this is only called when input ends so it will be reset so
         // it works, but it's wrong and should be fixed.
@@ -343,6 +365,12 @@ public final class RichInputConnection implements PrivateCommandPerformer {
     public void commitText(final CharSequence text, final int newCursorPosition) {
         if (DEBUG_BATCH_NESTING) checkBatchEdit();
         if (DEBUG_PREVIOUS_TEXT) checkConsistencyForDebug();
+        if (mComposingText.length() > 0) {
+            // Voice typing-coexistence: committing over nonempty composing text = a touch word
+            // landed (typed word + separator, suggestion pick, autocorrect).
+            final HeadlessVoiceSession voiceSession = getListeningVoiceSession();
+            if (voiceSession != null) voiceSession.onKeyboardWordCommitted();
+        }
         mCommittedTextBeforeComposingText.append(text);
         // TODO: the following is exceedingly error-prone. Right now when the cursor is in the
         // middle of the composing word mComposingText only holds the part of the composing text
@@ -655,6 +683,11 @@ public final class RichInputConnection implements PrivateCommandPerformer {
     public void setComposingText(final CharSequence text, final int newCursorPosition) {
         if (DEBUG_BATCH_NESTING) checkBatchEdit();
         if (DEBUG_PREVIOUS_TEXT) checkConsistencyForDebug();
+        {
+            // Voice typing-coexistence: touch is composing → freeze the voice tail (SAFE policy).
+            final HeadlessVoiceSession voiceSession = getListeningVoiceSession();
+            if (voiceSession != null) voiceSession.onKeyboardComposingStarted();
+        }
         mExpectedSelStart += text.length() - mComposingText.length();
         mExpectedSelEnd = mExpectedSelStart;
         mComposingText.setLength(0);

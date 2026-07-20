@@ -11,6 +11,7 @@ import org.futo.inputmethod.keyboard.KeyboardSwitcher
 import org.futo.inputmethod.latin.LatinIME
 import org.futo.inputmethod.latin.SuggestedWords
 import org.futo.inputmethod.latin.settings.Settings
+import org.futo.inputmethod.latin.uix.voice.HeadlessVoiceSession
 
 interface InputMethodConnectionProvider {
     fun getCurrentInputConnection(): InputConnection?
@@ -111,4 +112,12 @@ class IMEHelper(
     fun getUixManager() = latinIME.uixManager
 
     fun getLatinIME() = latinIME
+
+    /**
+     * Live windowless dictation session, only while it is actually listening; null otherwise.
+     * Bridge used by RichInputConnection's touch-coexistence hooks — they must treat null as
+     * "do nothing" so typing behavior is unchanged when voice is idle.
+     */
+    fun getListeningVoiceSession(): HeadlessVoiceSession? =
+        latinIME.uixManager.getListeningVoiceSession()
 }

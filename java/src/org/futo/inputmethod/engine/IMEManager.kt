@@ -282,6 +282,12 @@ class IMEManager(
         composingSpanStart: Int,
         composingSpanEnd: Int
     ) {
+        // Voice typing-coexistence: forward raw selection changes to a live headless dictation
+        // session BEFORE the 20 ms debounce below, so the voice tail freezes on user cursor moves
+        // without delay. Strict no-op (null) when no session is listening.
+        service.uixManager.getListeningVoiceSession()
+            ?.onSelectionChanged(oldSelStart, oldSelEnd, newSelStart, newSelEnd)
+
         val sel = Selection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, composingSpanStart, composingSpanEnd, currHash())
         pendingUpdateSelection?.first?.cancel()
         pendingUpdateSelection = service.lifecycleScope.launch {

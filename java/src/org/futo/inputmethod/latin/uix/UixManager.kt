@@ -130,6 +130,7 @@ import org.futo.inputmethod.latin.uix.actions.VoiceInputPersistentState
 import org.futo.inputmethod.latin.uix.actions.keyCode
 import org.futo.inputmethod.latin.uix.actions.keyCodeAlt
 import org.futo.inputmethod.latin.uix.resizing.KeyboardResizers
+import org.futo.inputmethod.latin.uix.voice.HeadlessVoiceSession
 import org.futo.inputmethod.latin.uix.settings.DataStoreCacheProvider
 import org.futo.inputmethod.latin.uix.settings.pages.ActionBarDisplayedSetting
 import org.futo.inputmethod.latin.uix.settings.pages.InlineAutofillSetting
@@ -770,6 +771,15 @@ class UixManager(private val latinIME: LatinIME) {
     // Monotonic input-session generation; voice results carrying a stale value are dropped by the
     // coordinator. Bumped on inputStarted, stamped onto every voice intent.
     private var voiceSessionGeneration = 0L
+
+    /**
+     * The headless dictation session, but ONLY while it is actively listening; null otherwise.
+     * This is the single gate for the touch-coexistence hooks (RichInputConnection/IMEManager):
+     * when it returns null those hooks are strict no-ops, keeping normal typing unchanged.
+     */
+    fun getListeningVoiceSession(): HeadlessVoiceSession? =
+        (persistentStates[VoiceInputAction] as? VoiceInputPersistentState)
+            ?.headlessSession?.takeIf { it.listening.value }
 
     private fun startHeadlessVoiceSession(action: Action) {
         if (persistentStates[action] == null) {
