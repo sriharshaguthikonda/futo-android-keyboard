@@ -118,6 +118,12 @@ interface KeyboardManagerForAction {
     fun startVoiceInputPrebuffering()
     fun stopVoiceInputPrebuffering()
     fun getVoiceInputPrebufferSnapshot(): FloatArray
+
+    /**
+     * True while the windowless (headless) voice session is actively listening.
+     * Compose-observable: backed by snapshot state, so reads inside composition recompose.
+     */
+    fun isHeadlessVoiceListening(): Boolean = false
 }
 
 enum class CloseResult {

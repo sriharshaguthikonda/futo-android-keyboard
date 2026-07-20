@@ -5,7 +5,12 @@ import android.content.Context
 import android.os.Build
 import android.view.View
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -70,6 +75,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
@@ -122,6 +128,7 @@ import org.futo.inputmethod.latin.uix.actions.FavoriteActions
 import org.futo.inputmethod.latin.uix.actions.MoreActionsAction
 import org.futo.inputmethod.latin.uix.actions.PinnedActions
 import org.futo.inputmethod.latin.uix.actions.VoiceAutoStartAction
+import org.futo.inputmethod.latin.uix.actions.VoiceInputAction
 import org.futo.inputmethod.latin.uix.actions.toActionList
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
@@ -488,6 +495,34 @@ fun RowScope.SuggestionItems(words: SuggestedWords, onClick: (i: Int) -> Unit, o
     }
 }
 
+/** True only for the mic key while the windowless voice session is actively listening. */
+@Composable
+private fun isMicDictating(action: Action): Boolean =
+    action == VoiceInputAction && !LocalInspectionMode.current
+            && LocalManager.current.isHeadlessVoiceListening()
+
+/**
+ * Scale-pulse for the mic icon while dictating. The infinite transition is only created while
+ * [active]; when idle this returns the receiver unchanged (zero cost, identical rendering).
+ */
+@Composable
+private fun Modifier.micPulse(active: Boolean): Modifier = if (!active) this else {
+    val transition = rememberInfiniteTransition(label = "micPulse")
+    val pulseScale by transition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "micPulseScale"
+    )
+    this.graphicsLayer {
+        scaleX = pulseScale
+        scaleY = pulseScale
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Unit, onLongSelect: (Action) -> Unit) {
@@ -497,6 +532,7 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
         VoiceAutoStartAction -> useDataStoreValue(START_VOICE_ON_OPEN)
         else -> false
     }
+    val isDictating = isMicDictating(action)
 
     val modifier = Modifier
         .width(width)
@@ -506,7 +542,7 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
     val borderColor = scheme.primary
     val borderWidth = 2.dp
 
-    val contentCol = if (isActive) {
+    val contentCol = if (isActive || isDictating) {
         scheme.primary
     } else {
         MaterialTheme.colorScheme.onBackground
@@ -528,7 +564,7 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
             painter = painterResource(id = action.icon),
             contentDescription = stringResource(action.name),
             tint = contentCol,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(20.dp).micPulse(isDictating),
         )
     }
 }
@@ -541,9 +577,12 @@ fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (A
         VoiceAutoStartAction -> useDataStoreValue(START_VOICE_ON_OPEN)
         else -> false
     }
+    val isDictating = isMicDictating(action)
 
     val bgCol = if (isActive) scheme.keyboardContainerPressed else scheme.keyboardContainer
-    val fgCol = if (isActive && scheme.onKeyboardContainerPressed != Color.Transparent) {
+    val fgCol = if (isDictating) {
+        scheme.primary
+    } else if (isActive && scheme.onKeyboardContainerPressed != Color.Transparent) {
         scheme.onKeyboardContainerPressed
     } else {
         scheme.onKeyboardContainer
@@ -584,7 +623,7 @@ fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (A
             painter = painterResource(id = action.icon),
             contentDescription = stringResource(action.name),
             tint = fgCol,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(16.dp).micPulse(isDictating)
         )
     }
 }

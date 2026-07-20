@@ -581,6 +581,9 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
     override fun getVoiceInputPrebufferSnapshot(): FloatArray {
         return uixManager.getVoiceInputPrebufferSnapshot()
     }
+
+    override fun isHeadlessVoiceListening(): Boolean =
+        uixManager.isHeadlessVoiceListening()
 }
 
 data class ActiveDialogRequest(
@@ -781,6 +784,15 @@ class UixManager(private val latinIME: LatinIME) {
         (persistentStates[VoiceInputAction] as? VoiceInputPersistentState)
             ?.headlessSession?.takeIf { it.listening.value }
 
+    // Observable handle to the headless session's `listening` state. Both layers are snapshot
+    // state, so a composable reading isHeadlessVoiceListening() recomposes when the session is
+    // first created AND when listening flips. Null until the first headless session starts.
+    private val headlessVoiceListeningState =
+        mutableStateOf<androidx.compose.runtime.State<Boolean>?>(null)
+
+    /** Compose-observable: true while the headless voice session is actively listening. */
+    fun isHeadlessVoiceListening(): Boolean = headlessVoiceListeningState.value?.value == true
+
     private fun startHeadlessVoiceSession(action: Action) {
         if (persistentStates[action] == null) {
             persistentStates[action] = action.persistentState?.let { it(keyboardManagerForAction) }
@@ -798,6 +810,7 @@ class UixManager(private val latinIME: LatinIME) {
         }
 
         state.startHeadlessSession(voiceSessionGeneration)
+        headlessVoiceListeningState.value = state.headlessSession?.listening
     }
 
     private fun enterActionWindowView(action: Action) {
