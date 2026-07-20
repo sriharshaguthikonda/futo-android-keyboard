@@ -65,6 +65,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.State
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.CenterVertically
@@ -79,7 +80,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
@@ -502,13 +505,23 @@ private fun isMicDictating(action: Action): Boolean =
             && LocalManager.current.isHeadlessVoiceListening()
 
 /**
- * 0→1→0 pulse fraction while dictating. The infinite transition only exists while [active];
- * idle returns a constant 0 (zero cost, identical rendering).
+ * Animated fractions while dictating, as [State] so draw-phase lambdas can read `.value`
+ * inside `drawBehind`/`graphicsLayer` blocks — draw-phase snapshot reads invalidate the draw
+ * pass every animation frame even when the IME ComposeView never recomposes. Unwrapping to a
+ * plain Float at composition (the old code) froze the visual on the first frame.
+ *
+ * [pulse] 0→1→0 every 500ms (fill alpha/size + icon scale); [ring] 0→1 restarting every 900ms
+ * (expanding radar ring). The infinite transition only exists while [active]; idle returns
+ * constant 0 states (zero cost, identical rendering).
  */
 @Composable
-private fun micPulseFraction(active: Boolean): Float = if (!active) 0f else {
+private fun micDictationAnim(active: Boolean): Pair<State<Float>, State<Float>> {
+    if (!active) {
+        val zero = remember { mutableFloatStateOf(0f) }
+        return Pair(zero, zero)
+    }
     val transition = rememberInfiniteTransition(label = "micPulse")
-    val fraction by transition.animateFloat(
+    val pulse = transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -517,15 +530,35 @@ private fun micPulseFraction(active: Boolean): Float = if (!active) 0f else {
         ),
         label = "micPulseFraction"
     )
-    fraction
+    val ring = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "micRingFraction"
+    )
+    return Pair(pulse, ring)
 }
 
-/** Scale-pulse for the mic icon while dictating; identity when [pulse] is 0. */
-private fun Modifier.micPulse(pulse: Float): Modifier = if (pulse == 0f) this else {
-    graphicsLayer {
-        scaleX = 1f + 0.25f * pulse
-        scaleY = 1f + 0.25f * pulse
+/** Scale-pulse for the mic icon while dictating; identity when idle. */
+private fun Modifier.micPulse(active: Boolean, pulse: State<Float>): Modifier =
+    if (!active) this else graphicsLayer {
+        // Read inside the graphicsLayer block: re-applies per frame without recomposition.
+        val p = pulse.value
+        scaleX = 1f + 0.25f * p
+        scaleY = 1f + 0.25f * p
     }
+
+/** Expanding radar ring: radius grows base→1.7x, alpha fades 1→0, restarting. */
+private fun DrawScope.drawMicRing(color: Color, baseRadius: Float, ringFraction: Float) {
+    if (ringFraction <= 0f || ringFraction >= 1f) return
+    drawCircle(
+        color = color.copy(alpha = 1f - ringFraction),
+        radius = baseRadius * (1f + 0.7f * ringFraction),
+        style = Stroke(width = 2.dp.toPx())
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -538,7 +571,7 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
         else -> false
     }
     val isDictating = isMicDictating(action)
-    val pulse = micPulseFraction(isDictating)
+    val (pulse, ring) = micDictationAnim(isDictating)
 
     val modifier = Modifier
         .width(width)
@@ -562,13 +595,17 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
         .clip(CircleShape)
         .then(
             if (isDictating) {
-                // Unmissable recording indicator: filled primary circle pulsing in size + alpha.
+                // Unmissable recording indicator: filled primary circle pulsing in size + alpha,
+                // plus an expanding radar ring. State reads happen INSIDE the draw lambda so the
+                // draw pass invalidates per frame even without recomposition.
                 Modifier.drawBehind {
+                    val p = pulse.value
                     drawCircle(
-                        color = borderColor.copy(alpha = 0.55f + 0.45f * pulse),
-                        radius = dictatingRadius * (1f + 0.2f * pulse),
+                        color = borderColor.copy(alpha = 0.55f + 0.45f * p),
+                        radius = dictatingRadius * (1f + 0.2f * p),
                         style = Fill
                     )
+                    drawMicRing(borderColor, dictatingRadius, ring.value)
                 }
             } else if (isActive) {
                 Modifier.border(borderWidth, borderColor, CircleShape)
@@ -583,7 +620,7 @@ fun LazyItemScope.ActionItem(idx: Int, action: Action, onSelect: (Action) -> Uni
             painter = painterResource(id = action.icon),
             contentDescription = stringResource(action.name),
             tint = contentCol,
-            modifier = Modifier.size(20.dp).micPulse(pulse),
+            modifier = Modifier.size(20.dp).micPulse(isDictating, pulse),
         )
     }
 }
@@ -597,12 +634,9 @@ fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (A
         else -> false
     }
     val isDictating = isMicDictating(action)
-    val pulse = micPulseFraction(isDictating)
+    val (pulse, ring) = micDictationAnim(isDictating)
 
-    val bgCol = if (isDictating) {
-        // Unmissable recording indicator: the key's circle becomes a pulsing primary fill.
-        scheme.primary.copy(alpha = 0.55f + 0.45f * pulse)
-    } else if (isActive) {
+    val bgCol = if (isActive) {
         scheme.keyboardContainerPressed
     } else {
         scheme.keyboardContainer
@@ -625,17 +659,29 @@ fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (A
         .width(42.dp)
         .fillMaxHeight()
         .drawBehind {
-            drawCircle(
-                color = bgCol,
-                radius = if (isDictating) circleRadius * (1f + 0.25f * pulse) else circleRadius,
-                style = Fill
-            )
-            if (isActive) {
+            if (isDictating) {
+                // Unmissable recording indicator: pulsing primary fill + expanding radar ring.
+                // State reads INSIDE the draw lambda redraw per frame without recomposition.
+                val p = pulse.value
                 drawCircle(
-                    color = borderColor,
-                    radius = circleRadius,
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = borderWidth.toPx())
+                    color = borderColor.copy(alpha = 0.55f + 0.45f * p),
+                    radius = circleRadius * (1f + 0.25f * p),
+                    style = Fill
                 )
+                drawMicRing(borderColor, circleRadius, ring.value)
+            } else {
+                drawCircle(
+                    color = bgCol,
+                    radius = circleRadius,
+                    style = Fill
+                )
+                if (isActive) {
+                    drawCircle(
+                        color = borderColor,
+                        radius = circleRadius,
+                        style = Stroke(width = borderWidth.toPx())
+                    )
+                }
             }
         }
         .clip(CircleShape)
@@ -650,7 +696,7 @@ fun ActionItemSmall(action: Action, onSelect: (Action) -> Unit, onLongSelect: (A
             painter = painterResource(id = action.icon),
             contentDescription = stringResource(action.name),
             tint = fgCol,
-            modifier = Modifier.size(16.dp).micPulse(pulse)
+            modifier = Modifier.size(16.dp).micPulse(isDictating, pulse)
         )
     }
 }

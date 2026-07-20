@@ -90,14 +90,21 @@ val GROQ_VOICE_MODEL = SettingsKey(
     default = "whisper-large-v3"
 )
 
+/** Shared default transcription prompt; applies only while the user has never set a value. */
+const val DEFAULT_VOICE_SYSTEM_PROMPT =
+    "Transcribe accurately with proper punctuation, capitalization, and grammar. " +
+    "Write numbers as contiguous digits with no spaces or punctuation between them " +
+    "(e.g. 9876543210); keep phone numbers, codes, and IDs as one unbroken sequence. " +
+    "Format dates like 12/03/2026 and times like 10:30."
+
 val GROQ_VOICE_SYSTEM_PROMPT = SettingsKey(
     key = stringPreferencesKey("groq_voice_system_prompt"),
-    default = ""
+    default = DEFAULT_VOICE_SYSTEM_PROMPT
 )
 
 val LOCAL_VOICE_SYSTEM_PROMPT = SettingsKey(
     key = stringPreferencesKey("local_voice_system_prompt"),
-    default = ""
+    default = DEFAULT_VOICE_SYSTEM_PROMPT
 )
 
 val USE_GPU_OFFLOAD = SettingsKey(
