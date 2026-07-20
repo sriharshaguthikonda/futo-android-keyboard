@@ -23,9 +23,11 @@ import org.futo.inputmethod.latin.uix.USE_PERSONAL_DICT
 import org.futo.inputmethod.latin.uix.USE_VAD_AUTOSTOP
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_CHANNEL_MODE
 import org.futo.inputmethod.latin.uix.VOICE_INPUT_PREBUFFER_SECONDS
+import org.futo.inputmethod.latin.common.Constants
 import org.futo.inputmethod.latin.uix.actions.VoiceInputPersistentState
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.utils.ModelOutputSanitizer
+import org.futo.inputmethod.latin.uix.utils.TextContext
 import org.futo.voiceinput.shared.LocalTranscriptionBackend
 import org.futo.voiceinput.shared.ModelDoesNotExistException
 import org.futo.voiceinput.shared.RecognizerView
@@ -199,16 +201,13 @@ class HeadlessVoiceSession(
     }
 
     override fun partialResult(result: String) {
-        onMain {
-            val sanitized = ModelOutputSanitizer.sanitize(result, null, manager.isCapsLocked())
-            coordinator.submit(EditIntent.VoiceSnapshot(sanitized), generation)
-        }
+        // RAW hypothesis: the coordinator diffs raw token space; the sink transforms on write.
+        onMain { coordinator.submit(EditIntent.VoiceSnapshot(result), generation) }
     }
 
     override fun finished(result: String) {
         onMain {
-            val sanitized = ModelOutputSanitizer.sanitize(result, null, manager.isCapsLocked())
-            coordinator.submit(EditIntent.VoiceFinal(sanitized), generation)
+            coordinator.submit(EditIntent.VoiceFinal(result), generation)
             listeningState.value = false
         }
     }
@@ -306,8 +305,11 @@ class HeadlessVoiceSession(
 }
 
 /**
- * [EditSink] that writes the replaceable voice tail into the focused field through the IME's
- * current InputConnection, on the IME (main) thread.
+ * [EditSink] that writes voice text into the focused field through the IME's current
+ * InputConnection, on the IME (main) thread. Owns ALL text transformation: the coordinator hands
+ * over RAW segments; this sink sanitizes them against the field context at the cursor
+ * (capitalization, boundary single-space, trailing punctuation) and tracks the WRITTEN length of
+ * the revisable tail so it can be deleted and rewritten on the next update.
  *
  * ponytail: the tail is kept at the cursor via a relative deleteSurroundingText + commitText rather
  * than absolute setSelection(tailStart,tailEnd). Functionally identical for the single-writer
@@ -317,32 +319,70 @@ class HeadlessVoiceSession(
  */
 private class VoiceTailSink(
     private val manager: KeyboardManagerForAction,
-    /** Notified with the net cursor delta of every applied tail write (for selection matching). */
+    /** Notified with the net cursor delta of every applied write (for selection matching). */
     private val onEditApplied: (delta: Int) -> Unit
 ) : EditSink {
-    // Length of the current replaceable tail that sits immediately before the cursor.
-    private var tailLen = 0
+    // WRITTEN (post-transform) length of the current revisable tail just before the cursor.
+    private var writtenTailLen = 0
+
+    // Field context cached at fresh-tail start (reading it mid-tail would see our own tail text).
+    // beforeContext grows with every frozen append; the tail itself is never folded in.
+    private var beforeContext = ""
+    private var afterContext = ""
 
     private val ic get() = manager.getLatinIMEForDebug().currentInputConnection
 
-    override fun replaceVoiceTail(text: String) {
+    override fun updateVoiceText(frozenAppend: String, tail: String) {
         val connection = ic ?: return
-        val delta = text.length - tailLen
+        val oldTailLen = writtenTailLen
         connection.beginBatchEdit()
-        if (tailLen > 0) connection.deleteSurroundingText(tailLen, 0)
-        if (text.isNotEmpty()) connection.commitText(text, 1)
-        tailLen = text.length
+        if (oldTailLen > 0) connection.deleteSurroundingText(oldTailLen, 0)
+        if (oldTailLen == 0) {
+            // Starting a fresh tail: the cursor sits on real field content — refresh context.
+            beforeContext = connection
+                .getTextBeforeCursor(Constants.VOICE_INPUT_CONTEXT_SIZE, 0)?.toString() ?: ""
+            afterContext = connection
+                .getTextAfterCursor(Constants.VOICE_INPUT_CONTEXT_SIZE, 0)?.toString() ?: ""
+        }
+
+        var written = 0
+        if (frozenAppend.isNotEmpty()) {
+            val text = transform(frozenAppend)
+            if (text.isNotEmpty()) {
+                connection.commitText(text, 1)
+                beforeContext += text // permanent: becomes context for everything after it
+                written += text.length
+            }
+        }
+        var newTailLen = 0
+        if (tail.isNotEmpty()) {
+            val text = transform(tail)
+            if (text.isNotEmpty()) {
+                connection.commitText(text, 1)
+                newTailLen = text.length
+                written += text.length
+            }
+        }
+        writtenTailLen = newTailLen
         connection.endBatchEdit()
+
+        val delta = written - oldTailLen
         if (delta != 0) onEditApplied(delta)
     }
 
-    override fun freezeVoiceTailPrefix(length: Int) {
-        // The newly-stable prefix stays committed; it just leaves the deletable tail region.
-        tailLen = (tailLen - length).coerceAtLeast(0)
+    override fun freezeVoiceTail() {
+        // Drop tracking; the next update starts a fresh tail at the cursor (context re-read then).
+        writtenTailLen = 0
     }
 
-    override fun freezeVoiceTail() {
-        // Drop tracking; the next replace starts a fresh tail at the cursor.
-        tailLen = 0
-    }
+    /**
+     * Sanitize a RAW segment against the cached field context: sentence caps/lowercase, boundary
+     * single space when the preceding char is non-whitespace (the sanitizer trims the segment
+     * first, so no double space can form at the join), punctuation fixes near the after-context.
+     */
+    private fun transform(segment: String): String = ModelOutputSanitizer.sanitize(
+        segment,
+        TextContext(beforeCursor = beforeContext, afterCursor = afterContext),
+        manager.isCapsLocked()
+    )
 }
